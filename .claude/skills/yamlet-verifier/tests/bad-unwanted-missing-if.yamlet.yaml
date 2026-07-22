@@ -1,0 +1,15 @@
+# pattern: unwanted missing its required 'if'
+system: payment-service
+topic: Payment Service
+summary: A service for processing payments
+description: A service.
+blast_radius: high
+front: internal
+requirements:
+- id: RQ-1
+  description: Handle payment failures
+  acceptance-criteria:
+  - id: AC-1
+    pattern: unwanted
+    shall:
+    - mark the transaction as failed

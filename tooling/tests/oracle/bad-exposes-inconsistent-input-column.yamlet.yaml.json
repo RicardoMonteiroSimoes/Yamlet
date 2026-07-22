@@ -1,0 +1,4 @@
+{"file":"bad-exposes-inconsistent-input-column.yamlet.yaml","valid":false,"errors":[
+  {"rule":"E402","severity":"error","line":25,"path":"requirements[0].acceptance-criteria[1].examples[0]","message":"AC-2: example row 0 missing binding for {input.channel}"}
+],"warnings":[
+],"summary":{"requirements":1,"acceptanceCriteria":2}}

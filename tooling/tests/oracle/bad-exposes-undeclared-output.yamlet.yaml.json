@@ -1,0 +1,5 @@
+{"file":"bad-exposes-undeclared-output.yamlet.yaml","valid":false,"errors":[
+  {"rule":"E511","severity":"error","line":14,"path":"exposes.outputs","message":"declared exposes output pdf_file is never referenced as {output.pdf_file}"},
+  {"rule":"E510","severity":"error","line":24,"path":"requirements[0].acceptance-criteria[0].shall[0]","message":"reference {output.other} does not resolve to a declared exposes output"}
+],"warnings":[
+],"summary":{"requirements":1,"acceptanceCriteria":1}}

@@ -1,0 +1,14 @@
+# Missing: blast_radius, front, summary
+system: e-mail-sending-service
+topic: E-Mail sending service
+description: >-
+  A service that sends emails.
+requirements:
+- id: RQ-1
+  description: The service connects to SMTP
+  acceptance-criteria:
+  - id: AC-1
+    pattern: event
+    when: a login is attempted
+    shall:
+    - authenticate to SMTP

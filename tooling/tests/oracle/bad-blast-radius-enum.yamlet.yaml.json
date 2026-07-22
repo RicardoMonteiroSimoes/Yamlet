@@ -1,0 +1,4 @@
+{"file":"bad-blast-radius-enum.yamlet.yaml","valid":false,"errors":[
+  {"rule":"E103","severity":"error","line":6,"path":"blast_radius","message":"blast_radius must be low|medium|high, got: critical"}
+],"warnings":[
+],"summary":{"requirements":1,"acceptanceCriteria":1}}

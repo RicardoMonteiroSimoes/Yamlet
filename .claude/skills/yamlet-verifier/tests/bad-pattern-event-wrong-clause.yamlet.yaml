@@ -1,0 +1,18 @@
+# pattern: event but has 'if' instead of 'when'
+# Expected errors: 'if' not allowed for event, 'when' missing for event
+system: e-mail-sending-service
+topic: E-Mail sending service
+summary: A generic e-mail sending service
+description: >-
+  A service that sends emails.
+blast_radius: high
+front: internal
+requirements:
+- id: RQ-1
+  description: The service connects to SMTP
+  acceptance-criteria:
+  - id: AC-1
+    pattern: event
+    if: an error occurs
+    shall:
+    - handle the error

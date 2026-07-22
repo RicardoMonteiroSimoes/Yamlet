@@ -1,0 +1,36 @@
+{
+  "name": "@yamlet/cli",
+  "version": "0.0.0",
+  "exports": "./main.ts",
+  "tasks": {
+    "run": "deno run --allow-read --allow-write main.ts",
+    "test": "deno test --allow-read --allow-write",
+    "check": "deno check main.ts",
+    "compile": "deno compile --allow-read --allow-write --include src/viewer/template.html --include src/viewer/viewer.css --include src/viewer/viewer.js --include src/viewer/vendor/elk.bundled.js --output dist/yamlet main.ts"
+  },
+  "exclude": [
+    "dist/",
+    "tests/oracle/",
+    "tests/oracle-author/",
+    "src/viewer/vendor/"
+  ],
+  "fmt": {
+    "useTabs": false,
+    "lineWidth": 100,
+    "indentWidth": 2,
+    "semiColons": true,
+    "singleQuote": false
+  },
+  "lint": {
+    "exclude": [
+      "src/viewer/viewer.js"
+    ],
+    "rules": {
+      "tags": ["recommended"]
+    }
+  },
+  "compilerOptions": {
+    "strict": true,
+    "noUncheckedIndexedAccess": true
+  }
+}

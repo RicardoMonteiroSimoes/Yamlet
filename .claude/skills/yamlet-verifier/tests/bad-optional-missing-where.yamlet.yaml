@@ -1,0 +1,15 @@
+# pattern: optional missing its required 'where'
+system: analytics-service
+topic: Analytics Service
+summary: An analytics service
+description: A service.
+blast_radius: low
+front: external
+requirements:
+- id: RQ-1
+  description: Premium features
+  acceptance-criteria:
+  - id: AC-1
+    pattern: optional
+    shall:
+    - expose premium analytics

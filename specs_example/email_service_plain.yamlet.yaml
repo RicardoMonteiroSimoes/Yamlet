@@ -1,0 +1,47 @@
+system: e-mail-sending-service
+topic: Attachment-free (plain) e-mail sending
+summary: A scope of the e-mail sending service that sends a plain e-mail — subject and content only, no attachment.
+description: >-
+  The same generic e-mail sending capability as the attachment-carrying scope, restricted to the attachment-free case: it sends a plain e-mail with a subject and body to a recipient over TLS SMTP. It is a separate, total scope rather than an optional attachment on the other one, because a contract input is never optional in yamlet — variance is modelled as a separate variant file.
+blast_radius: high
+front: internal
+exposes:
+  name: e-mail-sending-service-plain
+  intent: send a plain e-mail with a subject and content to a recipient over TLS SMTP
+  inputs:
+  - recipient
+  - subject
+  - content
+
+requirements:
+- id: RQ-1
+  description: >-
+    The service reliably connects to a single SMTP service
+  acceptance-criteria:
+  - id: AC-1
+    pattern: event
+    when: a login is attempted using valid TLS SMTP credentials
+    shall:
+    - authenticate to the SMTP server over TLS
+  - id: AC-2
+    pattern: complex
+    while:
+    - the service is authenticated at the SMTP server
+    - an e-mail send is in progress
+    if: an SMTP timeout occurs
+    shall:
+    - re-authenticate to the SMTP server
+    - resend the previously failed e-mail
+    - ensure no e-mail is dropped in the process
+- id: RQ-2
+  description: >-
+    The service sends a well-formed attachment-free email on request
+  acceptance-criteria:
+  - id: AC-3
+    pattern: event
+    when: a send is requested for {input.recipient}
+    shall:
+    - compose an email addressed to {input.recipient}
+    - set the email subject to {input.subject}
+    - set the email body to {input.content}
+    - hand the email to the SMTP server for delivery

@@ -1,0 +1,68 @@
+system: email-service
+topic: Email service
+summary: Sends email
+description: >-
+  A service that sends email.
+blast_radius: high
+front: internal
+
+requirements:
+- id: RQ-1
+  description: >-
+    Connects to SMTP
+  acceptance-criteria:
+  - id: AC-1
+    pattern: event
+    when: a login is attempted with valid credentials
+    shall:
+    - authenticate over TLS
+  - id: AC-2
+    pattern: ubiquitous
+    shall:
+    - log the actor identity
+  - id: AC-3
+    pattern: state
+    while:
+    - the connection is established
+    shall:
+    - send a keepalive every 30s
+  - id: AC-4
+    pattern: optional
+    where: the account is premium
+    shall:
+    - expose funnel analytics
+  - id: AC-5
+    pattern: unwanted
+    if: the gateway returns a non-retriable error
+    shall:
+    - mark the transaction failed
+  - id: AC-6
+    pattern: complex
+    while:
+    - "{n} retries have been attempted"
+    if: an SMTP timeout occurs
+    shall:
+    - schedule a retry after {delay_seconds} seconds
+    examples:
+    - n: 0
+      delay_seconds: 10
+    - n: 1
+      delay_seconds: 30
+- id: RQ-2
+  description: >-
+    Handles bounces
+  acceptance-criteria:
+  - id: AC-7
+    pattern: ubiquitous
+    shall:
+    - record every bounce event
+  - id: AC-8
+    pattern: event
+    when: the field is present
+    shall:
+    - log the "reason" field
+  - id: AC-9
+    pattern: event
+    when: the field is present
+    shall:
+    - ""reason" must be recorded"

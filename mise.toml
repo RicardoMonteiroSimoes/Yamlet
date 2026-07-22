@@ -1,0 +1,8 @@
+[tools]
+deno = "2.9.2"
+
+# Put the repo's from-source `yamlet` launcher on PATH *only within this project*.
+# Outside the repo, a normally-installed `yamlet` (e.g. the Homebrew tap) resolves
+# instead. mise applies this when the project's env is active.
+[env]
+_.path = ["tooling/bin"]

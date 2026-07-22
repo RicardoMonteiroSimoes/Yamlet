@@ -1,0 +1,23 @@
+system: bad-source
+topic: Bad connection source
+summary: A connection source that is a member input rather than an output.
+description: >-
+  The source up.file names an input of up; only a component output or a composite input can be a source.
+blast_radius: low
+front: internal
+
+exposes:
+  name: bad-source
+  intent: re-validate a document
+  inputs:
+  - raw
+
+components:
+- up: valid-exposes-outputs.yamlet.yaml
+- dst: valid-exposes-outputs.yamlet.yaml
+
+connections:
+  up:
+    file: input.raw
+  dst:
+    file: up.file

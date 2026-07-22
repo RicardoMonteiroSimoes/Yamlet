@@ -1,0 +1,4 @@
+{"file":"bad-exposes-unused-input.yamlet.yaml","valid":false,"errors":[
+  {"rule":"E506","severity":"error","line":14,"path":"exposes.inputs","message":"declared exposes input never_used is never referenced as {input.never_used}"}
+],"warnings":[
+],"summary":{"requirements":1,"acceptanceCriteria":1}}

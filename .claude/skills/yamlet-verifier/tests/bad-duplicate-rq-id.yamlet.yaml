@@ -1,0 +1,22 @@
+system: e-mail-sending-service
+topic: E-Mail sending service
+summary: A generic e-mail sending service
+description: >-
+  A service that sends emails.
+blast_radius: low
+front: internal
+requirements:
+- id: RQ-1
+  description: First requirement
+  acceptance-criteria:
+  - id: AC-1
+    pattern: ubiquitous
+    shall:
+    - do something
+- id: RQ-1
+  description: Duplicate requirement id
+  acceptance-criteria:
+  - id: AC-2
+    pattern: ubiquitous
+    shall:
+    - do something else

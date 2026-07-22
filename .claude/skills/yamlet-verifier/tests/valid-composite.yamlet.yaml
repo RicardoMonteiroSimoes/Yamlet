@@ -1,0 +1,37 @@
+system: pdf-reprocessor
+topic: PDF reprocessor
+summary: Re-validates a returned PDF by feeding it back through a second upload surface.
+description: >-
+  A composite that chains two upload surfaces: a source validates an incoming file, its returned PDF is fed into a second surface for re-validation, and that result is exposed as the composite output.
+blast_radius: low
+front: internal
+
+exposes:
+  name: pdf-reprocessor
+  intent: re-validate a returned PDF and expose the re-validated result
+  inputs:
+  - raw
+  outputs:
+  - result
+
+components:
+- src: valid-exposes-outputs.yamlet.yaml
+- dst: valid-exposes-outputs.yamlet.yaml
+
+connections:
+  src:
+    file: input.raw
+  dst:
+    file: src.pdf_file
+  output:
+    result: dst.pdf_file
+
+requirements:
+- id: RQ-1
+  description: A returned PDF is re-validated end to end
+  acceptance-criteria:
+  - id: AC-1
+    pattern: event
+    when: "{src.pdf_file} is returned"
+    shall:
+    - ensure {dst.pdf_file} is produced

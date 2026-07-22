@@ -1,0 +1,10 @@
+# macOS filesystem cruft
+.DS_Store
+
+# Compiled single-file binaries (produced by `deno task compile`).
+# The source in tooling/ is the truth; the ~70 MB binary is a build artifact.
+dist/
+
+# Per-machine Claude Code permissions. A shared .claude/settings.json (if any)
+# and the .claude/skills/ conventions are tracked; the local overrides are not.
+.claude/settings.local.json

@@ -1,0 +1,4 @@
+{"file":"bad-composite-missing-path.yamlet.yaml","valid":false,"errors":[
+  {"rule":"E603","severity":"error","line":18,"path":"components[0].up","message":"component path does not resolve to an existing file: does-not-exist.yamlet.yaml"}
+],"warnings":[
+],"summary":{"requirements":0,"acceptanceCriteria":0}}

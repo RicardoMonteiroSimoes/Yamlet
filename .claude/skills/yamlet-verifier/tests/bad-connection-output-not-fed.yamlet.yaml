@@ -1,0 +1,22 @@
+system: dead-output
+topic: Composite with an unfed output
+summary: A composite output that no connection feeds.
+description: >-
+  The composite declares an output result but no connection under the output group feeds it.
+blast_radius: low
+front: internal
+
+exposes:
+  name: dead-output
+  intent: expose a validated file
+  inputs:
+  - raw
+  outputs:
+  - result
+
+components:
+- up: valid-exposes-outputs.yamlet.yaml
+
+connections:
+  up:
+    file: input.raw

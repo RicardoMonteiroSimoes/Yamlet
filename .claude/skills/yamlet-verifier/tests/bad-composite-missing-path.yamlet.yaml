@@ -1,0 +1,25 @@
+system: pdf-notifier
+topic: PDF notifier
+summary: A member path that does not resolve to an existing file.
+description: >-
+  The up member points at a file that does not exist, so its socket table cannot be built. The notify member is fully wired, so only the missing path is at fault.
+blast_radius: low
+front: internal
+
+exposes:
+  name: pdf-notifier
+  intent: notify a user when a document is ready
+  inputs:
+  - user_id
+  - channel
+  - message
+
+components:
+- up: does-not-exist.yamlet.yaml
+- notify: valid-exposes.yamlet.yaml
+
+connections:
+  notify:
+    user_id: input.user_id
+    channel: input.channel
+    message: input.message

@@ -1,0 +1,4 @@
+{"file":"bad-dotted-token-in-leaf.yamlet.yaml","valid":false,"errors":[
+  {"rule":"E403","severity":"error","line":16,"path":"requirements[0].acceptance-criteria[0].shall[0]","message":"placeholder name {foo.bar} must match ^[a-z][a-z0-9_]*$"}
+],"warnings":[
+],"summary":{"requirements":1,"acceptanceCriteria":1}}

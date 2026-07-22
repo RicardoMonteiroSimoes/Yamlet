@@ -1,0 +1,21 @@
+system: pdf-notifier
+topic: PDF notifier
+summary: The same alias is declared twice in the components list.
+description: >-
+  Two members share the alias up, which makes the socket table for up ambiguous.
+blast_radius: low
+front: internal
+
+exposes:
+  name: pdf-notifier
+  intent: expose a re-validated document
+  inputs:
+  - raw
+
+components:
+- up: valid-exposes-outputs.yamlet.yaml
+- up: valid-exposes.yamlet.yaml
+
+connections:
+  up:
+    file: input.raw

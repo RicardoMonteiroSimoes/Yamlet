@@ -1,0 +1,4 @@
+{"file":"bad-exposes-missing-intent.yamlet.yaml","valid":false,"errors":[
+  {"rule":"E502","severity":"error","line":0,"path":"exposes","message":"exposes.intent is missing"}
+],"warnings":[
+],"summary":{"requirements":1,"acceptanceCriteria":1}}

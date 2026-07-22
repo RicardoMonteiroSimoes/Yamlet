@@ -1,0 +1,5 @@
+{"file":"bad-pattern-event-wrong-clause.yamlet.yaml","valid":false,"errors":[
+  {"rule":"E301","severity":"error","line":14,"path":"requirements[0].acceptance-criteria[0]","message":"AC-1: pattern=event requires clause: when"},
+  {"rule":"E302","severity":"error","line":16,"path":"requirements[0].acceptance-criteria[0].if","message":"AC-1: pattern=event does not allow clause: if"}
+],"warnings":[
+],"summary":{"requirements":1,"acceptanceCriteria":1}}

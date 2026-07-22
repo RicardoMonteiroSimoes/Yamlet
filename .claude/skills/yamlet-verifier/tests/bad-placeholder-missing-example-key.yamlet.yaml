@@ -1,0 +1,22 @@
+# {delay_seconds} in shall but example row is missing that key
+system: e-mail-sending-service
+topic: E-Mail sending service
+summary: A generic e-mail sending service
+description: >-
+  A service that sends emails.
+blast_radius: high
+front: internal
+requirements:
+- id: RQ-1
+  description: The service reliably connects to SMTP
+  acceptance-criteria:
+  - id: AC-1
+    pattern: complex
+    while:
+    - "{n} retries have already been attempted"
+    if: an SMTP timeout occurs
+    shall:
+    - a retry is scheduled with {delay_seconds} seconds backoff delay
+    examples:
+    - n: 0
+    - n: 1

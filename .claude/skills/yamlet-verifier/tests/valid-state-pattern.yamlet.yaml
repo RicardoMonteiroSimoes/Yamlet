@@ -1,0 +1,18 @@
+system: connection-service
+topic: Connection Service
+summary: A service managing persistent connections
+description: >-
+  Manages long-lived connections to external services.
+blast_radius: medium
+front: internal
+requirements:
+- id: RQ-1
+  description: The service maintains connection health
+  acceptance-criteria:
+  - id: AC-1
+    pattern: state
+    while:
+    - the connection is established
+    shall:
+    - send a keepalive ping every 30 seconds
+    - log any missed keepalive responses

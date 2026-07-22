@@ -1,0 +1,17 @@
+system: payment-service
+topic: Payment Service
+summary: A service for processing payments
+description: >-
+  Handles payment processing with error resilience.
+blast_radius: high
+front: internal
+requirements:
+- id: RQ-1
+  description: The service handles payment failures gracefully
+  acceptance-criteria:
+  - id: AC-1
+    pattern: unwanted
+    if: the payment gateway returns a non-retriable error
+    shall:
+    - mark the transaction as permanently failed
+    - notify the user immediately

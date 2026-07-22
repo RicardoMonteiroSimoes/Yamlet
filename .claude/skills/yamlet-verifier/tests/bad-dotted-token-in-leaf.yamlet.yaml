@@ -1,0 +1,16 @@
+system: leaf-thing
+topic: Leaf thing
+summary: A leaf (no components) using a dotted token that is not an input or output reference.
+description: >-
+  A dotted {foo.bar} token in a leaf is not a member reference (there are no members) and not a valid placeholder name, so it must be rejected as E403.
+blast_radius: low
+front: internal
+
+requirements:
+- id: RQ-1
+  description: Something happens
+  acceptance-criteria:
+  - id: AC-1
+    pattern: ubiquitous
+    shall:
+    - emit {foo.bar} somewhere

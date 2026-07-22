@@ -1,0 +1,38 @@
+system: pdf-notifier
+topic: PDF notifier
+summary: A criterion references a socket that the member does not expose.
+description: >-
+  The criterion mentions {notify.nonexistent}, which is not a declared input or output of the notification service.
+blast_radius: low
+front: internal
+
+exposes:
+  name: pdf-notifier
+  intent: notify a user when a validated PDF is returned
+  inputs:
+  - raw
+  - user_id
+  - channel
+  - message
+
+components:
+- up: valid-exposes-outputs.yamlet.yaml
+- notify: valid-exposes.yamlet.yaml
+
+connections:
+  up:
+    file: input.raw
+  notify:
+    user_id: input.user_id
+    channel: input.channel
+    message: input.message
+
+requirements:
+- id: RQ-1
+  description: A returned PDF triggers a notification
+  acceptance-criteria:
+  - id: AC-1
+    pattern: event
+    when: "{up.pdf_file} is returned"
+    shall:
+    - deliver {notify.nonexistent} announcing the new PDF

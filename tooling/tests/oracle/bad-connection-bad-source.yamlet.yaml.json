@@ -1,0 +1,4 @@
+{"file":"bad-connection-bad-source.yamlet.yaml","valid":false,"errors":[
+  {"rule":"E608","severity":"error","line":23,"path":"connections.dst.file","message":"connection source up.file is not a declared output of up (only outputs can be sources)"}
+],"warnings":[
+],"summary":{"requirements":0,"acceptanceCriteria":0}}

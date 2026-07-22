@@ -1,0 +1,4 @@
+{"file":"bad-connection-unknown-group.yamlet.yaml","valid":false,"errors":[
+  {"rule":"E606","severity":"error","line":22,"path":"connections.ghost.x","message":"connection group 'ghost' is not a component alias or 'output'"}
+],"warnings":[
+],"summary":{"requirements":0,"acceptanceCriteria":0}}

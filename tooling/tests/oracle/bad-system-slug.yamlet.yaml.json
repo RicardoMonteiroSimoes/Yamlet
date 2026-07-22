@@ -1,0 +1,4 @@
+{"file":"bad-system-slug.yamlet.yaml","valid":false,"errors":[
+  {"rule":"E105","severity":"error","line":1,"path":"system","message":"system must match ^[a-z0-9]+(-[a-z0-9]+)*$, got: Bad_Slug_With_Underscores"}
+],"warnings":[
+],"summary":{"requirements":1,"acceptanceCriteria":1}}

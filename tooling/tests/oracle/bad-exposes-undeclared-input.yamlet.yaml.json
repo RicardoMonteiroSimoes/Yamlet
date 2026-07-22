@@ -1,0 +1,4 @@
+{"file":"bad-exposes-undeclared-input.yamlet.yaml","valid":false,"errors":[
+  {"rule":"E505","severity":"error","line":23,"path":"requirements[0].acceptance-criteria[0].shall[0]","message":"reference {input.message} does not resolve to a declared exposes input"}
+],"warnings":[
+],"summary":{"requirements":1,"acceptanceCriteria":1}}

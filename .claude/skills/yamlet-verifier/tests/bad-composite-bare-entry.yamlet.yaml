@@ -1,0 +1,19 @@
+system: pdf-notifier
+topic: PDF notifier
+summary: A components entry without an alias (a bare scalar item).
+description: >-
+  The first components entry is a bare path with no alias, so it cannot be referenced as a member.
+blast_radius: low
+front: internal
+
+components:
+- valid-exposes.yamlet.yaml
+
+requirements:
+- id: RQ-1
+  description: A notification is delivered
+  acceptance-criteria:
+  - id: AC-1
+    pattern: ubiquitous
+    shall:
+    - deliver a notification

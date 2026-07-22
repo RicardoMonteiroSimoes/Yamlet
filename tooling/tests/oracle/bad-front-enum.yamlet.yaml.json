@@ -1,0 +1,4 @@
+{"file":"bad-front-enum.yamlet.yaml","valid":false,"errors":[
+  {"rule":"E104","severity":"error","line":6,"path":"front","message":"front must be internal|external, got: public"}
+],"warnings":[
+],"summary":{"requirements":1,"acceptanceCriteria":1}}

@@ -1,0 +1,4 @@
+{"file":"bad-duplicate-rq-id.yamlet.yaml","valid":false,"errors":[
+  {"rule":"E202","severity":"error","line":16,"path":"requirements[1]","message":"duplicate requirement id: RQ-1"}
+],"warnings":[
+],"summary":{"requirements":2,"acceptanceCriteria":2}}

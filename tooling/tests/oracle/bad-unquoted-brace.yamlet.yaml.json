@@ -1,0 +1,3 @@
+{"file":"bad-unquoted-brace.yamlet.yaml","valid":false,"errors":[
+  {"rule":"E004","severity":"error","line":16,"path":"","message":"flow collection not allowed as value (starts with {)"}
+],"warnings":[],"summary":{"requirements":0,"acceptanceCriteria":0}}

@@ -1,0 +1,4 @@
+{"file":"bad-exposes-unused-output.yamlet.yaml","valid":false,"errors":[
+  {"rule":"E511","severity":"error","line":15,"path":"exposes.outputs","message":"declared exposes output thumbnail is never referenced as {output.thumbnail}"}
+],"warnings":[
+],"summary":{"requirements":1,"acceptanceCriteria":1}}

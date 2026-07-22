@@ -1,0 +1,1 @@
+{"file":"bad-wrong-extension.yaml","valid":false,"errors":[{"rule":"E001","severity":"error","line":0,"path":"bad-wrong-extension.yaml","message":"file must use the .yamlet.yaml extension, got: bad-wrong-extension.yaml"}],"warnings":[],"summary":{"requirements":0,"acceptanceCriteria":0}}

@@ -1,0 +1,4 @@
+{"file":"bad-composite-bare-entry.yamlet.yaml","valid":false,"errors":[
+  {"rule":"E601","severity":"error","line":10,"path":"components[0]","message":"component entry must be a single alias: path mapping (bare value: valid-exposes.yamlet.yaml)"}
+],"warnings":[
+],"summary":{"requirements":1,"acceptanceCriteria":1}}

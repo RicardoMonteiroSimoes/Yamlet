@@ -1,0 +1,4 @@
+{"file":"bad-composite-empty.yamlet.yaml","valid":false,"errors":[
+  {"rule":"E601","severity":"error","line":9,"path":"components","message":"components is present but lists no members"}
+],"warnings":[
+],"summary":{"requirements":1,"acceptanceCriteria":1}}

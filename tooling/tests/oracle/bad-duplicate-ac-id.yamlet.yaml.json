@@ -1,0 +1,4 @@
+{"file":"bad-duplicate-ac-id.yamlet.yaml","valid":false,"errors":[
+  {"rule":"E204","severity":"error","line":18,"path":"requirements[0].acceptance-criteria[1].id","message":"duplicate acceptance-criteria id: AC-1"}
+],"warnings":[
+],"summary":{"requirements":1,"acceptanceCriteria":2}}

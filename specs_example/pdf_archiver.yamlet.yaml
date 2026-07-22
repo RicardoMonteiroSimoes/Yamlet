@@ -1,0 +1,42 @@
+system: pdf-archiver
+topic: PDF e-mail archiver
+summary: E-mails a validated PDF out to a configured archive address once it is uploaded.
+description: >-
+  Wires the PDF upload surface to the e-mail service: when an uploaded PDF is validated and returned, it is e-mailed to a configured archive address.
+blast_radius: medium
+front: internal
+
+exposes:
+  name: pdf-archiver
+  intent: archive an uploaded PDF by e-mailing it to a configured archive address
+  inputs:
+  - file
+  - filename
+  - archive_address
+  - subject
+  - content
+
+components:
+- uploads: pdf_upload.yamlet.yaml
+- mailer: email_service.yamlet.yaml
+
+connections:
+  uploads:
+    file: input.file
+    filename: input.filename
+  mailer:
+    recipient: input.archive_address
+    subject: input.subject
+    content: input.content
+    attachment: uploads.pdf_file
+
+requirements:
+- id: RQ-1
+  description: >-
+    A validated PDF returned by the upload surface is reliably delivered to the configured archive address
+  acceptance-criteria:
+  - id: AC-1
+    pattern: event
+    when: "{uploads.pdf_file} is returned"
+    shall:
+    - ensure the archive e-mail is sent successfully

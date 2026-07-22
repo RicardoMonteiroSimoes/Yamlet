@@ -1,0 +1,4 @@
+{"file":"bad-state-missing-while.yamlet.yaml","valid":false,"errors":[
+  {"rule":"E301","severity":"error","line":12,"path":"requirements[0].acceptance-criteria[0]","message":"AC-1: pattern=state requires clause: while"}
+],"warnings":[
+],"summary":{"requirements":1,"acceptanceCriteria":1}}

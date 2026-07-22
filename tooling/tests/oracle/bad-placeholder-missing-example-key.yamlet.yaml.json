@@ -1,0 +1,5 @@
+{"file":"bad-placeholder-missing-example-key.yamlet.yaml","valid":false,"errors":[
+  {"rule":"E402","severity":"error","line":13,"path":"requirements[0].acceptance-criteria[0].examples[0]","message":"AC-1: example row 0 missing binding for {delay_seconds}"},
+  {"rule":"E402","severity":"error","line":13,"path":"requirements[0].acceptance-criteria[0].examples[1]","message":"AC-1: example row 1 missing binding for {delay_seconds}"}
+],"warnings":[
+],"summary":{"requirements":1,"acceptanceCriteria":1}}

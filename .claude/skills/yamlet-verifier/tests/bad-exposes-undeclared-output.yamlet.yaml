@@ -1,0 +1,24 @@
+system: pdf-upload
+topic: PDF upload
+summary: Verifies a file is a PDF and returns it
+description: >-
+  Receives a file, verifies it is a well-formed PDF, and returns it.
+blast_radius: medium
+front: external
+exposes:
+  name: pdf-upload
+  intent: verify a file is a well-formed PDF and return it
+  inputs:
+  - file
+  outputs:
+  - pdf_file
+
+requirements:
+- id: RQ-1
+  description: Returns the validated PDF
+  acceptance-criteria:
+  - id: AC-1
+    pattern: event
+    when: "{input.file} is uploaded"
+    shall:
+    - return {output.other} to the caller

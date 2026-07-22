@@ -1,0 +1,4 @@
+{"file":"bad-composite-unknown-alias.yamlet.yaml","valid":false,"errors":[
+  {"rule":"E604","severity":"error","line":36,"path":"requirements[0].acceptance-criteria[0].when","message":"member reference {ghost.pdf_file} names unknown component alias: ghost"}
+],"warnings":[
+],"summary":{"requirements":1,"acceptanceCriteria":1}}

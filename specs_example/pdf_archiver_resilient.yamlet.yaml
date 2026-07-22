@@ -1,0 +1,55 @@
+system: pdf-archiver
+topic: Resilient PDF e-mail archiver
+summary: Archives an uploaded PDF by e-mail, and when the upload fails sends an attachment-free notification e-mail instead.
+description: >-
+  A larger archiver: it wires the PDF upload surface to two scopes of the e-mail sending service — the attachment-carrying sender for the success path and the attachment-free notification sender for the failure path. When an uploaded PDF is validated and returned it is e-mailed to the archive address as an attachment; when the upload returns no PDF, a plain notification e-mail is sent to an alert address instead.
+blast_radius: medium
+front: internal
+
+exposes:
+  name: pdf-archiver-resilient
+  intent: archive an uploaded PDF by e-mail, or notify by e-mail when the upload fails
+  inputs:
+  - file
+  - filename
+  - archive_address
+  - subject
+  - content
+  - alert_address
+  - alert_subject
+
+components:
+- uploads: pdf_upload.yamlet.yaml
+- mailer: email_service.yamlet.yaml
+- notifier: email_service_plain.yamlet.yaml
+
+connections:
+  uploads:
+    file: input.file
+    filename: input.filename
+  mailer:
+    recipient: input.archive_address
+    subject: input.subject
+    content: input.content
+    attachment: uploads.pdf_file
+  notifier:
+    recipient: input.alert_address
+    subject: input.alert_subject
+    content: uploads.error         #   assembly — the upload's failure reason becomes the alert body
+
+requirements:
+- id: RQ-1
+  description: >-
+    A validated PDF is archived by e-mail, and a failed upload is notified by e-mail instead
+  acceptance-criteria:
+  - id: AC-1
+    pattern: event
+    when: "{uploads.pdf_file} is returned"
+    shall:
+    - ensure the archive e-mail carrying the PDF as an attachment is sent successfully
+  - id: AC-2
+    pattern: unwanted
+    if: "the upload returns an {uploads.error} and no {uploads.pdf_file}"
+    shall:
+    - ensure a notification e-mail carrying {uploads.error} is sent to the alert address
+    - ensure the notification e-mail carries no attachment

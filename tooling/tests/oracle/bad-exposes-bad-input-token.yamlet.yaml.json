@@ -1,0 +1,4 @@
+{"file":"bad-exposes-bad-input-token.yamlet.yaml","valid":false,"errors":[
+  {"rule":"E503","severity":"error","line":12,"path":"exposes.inputs[0]","message":"exposes input name must match ^[a-z][a-z0-9_]*$, got: User-Id"}
+],"warnings":[
+],"summary":{"requirements":1,"acceptanceCriteria":1}}

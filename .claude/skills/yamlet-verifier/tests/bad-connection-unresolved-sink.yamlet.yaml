@@ -1,0 +1,21 @@
+system: bad-sink
+topic: Bad connection sink
+summary: A connection sink that is not a declared input of the member.
+description: >-
+  The socket nonexistent is not an input of up, so it cannot be a connection sink.
+blast_radius: low
+front: internal
+
+exposes:
+  name: bad-sink
+  intent: expose a validated file
+  inputs:
+  - raw
+
+components:
+- up: valid-exposes-outputs.yamlet.yaml
+
+connections:
+  up:
+    file: input.raw
+    nonexistent: input.raw

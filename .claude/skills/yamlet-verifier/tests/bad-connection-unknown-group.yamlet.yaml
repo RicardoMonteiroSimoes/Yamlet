@@ -1,0 +1,22 @@
+system: bad-group
+topic: Bad connection group
+summary: A connection group that is neither a member alias nor the reserved output.
+description: >-
+  The group ghost is not a declared component alias and is not the reserved output group.
+blast_radius: low
+front: internal
+
+exposes:
+  name: bad-group
+  intent: expose a validated file
+  inputs:
+  - raw
+
+components:
+- up: valid-exposes-outputs.yamlet.yaml
+
+connections:
+  up:
+    file: input.raw
+  ghost:
+    x: input.raw

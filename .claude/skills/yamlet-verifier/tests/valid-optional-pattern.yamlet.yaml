@@ -1,0 +1,17 @@
+system: analytics-service
+topic: Analytics Service
+summary: An analytics service with optional premium features
+description: >-
+  Provides analytics with tiered functionality.
+blast_radius: low
+front: external
+requirements:
+- id: RQ-1
+  description: Premium analytics features
+  acceptance-criteria:
+  - id: AC-1
+    pattern: optional
+    where: the account has a premium subscription
+    shall:
+    - expose detailed funnel analytics
+    - provide export to CSV

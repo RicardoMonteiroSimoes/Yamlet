@@ -1,0 +1,32 @@
+system: pdf-archiver
+topic: PDF archiver
+summary: s
+description: >-
+  d
+blast_radius: medium
+front: internal
+exposes:
+  name: pdf-archiver
+  intent: archive a PDF by e-mail
+  inputs:
+  - file
+  - filename
+  - archive_address
+  - subject
+  - content
+
+components:
+- uploads: up.yamlet.yaml
+- mailer: mail.yamlet.yaml
+
+connections:
+  uploads:
+    file: input.file
+    filename: input.filename
+  mailer:
+    recipient: input.archive_address
+    subject: input.subject
+    content: input.content
+    attachment: uploads.pdf_file
+
+requirements:

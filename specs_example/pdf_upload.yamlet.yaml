@@ -1,0 +1,47 @@
+system: pdf-upload
+topic: PDF upload
+summary: Accepts an uploaded file, verifies it is a well-formed PDF, and returns the validated PDF.
+description: >-
+  A user-facing upload surface that receives a single file, checks it really is a well-formed PDF within size limits, and hands the validated PDF back to the caller. It stores nothing — persistence is a separate concern for another component.
+blast_radius: medium
+front: external
+exposes:
+  name: pdf-upload
+  intent: accept a file, verify it is a well-formed PDF, and return either the validated PDF or a rejection error
+  inputs:
+  - file
+  - filename
+  outputs:
+  - pdf_file
+  - error
+
+requirements:
+- id: RQ-1
+  description: >-
+    The service accepts a valid upload and returns the validated PDF
+  acceptance-criteria:
+  - id: AC-1
+    pattern: event
+    when: "{input.file} named {input.filename} is uploaded"
+    shall:
+    - verify {input.file} is a well-formed PDF within the size limit
+    - return {output.pdf_file} to the caller
+    - preserve {input.filename} as the name of the returned PDF
+- id: RQ-2
+  description: >-
+    The service rejects untrusted or malformed uploads
+  acceptance-criteria:
+  - id: AC-2
+    pattern: unwanted
+    if: "{input.file} is not a well-formed PDF"
+    shall:
+    - reject the upload
+    - return {output.error} describing why {input.file} is not a well-formed PDF
+    - return no {output.pdf_file}
+  - id: AC-3
+    pattern: unwanted
+    if: "{input.file} exceeds 10 MiB"
+    shall:
+    - reject the upload
+    - return {output.error} stating {input.file} exceeds the size limit
+    - return no {output.pdf_file}

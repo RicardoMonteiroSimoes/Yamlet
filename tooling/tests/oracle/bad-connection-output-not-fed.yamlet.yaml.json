@@ -1,0 +1,4 @@
+{"file":"bad-connection-output-not-fed.yamlet.yaml","valid":false,"errors":[
+  {"rule":"E610","severity":"error","line":15,"path":"exposes.outputs","message":"composite output result is not fed by any connection"}
+],"warnings":[
+],"summary":{"requirements":0,"acceptanceCriteria":0}}

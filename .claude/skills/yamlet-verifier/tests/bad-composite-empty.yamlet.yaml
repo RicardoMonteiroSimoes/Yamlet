@@ -1,0 +1,18 @@
+system: empty-composite
+topic: Empty composite
+summary: Declares a components key but lists no members.
+description: >-
+  The components key is present but empty. A composite with zero members is an error, not a leaf.
+blast_radius: low
+front: internal
+
+components:
+
+requirements:
+- id: RQ-1
+  description: Something happens
+  acceptance-criteria:
+  - id: AC-1
+    pattern: ubiquitous
+    shall:
+    - do the thing

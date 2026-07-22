@@ -1,0 +1,4 @@
+{"file":"bad-connection-unbound-input.yamlet.yaml","valid":false,"errors":[
+  {"rule":"E609","severity":"error","line":17,"path":"components.notify","message":"component notify input message is not bound by any connection"}
+],"warnings":[
+],"summary":{"requirements":0,"acceptanceCriteria":0}}

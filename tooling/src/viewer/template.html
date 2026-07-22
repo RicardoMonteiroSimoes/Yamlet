@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>__TITLE__ — yamlet graph</title>
+    <script>
+    // Apply a persisted theme choice before first paint so the SVG (whose colours
+    // read CSS variables) builds against the right tokens.
+    try {
+      var t = localStorage.getItem("yamlet-theme");
+      if (t) document.documentElement.setAttribute("data-theme", t);
+    } catch (e) {}
+    </script>
+    <style>
+    /*__CSS__*/
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <div class="eyebrow" id="eyebrow">yamlet</div>
+        <h1 id="title">yamlet graph</h1>
+        <p class="lede" id="lede"></p>
+        <button id="theme" title="toggle theme">◐</button>
+      </header>
+
+      <section>
+        <div class="sec-head">
+          <h2>Service map</h2>
+          <span class="rule"></span>
+          <span class="note">same <span class="mono">system:</span> = one service</span>
+        </div>
+        <div class="services" id="services"></div>
+      </section>
+
+      <section>
+        <div class="sec-head">
+          <h2>Composition</h2>
+          <select id="rootsel" style="display:none" title="root spec"></select>
+          <span class="rule"></span>
+          <span class="note" id="wire-note"></span>
+        </div>
+        <div class="diagram" id="diagram">
+          <div class="controls"><button id="fit" title="fit to view">fit</button></div>
+          <div class="hint">scroll to zoom · drag to pan · click a card for its contract</div>
+        </div>
+        <div class="legend">
+          <span><i class="swatch" style="border-top-color:var(--wire-del);border-top-style:dashed"></i> delegation — boundary ↔ member</span>
+          <span><i class="swatch" style="border-top-color:var(--wire-asm)"></i> assembly — member output → member input</span>
+          <span><i class="ring"></i> input socket</span>
+          <span><i class="dot" style="background:var(--muted)"></i> output socket</span>
+        </div>
+      </section>
+
+      <section>
+        <div class="sec-head">
+          <h2>Completeness</h2>
+          <span class="rule"></span>
+          <span class="note">derived — <span class="mono">yamlet verify</span> agrees</span>
+        </div>
+        <div class="ledger" id="ledger"></div>
+      </section>
+
+      <p class="foot" id="foot">
+    Grouping is by <code>system:</code> alone — every scope sharing a slug lands under one service card.
+    A composite's boundary box wires those scopes together; the diagram above is laid out live and is
+    the same wiring <code>yamlet verify</code> checks.
+  </p>
+    </div>
+
+    <aside id="panel" class="drawer"></aside>
+
+    <!--__LIBS__-->
+
+    <script>
+    window.__YAMLET_GRAPH__ = /*__MODEL__*/ null;
+    </script>
+    <script>
+    /*__VIEWER__*/
+    </script>
+    <script>
+    // theme toggle — stamps data-theme (wins over prefers-color-scheme both ways),
+    // persists it, and reloads so the SVG re-reads the new tokens.
+    document.getElementById("theme").addEventListener("click", function () {
+      var root = document.documentElement, cur = root.getAttribute("data-theme");
+      var next = cur === "dark"
+        ? "light"
+        : cur === "light"
+        ? "dark"
+        : (matchMedia("(prefers-color-scheme: dark)").matches ? "light" : "dark");
+      root.setAttribute("data-theme", next);
+      try {
+        localStorage.setItem("yamlet-theme", next);
+      } catch (e) {}
+      location.reload();
+    });
+    </script>
+  </body>
+</html>

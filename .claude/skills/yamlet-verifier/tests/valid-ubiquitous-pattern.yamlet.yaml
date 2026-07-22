@@ -1,0 +1,17 @@
+system: audit-service
+topic: Audit Service
+summary: A service that records all operations for compliance
+description: >-
+  Records every state-changing operation for audit trail compliance.
+blast_radius: low
+front: internal
+requirements:
+- id: RQ-1
+  description: All operations are audited
+  acceptance-criteria:
+  - id: AC-1
+    pattern: ubiquitous
+    shall:
+    - record the actor identity with each operation
+    - record the timestamp in UTC
+    - record the before and after state

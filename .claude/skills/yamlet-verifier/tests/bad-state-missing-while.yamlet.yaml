@@ -1,0 +1,15 @@
+# pattern: state missing its required 'while'
+system: connection-service
+topic: Connection Service
+summary: A service managing persistent connections
+description: A service.
+blast_radius: medium
+front: internal
+requirements:
+- id: RQ-1
+  description: The service maintains connection health
+  acceptance-criteria:
+  - id: AC-1
+    pattern: state
+    shall:
+    - send a keepalive ping

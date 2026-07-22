@@ -1,0 +1,20 @@
+#!/bin/sh
+# yamlet — dev launcher that runs the CLI from source via the mise-pinned Deno.
+#
+# This directory (tooling/bin) is placed on PATH *only within this repo* by mise
+# (`[env] _.path` in mise.toml), so a bare `yamlet` here resolves to the current
+# source while a normally-installed `yamlet` (Homebrew tap) is used elsewhere.
+# The skills therefore call bare `yamlet` in dev exactly as they will once shipped.
+# `deno task compile` still produces dist/yamlet for distribution testing.
+set -u
+DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+MAIN="$DIR/../main.ts"
+
+if command -v deno >/dev/null 2>&1; then
+    exec deno run --quiet --allow-read --allow-write "$MAIN" "$@"
+elif command -v mise >/dev/null 2>&1; then
+    exec mise exec -- deno run --quiet --allow-read --allow-write "$MAIN" "$@"
+fi
+
+printf 'yamlet: neither deno nor mise found on PATH; run `mise install` first\n' >&2
+exit 127

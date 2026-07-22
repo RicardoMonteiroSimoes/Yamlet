@@ -1,0 +1,4 @@
+{"file":"bad-complex-missing-while.yamlet.yaml","valid":false,"errors":[
+  {"rule":"E301","severity":"error","line":13,"path":"requirements[0].acceptance-criteria[0]","message":"AC-1: pattern=complex requires clause: while"}
+],"warnings":[
+],"summary":{"requirements":1,"acceptanceCriteria":1}}

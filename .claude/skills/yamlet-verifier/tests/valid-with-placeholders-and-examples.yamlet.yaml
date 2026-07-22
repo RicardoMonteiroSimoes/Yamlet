@@ -1,0 +1,32 @@
+# A valid file with criteria that have placeholders AND correct examples
+system: notification-service
+topic: Notification Service
+summary: A service for sending user notifications via multiple channels
+description: >-
+  The notification service routes messages to the appropriate channel based on user preferences and message priority.
+blast_radius: medium
+front: external
+requirements:
+- id: RQ-1
+  description: The service delivers notifications with retry backoff
+  acceptance-criteria:
+  - id: AC-1
+    pattern: complex
+    while:
+    - "{attempt_count} delivery attempts have been made"
+    if: a delivery failure occurs
+    shall:
+    - schedule the next delivery attempt after {backoff_seconds} seconds
+    - log the failure with attempt number {attempt_count}
+    examples:
+    - attempt_count: 1
+      backoff_seconds: 5
+    - attempt_count: 2
+      backoff_seconds: 10
+    - attempt_count: 3
+      backoff_seconds: 20
+  - id: AC-2
+    pattern: ubiquitous
+    shall:
+    - encrypt all notification payloads in transit
+    - validate the recipient address before sending

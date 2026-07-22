@@ -1,0 +1,15 @@
+system: test-service
+topic: Test
+summary: Test summary
+description: >-
+  Test desc.
+blast_radius: low
+front: internal
+requirements:
+- id: RQ-1
+  description: Test
+  acceptance-criteria:
+	- id: AC-1
+	  pattern: ubiquitous
+	  shall:
+	  - do something

@@ -1,0 +1,4 @@
+{"file":"bad-connections-on-leaf.yamlet.yaml","valid":false,"errors":[
+  {"rule":"E605","severity":"error","line":11,"path":"connections","message":"connections requires a components list; a leaf cannot declare connections"}
+],"warnings":[
+],"summary":{"requirements":1,"acceptanceCriteria":1}}

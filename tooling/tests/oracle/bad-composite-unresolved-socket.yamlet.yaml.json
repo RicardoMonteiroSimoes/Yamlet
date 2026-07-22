@@ -1,0 +1,4 @@
+{"file":"bad-composite-unresolved-socket.yamlet.yaml","valid":false,"errors":[
+  {"rule":"E604","severity":"error","line":38,"path":"requirements[0].acceptance-criteria[0].shall[0]","message":"member reference {notify.nonexistent} does not resolve to a declared input or output of notify"}
+],"warnings":[
+],"summary":{"requirements":1,"acceptanceCriteria":1}}

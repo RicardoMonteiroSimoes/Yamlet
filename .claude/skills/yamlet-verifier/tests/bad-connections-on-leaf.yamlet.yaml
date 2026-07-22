@@ -1,0 +1,20 @@
+system: leafy-service
+topic: Leafy service
+summary: A leaf that wrongly declares a connections block.
+description: >-
+  This file has no components, so it is a leaf; a connections block is only meaningful on a composite.
+blast_radius: low
+front: internal
+
+connections:
+  up:
+    file: input.file
+
+requirements:
+- id: RQ-1
+  description: The service does its job
+  acceptance-criteria:
+  - id: AC-1
+    pattern: ubiquitous
+    shall:
+    - do the thing

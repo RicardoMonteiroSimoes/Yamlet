@@ -1,0 +1,15 @@
+# This file intentionally uses .yaml (not .yamlet.yaml) to test E001 extension check
+system: test-service
+topic: Test Service
+summary: A test service
+description: A test.
+blast_radius: low
+front: internal
+requirements:
+- id: RQ-1
+  description: Test
+  acceptance-criteria:
+  - id: AC-1
+    pattern: ubiquitous
+    shall:
+    - do something

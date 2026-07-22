@@ -1,0 +1,21 @@
+system: notification-service
+topic: Notification service
+summary: Delivers notifications to a user over a channel
+description: >-
+  Accepts a notification and delivers it to a user over the requested channel.
+blast_radius: medium
+front: external
+exposes:
+  name: notification-service
+  intent: deliver a notification to a user over a channel
+  inputs:
+  - User-Id
+
+requirements:
+- id: RQ-1
+  description: Notifications are delivered over the requested channel
+  acceptance-criteria:
+  - id: AC-1
+    pattern: ubiquitous
+    shall:
+    - deliver the notification to the user

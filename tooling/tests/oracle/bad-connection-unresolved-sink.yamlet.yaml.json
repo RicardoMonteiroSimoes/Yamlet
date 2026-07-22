@@ -1,0 +1,4 @@
+{"file":"bad-connection-unresolved-sink.yamlet.yaml","valid":false,"errors":[
+  {"rule":"E607","severity":"error","line":21,"path":"connections.up.nonexistent","message":"connection sink up.nonexistent is not a declared input of up"}
+],"warnings":[
+],"summary":{"requirements":0,"acceptanceCriteria":0}}

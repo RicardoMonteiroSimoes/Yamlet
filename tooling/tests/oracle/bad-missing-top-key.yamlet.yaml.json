@@ -1,0 +1,6 @@
+{"file":"bad-missing-top-key.yamlet.yaml","valid":false,"errors":[
+  {"rule":"E101","severity":"error","line":0,"path":"blast_radius","message":"missing required top-level key: blast_radius"},
+  {"rule":"E101","severity":"error","line":0,"path":"front","message":"missing required top-level key: front"},
+  {"rule":"E101","severity":"error","line":0,"path":"summary","message":"missing required top-level key: summary"}
+],"warnings":[
+],"summary":{"requirements":1,"acceptanceCriteria":1}}

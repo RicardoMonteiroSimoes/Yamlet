@@ -1,0 +1,22 @@
+system: under-wired
+topic: Under-wired composite
+summary: A member input left unbound by the connections block.
+description: >-
+  The notify member declares three inputs but only two are bound, so message is left unwired.
+blast_radius: low
+front: internal
+
+exposes:
+  name: under-wired
+  intent: notify a user
+  inputs:
+  - uid
+  - chan
+
+components:
+- notify: valid-exposes.yamlet.yaml
+
+connections:
+  notify:
+    user_id: input.uid
+    channel: input.chan

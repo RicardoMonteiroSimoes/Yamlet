@@ -1,0 +1,4 @@
+{"file":"bad-composite-duplicate-alias.yamlet.yaml","valid":false,"errors":[
+  {"rule":"E602","severity":"error","line":17,"path":"components[1].up","message":"duplicate component alias: up"}
+],"warnings":[
+],"summary":{"requirements":0,"acceptanceCriteria":0}}

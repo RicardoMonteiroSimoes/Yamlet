@@ -1,0 +1,35 @@
+system: notification-service
+topic: Notify
+summary: Delivers notifications
+description: >-
+  Delivers to a user over a channel.
+blast_radius: medium
+front: external
+exposes:
+  name: notification-service
+  intent: deliver a notification over a channel
+  inputs:
+  - user_id
+  - channel
+  - message
+
+requirements:
+- id: RQ-1
+  description: >-
+    Delivered over the requested channel
+  acceptance-criteria:
+  - id: AC-1
+    pattern: event
+    when: a notification is requested for {input.user_id} over {input.channel}
+    shall:
+    - deliver the {input.message} to the user
+  - id: AC-2
+    pattern: unwanted
+    if: a notification for {input.channel} exceeds {max_length} characters
+    shall:
+    - reject the notification with a length error
+    examples:
+    - input.channel: sms
+      max_length: 160
+    - input.channel: push
+      max_length: 240
