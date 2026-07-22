@@ -23,11 +23,45 @@ The full, authoritative definition of every field — including what `front` and
 verifier (`yamlet verify`, in `tooling/`) is the mechanical source of truth for
 validity. What follows is a quick reference only.
 
-**Top-level keys** (all required): `system` (a slug, `^[a-z0-9]+(-[a-z0-9]+)*$`), `topic`, `summary`, `description`, `blast_radius` (`low`\|`medium`\|`high`), `front` (`internal`\|`external`), and a non-empty `requirements` list (optional on a composite). Three optional keys (`exposes`, `components`, `connections`). `exposes` declares the component's contract signature — a `name`, an `intent`, named `inputs`, and optional named `outputs` (the return half). Criteria reference these as `{input.NAME}` / `{output.NAME}`, and the binding is checked both ways: every reference must resolve, and every declared input/output must be used. See [`SPEC.md`](SPEC.md#exposes--the-contract-signature).
+### Top-level keys
 
-`components` makes the file a **composite** — a level above the component that wires several member specs together and is the home for those connections. Members are listed as `alias: path`; the wiring lives in a `connections:` block written `sink: source` (e.g. `attachment: uploads.pdf_file`), where each endpoint is either the composite's own boundary port (`input.NAME`/`output.NAME`) or a member socket (`alias.socket`). Verification is cross-file and **total**: it resolves every endpoint against the members' `exposes`, fixes dataflow direction by resolving sinks and sources asymmetrically, and enforces completeness — every member input must be wired. A composite's own `requirements:` are optional, reserved for emergent obligations no wire expresses. See [`SPEC.md`](SPEC.md#composition--a-level-above-the-component). [`pdf_archiver.yamlet.yaml`](specs_example/pdf_archiver.yamlet.yaml) is a worked example wiring [`pdf_upload`](specs_example/pdf_upload.yamlet.yaml) into [`email_service`](specs_example/email_service.yamlet.yaml). `yamlet graph <file>` emits a diagram of any spec's structure — a leaf's contract, or a composite's boundary-and-wiring block diagram. Default `--format=dot` is Graphviz DOT for `dot -Tsvg` to lay out (`yamlet graph specs_example/pdf_archiver.yamlet.yaml | dot -Tsvg > diagram.svg`); `--format=json` emits a stable, renderer-agnostic graph model (`yamlet.graph/v1`) so a custom engine or interactive viewer can display it without re-parsing yamlet. Because a project's specs are expected to **live together in one directory**, `yamlet graph <dir>` (or `--recursive` on a single root) expands the whole composition tree at once — every root spec, down through nested composites — as one JSON document. See [`tooling/README.md`](tooling/README.md#the-graph-model-yamlet-graph---formatjson).
+All required: `system` (a slug, `^[a-z0-9]+(-[a-z0-9]+)*$`), `topic`, `summary`,
+`description`, `blast_radius` (`low`\|`medium`\|`high`), `front`
+(`internal`\|`external`), and a non-empty `requirements` list (optional on a
+composite). Three are optional: `exposes`, `components`, `connections`.
 
-Each **requirement** has an `id` (`RQ-N`), a `description`, and a non-empty list of `acceptance-criteria`. Each **criterion** has an `id` (`AC-N`), a `pattern`, its required clause(s), and a non-empty `shall` list:
+### The contract (`exposes`)
+
+`exposes` declares the component's contract signature — a `name`, an `intent`,
+named `inputs`, and optional named `outputs` (the return half). Criteria reference
+these as `{input.NAME}` / `{output.NAME}`, and the binding is checked both ways:
+every reference must resolve, and every declared input/output must be used. See
+[`SPEC.md`](SPEC.md#exposes--the-contract-signature).
+
+### Composition (`components` + `connections`)
+
+`components` makes the file a **composite** — a level above the component that
+wires several member specs together. Members are listed as `alias: path`; the
+wiring lives in a `connections:` block written `sink: source` (e.g.
+`attachment: uploads.pdf_file`), where each endpoint is either the composite's own
+boundary port (`input.NAME` / `output.NAME`) or a member socket (`alias.socket`).
+
+Verification is cross-file and **total**: it resolves every endpoint against the
+members' `exposes`, fixes dataflow direction by resolving sinks and sources
+asymmetrically, and enforces completeness — every member input must be wired. A
+composite's own `requirements:` are optional, reserved for emergent obligations no
+wire expresses.
+
+[`pdf_archiver.yamlet.yaml`](specs_example/pdf_archiver.yamlet.yaml) is a worked
+example wiring [`pdf_upload`](specs_example/pdf_upload.yamlet.yaml) into
+[`email_service`](specs_example/email_service.yamlet.yaml). See
+[`SPEC.md`](SPEC.md#composition--a-level-above-the-component).
+
+### Requirements & acceptance criteria
+
+Each **requirement** has an `id` (`RQ-N`), a `description`, and a non-empty list of
+`acceptance-criteria`. Each **criterion** has an `id` (`AC-N`), a `pattern`, its
+required clause(s), and a non-empty `shall` list:
 
 | pattern | required clause(s) |
 |---|---|
@@ -38,7 +72,25 @@ Each **requirement** has an `id` (`RQ-N`), a `description`, and a non-empty list
 | `unwanted` | `if` |
 | `complex` | `while` + exactly one of `when`/`if` |
 
-Placeholders like `{n}` may appear in clause and `shall` text; when they do, an `examples` table is required and every row must bind every placeholder.
+Placeholders like `{n}` may appear in clause and `shall` text; when they do, an
+`examples` table is required and every row must bind every placeholder.
+
+### Visualizing (`yamlet graph`)
+
+`yamlet graph <file>` emits a diagram of any spec's structure — a leaf's contract,
+or a composite's boundary-and-wiring block diagram.
+
+- **`--format=dot`** (default) is Graphviz DOT for `dot -Tsvg` to lay out:
+  `yamlet graph specs_example/pdf_archiver.yamlet.yaml | dot -Tsvg > diagram.svg`
+- **`--format=json`** emits a stable, renderer-agnostic graph model
+  (`yamlet.graph/v1`) so a custom engine or interactive viewer can display it
+  without re-parsing yamlet.
+
+Because a project's specs are expected to **live together in one directory**,
+`yamlet graph <dir>` (or `--recursive` on a single root) expands the whole
+composition tree at once — every root spec, down through nested composites — as one
+JSON document. See
+[`tooling/README.md`](tooling/README.md#the-graph-model-yamlet-graph---formatjson).
 
 ## Skills
 
