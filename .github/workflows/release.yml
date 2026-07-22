@@ -1,0 +1,92 @@
+name: Release
+
+# One-click release: from the Actions tab, run this workflow and enter a version
+# (e.g. 0.1.0). It cross-compiles the four binaries, publishes a GitHub Release
+# with the tarballs + checksums, and pushes an updated formula to the Homebrew
+# tap. Pushing a `v*` tag runs the same pipeline.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, no leading v (e.g. 0.1.0)"
+        required: true
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tooling
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: "2.9.2"
+
+      - name: Resolve version
+        id: version
+        # Inputs reach the shell only through env, never spliced into the script
+        # via ${{ }} (which would be a shell-injection vector); GITHUB_* are
+        # trusted built-ins. The regex is a strict semver allow-list, so the
+        # value passed to later steps is constrained to [0-9A-Za-z.-].
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            v="${GITHUB_REF_NAME#v}"
+          else
+            v="$INPUT_VERSION"
+          fi
+          if ! printf '%s' "$v" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$'; then
+            echo "::error::version must be semver like 1.2.3 or 1.2.3-rc.1, no leading v (got '$v')"
+            exit 1
+          fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "Releasing v$v"
+
+      - name: Guard against an existing release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::Release v$VERSION already exists"; exit 1
+          fi
+
+      - name: Build all targets
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: ./scripts/build-release.sh "$VERSION"
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          target_flag=""
+          if [ "$GITHUB_EVENT_NAME" != "push" ]; then
+            target_flag="--target $GITHUB_SHA"
+          fi
+          gh release create "v$VERSION" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "v$VERSION" \
+            --generate-notes \
+            $target_flag \
+            dist/yamlet-"$VERSION"-*.tar.gz dist/SHA256SUMS
+
+      - name: Update Homebrew tap
+        env:
+          TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: ./scripts/update-tap.sh "$VERSION"

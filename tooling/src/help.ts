@@ -25,6 +25,7 @@ Commands:
 
 const FOOTER = `
 Run \`yamlet <command> --help\` for command-specific usage.
+Run \`yamlet --version\` to print the version.
 
 Exit codes:
   0  success

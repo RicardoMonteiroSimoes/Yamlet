@@ -2,6 +2,7 @@
 //
 // Usage:
 //   yamlet help [command]            (or `yamlet <command> --help`)
+//   yamlet version                   (or `yamlet --version` / `-V`)
 //   yamlet verify [--format=human|json] <file.yamlet.yaml>
 //   yamlet verify --list-rules [--format=human|json]
 //   yamlet systems [DIR] [--format=human|json]
@@ -30,6 +31,7 @@ import {
 import { systemsCommand } from "./src/systems.ts";
 import { graphCommand } from "./src/graph.ts";
 import { helpFor, USAGE } from "./src/help.ts";
+import { VERSION } from "./src/version.ts";
 import type { CmdResult, Command } from "./src/types.ts";
 
 const enc = new TextEncoder();
@@ -113,9 +115,24 @@ Exit: 0 clean · 1 errors found · 2 usage error
   run: runVerify,
 };
 
+const versionCommand: Command = {
+  name: "version",
+  summary: "print the yamlet version",
+  help: `yamlet version — print the yamlet version
+
+Usage:
+  yamlet version
+  yamlet --version | -V
+
+Prints the CLI version to stdout and exits 0.
+`,
+  run: () => ({ exitCode: 0, stdout: `yamlet ${VERSION}\n`, stderr: "" }),
+};
+
 /** The command registry — the single source of truth for dispatch and help. */
 export const COMMANDS: Command[] = [
   verifyCommand,
+  versionCommand,
   systemsCommand,
   graphCommand,
   initCommand,
@@ -124,6 +141,18 @@ export const COMMANDS: Command[] = [
   addRequirementCommand,
   addCriterionCommand,
 ];
+
+/**
+ * Resolve the `--version` / `-V` *flag* forms to their output, or null to let
+ * normal dispatch proceed. The bare `version` word is a registered command, so
+ * it gets help and a table entry like any other; these two flags can't be
+ * registry keys — same as `-h`/`--help` — so `main` resolves them here, before
+ * dispatch. Shares `versionCommand`'s runner so the string has one source.
+ */
+export function versionFor(cmd: string | undefined): CmdResult | null {
+  if (cmd === "--version" || cmd === "-V") return versionCommand.run([]);
+  return null;
+}
 
 function emit(r: CmdResult): number {
   if (r.stdout) out(r.stdout);
@@ -137,6 +166,11 @@ function main(): number {
   // Explicit help requests are a success: full text to stdout, exit 0.
   const help = helpFor(COMMANDS, cmd, rest);
   if (help) return emit(help);
+
+  // The `--version` / `-V` flag forms are likewise a success on stdout; the
+  // bare `version` word falls through to normal command dispatch below.
+  const version = versionFor(cmd);
+  if (version) return emit(version);
 
   if (cmd === undefined) {
     err(USAGE);

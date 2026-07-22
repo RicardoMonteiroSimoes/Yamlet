@@ -16,6 +16,24 @@ It focuses on a single source of truth, both for humans and agents. Minimal in i
 
 [**`email_service.yamlet.yaml`**](specs_example/email_service.yamlet.yaml) is a complete example of _one such_ file. Yes, there can be many of these, and that's the point. They should encompass a small scope, with the descriptive focus on the exact, minimal, must-fulfill requirements.
 
+## Install
+
+`yamlet` is a single self-contained binary (no runtime needed) for macOS and
+Linux, on both Intel and Apple Silicon / arm64.
+
+```sh
+brew tap RicardoMonteiroSimoes/yamlet   # one-time
+brew install yamlet
+yamlet --version
+```
+
+Homebrew works on Linux too, so the same two commands install it there. To
+upgrade later: `brew upgrade yamlet`.
+
+Prefer not to use Homebrew? Grab the tarball for your platform from the
+[latest release](https://github.com/RicardoMonteiroSimoes/Yamlet/releases/latest),
+verify it against `SHA256SUMS`, and put the `yamlet` binary on your `PATH`.
+
 ## The format
 
 The full, authoritative definition of every field — including what `front` and

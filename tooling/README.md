@@ -12,11 +12,19 @@ Nothing else is required.
 ```sh
 mise install            # once, installs the pinned Deno
 mise exec -- deno task test      # run the suite
-mise exec -- deno task compile   # -> dist/yamlet (self-contained, ~65 MB)
+mise exec -- deno task compile   # -> dist/yamlet (self-contained, ~65 MB, host target)
 ```
 
 `dist/yamlet` runs with no Deno on the PATH. It is compiled with `--allow-read --allow-write` (the
 author subcommands mutate spec files).
+
+`deno task compile` builds one binary for the host. A **release** builds all four shipped targets
+(macOS + Linux, Intel + arm64) and packages them — that is
+[`scripts/build-release.sh`](./scripts/build-release.sh), driven by the one-click
+[`.github/workflows/release.yml`](../.github/workflows/release.yml). See
+[`RELEASING.md`](../RELEASING.md) for the full flow. The version reported by `yamlet --version`
+comes from [`src/version.ts`](./src/version.ts) — `0.0.0-dev` in the tree, stamped to the real tag
+by the release build.
 
 ### The `yamlet` command and the skills
 
@@ -35,14 +43,15 @@ mise computes this PATH entry when a shell initializes in the repo, so a shell (
 session) started **before** the entry was added won't see it — restart it, then `command -v yamlet`
 should resolve to `tooling/bin/yamlet`.
 
-`dist/yamlet` (from `deno task compile`) is the self-contained artifact the tap will ultimately
-ship; it is not used by the skills.
+`dist/yamlet` (from `deno task compile`) is the same kind of self-contained artifact the Homebrew
+tap ships (the release build just produces one per target); it is not used by the skills.
 
 ## Command surface
 
 ```
 yamlet help [command]                              -> top-level help, or one command's synopsis
 yamlet <command> --help | -h                       -> the same per-command synopsis
+yamlet version | --version | -V                    -> print the yamlet version
 yamlet verify [--format=human|json] <file.yamlet.yaml>
 yamlet verify --list-rules [--format=human|json]
 yamlet systems [DIR] [--system=SLUG] [--contracts] [--format=human|json]
