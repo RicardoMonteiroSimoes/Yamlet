@@ -1,0 +1,47 @@
+system: receipt-intake
+topic: Receipt intake with confirmation
+summary: Archives an uploaded receipt PDF by e-mail and sends the submitter a plain confirmation that it was received.
+description: >-
+  A composite intake surface: it wires the PDF e-mail archiver to the attachment-free e-mail sender so a single submission is both archived and acknowledged. When a receipt PDF is submitted it is handed to the archiver, which validates and e-mails it to the configured archive address; in the same intake a plain confirmation e-mail is sent to the submitter. It owns no work of its own — it is the boundary that couples archiving and acknowledgement into one act.
+blast_radius: medium
+front: internal
+exposes:
+  name: receipt-intake
+  intent: archive a submitted receipt PDF by e-mail and confirm receipt to the submitter
+  inputs:
+  - file
+  - filename
+  - archive_address
+  - subject
+  - content
+  - submitter_address
+  - confirmation_subject
+  - confirmation_body
+
+components:
+- archiver: pdf_archiver.yamlet.yaml
+- confirm: email_service_plain.yamlet.yaml
+
+connections:
+  archiver:
+    file: input.file
+    filename: input.filename
+    archive_address: input.archive_address
+    subject: input.subject
+    content: input.content
+  confirm:
+    recipient: input.submitter_address
+    subject: input.confirmation_subject
+    content: input.confirmation_body
+
+requirements:
+- id: RQ-1
+  description: >-
+    A submitted receipt is, in one intake, both archived by e-mail and acknowledged to the submitter
+  acceptance-criteria:
+  - id: AC-1
+    pattern: event
+    when: "{input.file} named {input.filename} is submitted"
+    shall:
+    - hand {input.file} to the archiver to be e-mailed to {input.archive_address}
+    - send a plain confirmation e-mail to {input.submitter_address}
