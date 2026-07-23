@@ -39,6 +39,9 @@ Prefer not to use Homebrew? Grab the tarball for your platform from the
 [latest release](https://github.com/RicardoMonteiroSimoes/Yamlet/releases/latest),
 verify it against `SHA256SUMS`, and put the `yamlet` binary on your `PATH`.
 
+The CLI is only half of it: the authoring skills ship as a Claude Code plugin
+from this repo's marketplace — see [Installing the skills](#installing-the-skills).
+
 ## The format
 
 The full, authoritative definition of every field — including what `front` and
@@ -120,10 +123,10 @@ JSON document. See
 Four Claude Code skills, bundled as the `yamlet-skills` plugin under
 [`plugins/yamlet-skills/`](plugins/yamlet-skills/) — no MCP server:
 
-- **`yamlet-author`** — interviews you, drills down to precise, testable requirements, and appends them through the `yamlet` tool (`yamlet init` / `add-requirement` / `add-criterion`). The agent never writes the YAML by hand and never picks IDs; the tool serializes everything and generates `RQ-N`/`AC-N` as it goes, so the file is correct by construction.
-- **`yamlet-contract-challenger`** — an independent adversary the author consults **before `yamlet init` freezes the contract**. It forks off (its own Opus context, read-only, blocking) and pokes holes in the proposed scope: summary too broad, a system slug that fragments an existing service, wrong trust boundary, dead or missing inputs/outputs, leaf-vs-composite mix-ups. It never decides — it returns objections for you to adjudicate.
-- **`yamlet-criteria-challenger`** — the same idea, one level down: consulted **before each requirement is committed**. It forks off and attacks the requirement and its EARS criteria — vague or untestable `shall`s, the wrong pattern, missing `unwanted` coverage on an `external` front, unbound placeholders — while they can still be reshaped.
-- **`yamlet-verifier`** — validates a `.yamlet.yaml` file against the rules and reports violations with stable rule IDs (`/yamlet-verifier <file>`). Backed by the single `yamlet` binary (TypeScript compiled by Deno); it is the single source of truth for what "valid" means.
+- **`yamlet-author`** — interviews you and appends to the spec through the `yamlet` CLI; it never writes YAML or picks IDs itself, so the file is correct by construction.
+- **`yamlet-contract-challenger`** — adversarial review before `yamlet init` freezes the contract.
+- **`yamlet-criteria-challenger`** — adversarial review before each requirement and its criteria are committed.
+- **`yamlet-verifier`** — validates a spec against the rules, reporting violations with stable rule IDs.
 
 The two challengers exist because the author's flow is **one-way at two points**: the contract is immutable after `init`, and a committed requirement or criterion can't be edited. A gate at each of those points is the last cheap chance to catch a mistake before it freezes.
 
@@ -151,43 +154,22 @@ flowchart TD
     C --> CLI
 ```
 
-Dotted arrows are forked, blocking sub-reviews that return a critique but write nothing; solid arrows are the main authoring flow. Every write to the file goes through the `yamlet` CLI, which owns all serialization and ID generation.
+Dotted arrows are forked, blocking sub-reviews that write nothing; solid arrows are the main flow. Every write goes through the `yamlet` CLI, which owns all serialization and IDs.
 
-### How you use it
-
-You only ever start **one** thing: `/yamlet-author`, seeded with a one-line description of what you want to capture (and optionally which specs directory it belongs in):
+You only ever start `/yamlet-author`, seeded with a one-line description:
 
 ```
 /yamlet-author I want the system to send emails over a single TLS SMTP server
 ```
 
-If you invoke it bare, it just asks for that description first. Everything else fires from inside the flow — you don't invoke the challengers or the verifier yourself.
-
-1. **Answer the interview** — specifically and testably. Starting from your description, the author drills down, refuses vagueness, and pushes back.
-2. **Adjudicate the challengers.** At each gate an Opus reviewer forks off, blocks the flow, and hands back `BLOCKERS / QUESTIONS / SUGGESTIONS`. The author relays them to you in prose; *you* decide what changes. Nothing is committed until the objections are settled — and because both gates sit at one-way points, this is your one chance to fix them cheaply.
-3. **Let it close the loop.** When the spec is captured, the author self-runs `yamlet-verifier` and isn't done until it reports no errors.
-
-The challengers are also standalone if you want a second opinion outside the flow: `/yamlet-contract-challenger` or `/yamlet-criteria-challenger` on a proposal, and `/yamlet-verifier <file>` to validate any spec at any time.
+Everything else fires from inside the flow. At each gate a forked Opus reviewer blocks and hands back objections for you to adjudicate; nothing commits until they're settled, and the author isn't done until `yamlet-verifier` reports no errors. All three also run standalone — `/yamlet-contract-challenger`, `/yamlet-criteria-challenger`, `/yamlet-verifier <file>` — for a second opinion outside the flow.
 
 ### Installing the skills
 
-The skills ship as a Claude Code plugin from this same repo's marketplace. They
-**require the `yamlet` CLI on your `PATH`** (every skill shells out to it), so install
-the binary first, then the plugin:
+The skills shell out to the `yamlet` CLI, so [install that first](#install), then add
+the plugin from inside Claude Code:
 
-```sh
-# 1. the CLI
-brew tap RicardoMonteiroSimoes/yamlet
-brew install yamlet
-
-# 2. the skills, from inside Claude Code
+```
 /plugin marketplace add RicardoMonteiroSimoes/Yamlet
 /plugin install yamlet-skills@yamlet
 ```
-
-The `brew` package is the CLI; the plugin is the authoring skills — two faces of the
-same release, both served from this repo.
-
-The four skills live at [`plugins/yamlet-skills/skills/`](plugins/yamlet-skills/skills/);
-the repo's own `.claude/skills/` entries are symlinks into that directory, so there is a
-single source of truth. Edit the files under `plugins/yamlet-skills/skills/`.
