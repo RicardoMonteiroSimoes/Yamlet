@@ -174,10 +174,17 @@ whole application from its roots down.
 
 `--format=html` wraps the very same `yamlet.graph/v1` model in a **single self-contained page**: an
 editorial service map, a live SVG composition (laid out by [elkjs](https://github.com/kieler/elkjs)
-in the browser, with pan/zoom and a click-to-inspect contract drawer), and a completeness ledger —
-all derived from the model, so it can never disagree with `yamlet verify`. Like `json`, it is a
-model format: a directory yields the whole forest (with a root switcher) and `--recursive` expands
-deeply.
+in the browser, with pan/zoom), and a completeness ledger — all derived from the model, so it can
+never disagree with `yamlet verify`. Like `json`, it is a model format: a directory yields the whole
+forest — a service switcher jumps to any system (leaf or composite) as the entry point — and
+`--recursive` expands deeply.
+
+The composition navigates **by system**, one level at a time. A level shows *every* scope that
+shares a `system:` slug — the one actually wired here (marked) plus its sibling variants — so drilling
+into, say, an archiver surfaces all of that system's scopes side by side, not just the wired one.
+Click a member card to descend into its system; use the breadcrumb to climb back. A terminal leaf
+opens its contract in a drawer. Pass `--recursive`: without it, composite scopes reached only through
+wiring aren't expanded, so they render as opaque single cards instead of their internals.
 
 The viewer's own CSS/JS are always inlined; only the layout engine is delivered two ways:
 

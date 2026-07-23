@@ -643,6 +643,11 @@ Options:
 A directory or --recursive implies a model format (json/html) and expands the whole
 tree. --format=dot with a directory or --recursive is an error: DOT renders a single
 spec at one level. --libs is meaningful only with --format=html.
+
+The html viewer navigates by system: each level shows every scope that shares a
+system: slug (the wired one, marked, plus its sibling variants). Click a member to
+drill into its system, the breadcrumb to climb back. Pass -r so composite scopes
+reached through wiring show their internals rather than an opaque card.
 `,
   run: runGraph,
 };

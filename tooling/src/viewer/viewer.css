@@ -256,6 +256,37 @@ section {
   background: var(--surface-2);
 }
 
+/* ── drill breadcrumb ── */
+.crumbs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.crumb {
+  font: 600 12px ui-monospace, Menlo, monospace;
+  color: var(--muted);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 3px 9px;
+  cursor: pointer;
+}
+.crumb:hover {
+  border-color: var(--muted);
+  color: var(--ink);
+}
+.crumb.current {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--wire-asm) 12%, var(--surface-2));
+  border-color: color-mix(in srgb, var(--wire-asm) 40%, var(--border));
+  cursor: default;
+}
+.crumb-sep {
+  color: var(--faint);
+  font-size: 13px;
+}
+
 /* ── diagram ── */
 .diagram {
   position: relative;
@@ -273,6 +304,56 @@ section {
   cursor: grab;
 }
 .diagram svg.grabbing {
+  cursor: grabbing;
+}
+
+/* stacked scope panels — one level shows every scope of a system */
+.scope-panel + .scope-panel {
+  border-top: 1px solid var(--border);
+}
+.panel-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 13px 16px 0;
+}
+.panel-file {
+  font-size: 13px;
+  font-weight: 640;
+}
+.wired-badge {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  padding: 1px 7px;
+  border-radius: 5px;
+  color: var(--wire-asm);
+  background: color-mix(in srgb, var(--wire-asm) 15%, transparent);
+}
+.panel-wires {
+  font-size: 11.5px;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+.panel-intent {
+  font-size: 12.5px;
+  color: var(--muted);
+  flex: 1 1 100%;
+  margin-top: 2px;
+  line-height: 1.45;
+}
+.panel-svg {
+  position: relative;
+}
+.panel-svg svg {
+  display: block;
+  width: 100%;
+  touch-action: none;
+  cursor: grab;
+}
+.panel-svg svg.grabbing {
   cursor: grabbing;
 }
 .diagram .controls {
@@ -364,13 +445,6 @@ section {
   fill: var(--wire-asm);
   font: 600 11px ui-monospace, Menlo, monospace;
   pointer-events: none;
-}
-.dimmed {
-  opacity: .22;
-  transition: opacity .15s;
-}
-.wire-hl {
-  stroke-width: 3.4;
 }
 
 /* status: missing member */

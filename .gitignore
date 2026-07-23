@@ -5,6 +5,10 @@
 # The source in tooling/ is the truth; the ~70 MB binary is a build artifact.
 dist/
 
+# Generated graph views (produced by `yamlet graph --format=html`). Reproducible
+# from the specs, so the source specs are the truth, not the emitted HTML.
+*_graph.html
+
 # Per-machine Claude Code permissions. A shared .claude/settings.json (if any)
 # and the .claude/skills/ conventions are tracked; the local overrides are not.
 .claude/settings.local.json

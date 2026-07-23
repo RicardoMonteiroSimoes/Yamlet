@@ -37,13 +37,15 @@
       <section>
         <div class="sec-head">
           <h2>Composition</h2>
-          <select id="rootsel" style="display:none" title="root spec"></select>
+          <select id="rootsel" style="display:none" title="jump to a system"></select>
+          <nav id="breadcrumb" class="crumbs" aria-label="drill breadcrumb"></nav>
           <span class="rule"></span>
           <span class="note" id="wire-note"></span>
         </div>
         <div class="diagram" id="diagram">
           <div class="controls"><button id="fit" title="fit to view">fit</button></div>
-          <div class="hint">scroll to zoom · drag to pan · click a card for its contract</div>
+          <div
+            class="hint">scroll to zoom · drag to pan · click a member to drill into its system</div>
         </div>
         <div class="legend">
           <span><i class="swatch" style="border-top-color:var(--wire-del);border-top-style:dashed"></i> delegation — boundary ↔ member</span>

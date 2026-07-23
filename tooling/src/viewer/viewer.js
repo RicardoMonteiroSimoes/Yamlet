@@ -1,7 +1,8 @@
-/* yamlet graph viewer — renders a `yamlet.graph/v1` model as the hand-designed
-   editorial page (service map · composition diagram · completeness ledger),
-   with the composition drawn as a live SVG laid out by ELK (elkjs) and made
-   interactive: pan, zoom, and click-a-card to open its contract in a drawer.
+/* yamlet graph viewer — renders a `yamlet.graph/v1` model as a hand-designed page:
+   a service map, a completeness ledger, and a composition that navigates by system.
+   Each level shows every scope sharing a `system:` slug, drawn as live SVG laid out
+   by ELK (elkjs) with pan/zoom. Click a member card to drill into its system; the
+   breadcrumb climbs back; a terminal leaf opens its contract in a drawer.
 
    Why bespoke SVG rather than a graph library: the design bar is a record-style
    member card (title · service badge · divider · socket rows with hollow inputs
@@ -467,36 +468,6 @@
   }
   function closeDrawer() {
     drawer.classList.remove("open");
-    if (window.__clearHl) window.__clearHl();
-  }
-
-  // ── highlight (dim everything but the picked card's neighbourhood) ────────
-  function makeHighlighter(view, body) {
-    var wiresByAlias = {};
-    (body ? body.wires : []).forEach(function (w) {
-      [w.from.node, w.to.node].forEach(function (n) {
-        (wiresByAlias[n] = wiresByAlias[n] || []).push(w);
-      });
-    });
-    return function highlight(alias) {
-      var neighbours = {};
-      neighbours[alias] = true;
-      (wiresByAlias[alias] || []).forEach(function (w) {
-        neighbours[w.from.node] = true;
-        neighbours[w.to.node] = true;
-      });
-      Object.keys(view.cards).forEach(function (id) {
-        view.cards[id].classList.toggle("dimmed", !neighbours[id]);
-      });
-      view.wires.forEach(function (we) {
-        var e = we.edge,
-          touches = e.sources.concat(e.targets).some(function (p) {
-            return p.indexOf(alias + "::") === 0;
-          });
-        we.path.classList.toggle("dimmed", !touches);
-        we.path.classList.toggle("wire-hl", touches);
-      });
-    };
   }
 
   // ── service map (grouped by system across the whole model) ───────────────
@@ -627,67 +598,215 @@
       : { roots: [model], skipped: [], root: null };
   }
 
-  function renderComposition(model) {
-    var host = document.getElementById("diagram");
-    host.querySelectorAll("svg").forEach(function (s) {
-      s.remove();
+  // ── scope harvest (every scope, grouped by system) ───────────────────────
+  // Walk the (recursively expanded) forest and index every scope by its
+  // `system:` slug, deduped by file. A composite scope keeps its `graph` so we
+  // can drill into it; a leaf scope has none. This is what lets a level show
+  // ALL scopes of a system — the wired one plus its sibling variants. Depends on
+  // `-r`: without it, member subtrees aren't expanded, so composite scopes reached
+  // only through wiring render as opaque single cards rather than their internals.
+  function scopeFromSpec(spec, kind, graph) {
+    return {
+      system: spec.system,
+      file: spec.file,
+      name: spec.name,
+      topic: spec.topic,
+      intent: spec.intent,
+      front: spec.front,
+      blastRadius: spec.blastRadius,
+      requirements: spec.requirements,
+      inputs: spec.inputs,
+      outputs: spec.outputs,
+      status: spec.status,
+      kind: kind,
+      graph: graph || null,
+    };
+  }
+  function harvest(roots) {
+    var bySystem = {}, seen = {};
+    function walk(sc) {
+      if (!sc.system) return;
+      var key = sc.file || sc.name || sc.system;
+      if (seen[key]) return; // already indexed — and so is its subtree, so stop
+      seen[key] = true;
+      (bySystem[sc.system] = bySystem[sc.system] || []).push(sc);
+      if (sc.graph) {
+        sc.graph.members.forEach(function (m) {
+          walk(scopeFromSpec(m, m.kind, m.graph));
+        });
+      }
+    }
+    roots.forEach(function (r) {
+      walk(scopeFromSpec(r.spec, r.kind, r.graph));
     });
-    var spec = model.spec, body = model.graph;
-    var rootName = spec.name || spec.system || "graph";
+    return bySystem;
+  }
 
-    var graph = body ? buildElk(spec, body) : buildElk({ inputs: [], outputs: [] }, {
+  // ── system-keyed drill navigation ────────────────────────────────────────
+  // NAV.stack is a breadcrumb of frames; the top frame is the level on screen.
+  // A frame names a system (all its scopes are shown together) and the file of
+  // the scope reached to get here — marked "entry" at the root, "wired here" once
+  // a parent member wired it. `fits` collects each panel's fit-to-view fn.
+  var NAV = { bySystem: {}, stack: [], fits: [], gen: 0 };
+
+  function drillFrom(member) {
+    // The scope-self card of a leaf panel only inspects — it doesn't point elsewhere.
+    if (member._self) return openDrawer(member);
+    var targets = NAV.bySystem[member.system] || [];
+    var hasMore = targets.length > 1 || targets.some(function (t) {
+      return !!t.graph;
+    });
+    if (hasMore && member.system) {
+      NAV.stack.push({ system: member.system, wiredFile: member.file });
+      renderLevel();
+    } else {
+      openDrawer(member); // terminal leaf — nothing deeper to reveal
+    }
+  }
+  function gotoCrumb(i) {
+    NAV.stack = NAV.stack.slice(0, i + 1);
+    renderLevel();
+  }
+  function resetTo(system) {
+    NAV.stack = [{ system: system, wiredFile: null }];
+    renderLevel();
+  }
+
+  function renderBreadcrumb() {
+    var bc = document.getElementById("breadcrumb");
+    if (!bc) return;
+    bc.innerHTML = NAV.stack.map(function (fr, i) {
+      var last = i === NAV.stack.length - 1;
+      return '<button class="crumb' + (last ? " current" : "") + '" data-i="' + i + '">' +
+        esc(fr.system) + "</button>" + (last ? "" : '<span class="crumb-sep">›</span>');
+    }).join("");
+    bc.querySelectorAll(".crumb").forEach(function (b) {
+      b.addEventListener("click", function () {
+        gotoCrumb(Number(b.dataset.i));
+      });
+    });
+  }
+
+  // A leaf renders as a single card (no boundary box) — reuse the member path.
+  // `_self` marks it as the scope itself (not a member wiring out), so a click
+  // inspects its contract instead of drilling into its own system again.
+  function leafGraph(sc) {
+    return buildElk({ inputs: [], outputs: [] }, {
       members: [{
-        alias: spec.name || spec.system,
-        status: "ok",
-        kind: "leaf",
-        system: spec.system,
-        name: spec.name,
-        intent: spec.intent,
-        front: spec.front,
-        blastRadius: spec.blastRadius,
-        file: spec.file,
-        requirements: spec.requirements,
-        inputs: spec.inputs,
-        outputs: spec.outputs,
+        alias: sc.name || sc.system,
+        status: sc.status || "ok",
+        kind: sc.kind || "leaf",
+        system: sc.system,
+        name: sc.name,
+        intent: sc.intent,
+        front: sc.front,
+        blastRadius: sc.blastRadius,
+        file: sc.file,
+        requirements: sc.requirements,
+        inputs: sc.inputs,
+        outputs: sc.outputs,
+        _self: true,
       }],
       wires: [],
     });
+  }
 
-    return elk.layout(graph).then(function (laid) {
-      var view = renderSvg(laid, rootName, function (m, g) {
-        openDrawer(m);
-        if (window.__hl) window.__hl(m.alias);
+  function renderScopePanel(wrap, sc, frame, gen) {
+    var panel = document.createElement("div");
+    panel.className = "scope-panel";
+    var base = (sc.file || "").split("/").pop().replace(/\.yamlet\.yaml$/, "") ||
+      sc.name || sc.system;
+    var kind = sc.kind === "composite" ? "composite" : "leaf";
+    var badge = frame.wiredFile && sc.file === frame.wiredFile ? "wired here" : "";
+    // Per-panel wiring counts — the drill shows several scopes at once, so this
+    // stands in for the single-composite ledger, which stays gated in renderLevel.
+    var wires = "";
+    if (sc.graph) {
+      var ws = sc.graph.wires || [];
+      var deleg = ws.filter(function (w) {
+        return w.kind === "delegation";
+      }).length;
+      wires = '<span class="panel-wires">' + deleg + " delegation · " +
+        (ws.length - deleg) + " assembly</span>";
+    }
+    var head = document.createElement("div");
+    head.className = "panel-head";
+    head.innerHTML = '<span class="panel-file mono">' + esc(base) + "</span>" +
+      '<span class="kind ' + kind + '">' + kind + "</span>" +
+      (badge ? '<span class="wired-badge">' + badge + "</span>" : "") +
+      wires +
+      (sc.intent ? '<span class="panel-intent">' + esc(sc.intent) + "</span>" : "");
+    panel.appendChild(head);
+    var holder = document.createElement("div");
+    holder.className = "panel-svg";
+    panel.appendChild(holder);
+    wrap.appendChild(panel);
+
+    var graph = sc.graph ? buildElk(sc, sc.graph) : leafGraph(sc);
+    var rootName = sc.name || sc.system || "graph";
+    elk.layout(graph).then(function (laid) {
+      if (NAV.gen !== gen) return; // a newer level superseded this layout — drop it
+      var view = renderSvg(laid, rootName, function (m) {
+        drillFrom(m);
       });
-      host.insertBefore(view.svg, host.firstChild);
-      // Size the canvas to the graph's aspect so a small diagram doesn't float
-      // in a tall void; cap it so a large one still scrolls/zooms within frame.
-      var cw = host.clientWidth || 880;
-      var ideal = Math.max(300, Math.min(620, Math.round(cw * view.bbox.h / view.bbox.w) + 40));
+      holder.appendChild(view.svg);
+      // Size to the graph's aspect so a small diagram doesn't float in a void;
+      // cap it so several stacked panels stay navigable.
+      var cw = holder.clientWidth || 820;
+      var ideal = Math.max(240, Math.min(460, Math.round(cw * view.bbox.h / view.bbox.w) + 32));
       view.svg.style.height = ideal + "px";
       var pz = installPanZoom(view.svg, view.viewport, view.bbox);
       requestAnimationFrame(pz.fit);
-      window.__fit = pz.fit;
-      var hl = makeHighlighter(view, body);
-      window.__hl = hl;
-      window.__clearHl = function () {
-        Object.keys(view.cards).forEach(function (id) {
-          view.cards[id].classList.remove("dimmed");
-        });
-        view.wires.forEach(function (we) {
-          we.path.classList.remove("dimmed", "wire-hl");
-        });
-      };
-      // wire count note
-      var note = document.getElementById("wire-note");
-      if (note && body) {
-        var w = body.wires || [],
-          d = w.filter(function (x) {
-            return x.kind === "delegation";
-          }).length;
-        note.textContent = d + " delegation + " + (w.length - d) + " assembly wire" +
-          (w.length - d === 1 ? "" : "s");
+      NAV.fits.push(pz.fit);
+    });
+  }
+
+  function renderLevel() {
+    closeDrawer();
+    var frame = NAV.stack[NAV.stack.length - 1];
+    var scopes = NAV.bySystem[frame.system] || [];
+    renderBreadcrumb();
+
+    var note = document.getElementById("wire-note");
+    if (note) {
+      note.textContent = frame.system + " · " + scopes.length + " scope" +
+        (scopes.length === 1 ? "" : "s");
+    }
+
+    // keep the service switcher reflecting the level on screen
+    var sel = document.getElementById("rootsel");
+    if (sel && sel.options.length) sel.value = frame.system;
+
+    var host = document.getElementById("diagram");
+    var wrap = host.querySelector(".panels");
+    if (!wrap) {
+      wrap = document.createElement("div");
+      wrap.className = "panels";
+      host.insertBefore(wrap, host.firstChild);
+    }
+    wrap.innerHTML = "";
+    NAV.fits = [];
+    var gen = ++NAV.gen; // stamps this level so stale async layouts can bail
+    window.__fit = function () {
+      NAV.fits.forEach(function (f) {
+        f();
+      });
+    };
+
+    // Ledger stays honest: only shown when the level is a single composite scope,
+    // where its completeness counts are unambiguous.
+    var ledger = document.getElementById("ledger");
+    if (ledger) {
+      if (scopes.length === 1 && scopes[0].graph) {
+        ledger.parentNode.style.display = "";
+        renderLedger(ledger, scopes[0], scopes[0].graph);
+      } else {
+        ledger.parentNode.style.display = "none";
       }
-      renderLedger(document.getElementById("ledger"), spec, body);
+    }
+
+    scopes.forEach(function (sc) {
+      renderScopePanel(wrap, sc, frame, gen);
     });
   }
 
@@ -711,26 +830,31 @@
     var nroots = view.roots.length;
     document.getElementById("lede").textContent = MODEL.kind === "forest"
       ? nroots + " root spec" + (nroots === 1 ? "" : "s") + " expanded from " + (view.root || ".") +
-        ". Services group every scope that shares a system: slug; each composite wires their scopes into one boundary box."
+        ". Drill by system: each level shows every scope that shares a system: slug — the wired one and its sibling variants. Click a member to descend, the breadcrumb to climb back."
       : (first.spec.intent || "A single component contract.");
 
     // service map.
     renderServices(document.getElementById("services"), collectServices(view.roots));
 
-    // root switcher (forests).
+    // scope index for the drill.
+    NAV.bySystem = harvest(view.roots);
+
+    // service switcher — every system is an entry point, leaf or composite, so a
+    // single simple service can be viewed on its own, not only by drilling into a
+    // composite. Selecting one resets the drill to that system's level.
     var sel = document.getElementById("rootsel");
-    if (MODEL.kind === "forest" && nroots > 1) {
-      view.roots.forEach(function (r, i) {
+    var systems = Object.keys(NAV.bySystem);
+    if (MODEL.kind === "forest" && systems.length > 1) {
+      systems.forEach(function (sysName) {
+        var n = NAV.bySystem[sysName].length;
         var o = document.createElement("option");
-        o.value = String(i);
-        o.textContent = (r.spec.name || r.spec.system || r.spec.file) +
-          (r.kind === "composite" ? " (composite)" : " (leaf)");
+        o.value = sysName;
+        o.textContent = sysName + " · " + n + " scope" + (n === 1 ? "" : "s");
         sel.appendChild(o);
       });
       sel.style.display = "";
       sel.addEventListener("change", function () {
-        closeDrawer();
-        renderComposition(view.roots[Number(sel.value)]);
+        resetTo(sel.value);
       });
     }
 
@@ -744,12 +868,12 @@
 
     // controls.
     document.getElementById("fit").addEventListener("click", function () {
-      window.__fit && window.__fit();
+      if (window.__fit) window.__fit();
     });
     document.addEventListener("keydown", function (e) {
       if (e.key === "Escape") closeDrawer();
     });
 
-    renderComposition(first);
+    resetTo(first.spec.system);
   });
 })();
