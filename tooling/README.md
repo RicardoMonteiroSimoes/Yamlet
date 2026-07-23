@@ -62,6 +62,10 @@ yamlet graph FILE|DIR [--format=dot|json|html] [--libs=embed|cdn] [--recursive]
                                                    -> Graphviz DOT of one spec (pipe to `dot -Tsvg`), the JSON graph
                                                       model, or a self-contained interactive HTML viewer of that model;
                                                       a DIR or --recursive imply a model format and expand the whole tree
+yamlet tests SRC TARGET                            -> project every scope's acceptance criteria into Gherkin: one
+                                                      TARGET/<system>/<scope>.feature per scope (Feature=scope,
+                                                      Rule=RQ-N, Scenario=AC-N; criteria with examples become Scenario
+                                                      Outlines). Emits features and stops; step defs belong to the consumer
 yamlet init FILE --system s --topic t --summary s --description d \
                  --blast-radius low|medium|high --front internal|external \
                  [--expose-name n --expose-intent i --input NAME... --output NAME...]
@@ -201,6 +205,35 @@ yamlet graph specs_example --format=html > graph.html            # offline, self
 yamlet graph specs_example --format=html --libs=cdn > graph.html # small, fetches elk at load time
 ```
 
+### The Gherkin projection (`yamlet tests`)
+
+An acceptance criterion is already Given/When/Then in disguise, so `yamlet tests SRC TARGET` makes
+the projection explicit — writing one `.feature` per scope, grouped by system, off the same
+flattened records the verifier uses (so it can never disagree about which criteria exist):
+
+| yamlet                     | Gherkin                                           | tag                                      |
+| -------------------------- | ------------------------------------------------- | ---------------------------------------- |
+| scope (one `.yamlet.yaml`) | `Feature`                                         | `@<system>` `@front-…` `@blast-radius-…` |
+| requirement `RQ-N`         | `Rule`                                            | `@RQ-N`                                  |
+| criterion `AC-N`           | `Scenario` (named with the rebuilt EARS sentence) | `@AC-N` `@<pattern>`                     |
+| `where` / `while`          | `Given`                                           |                                          |
+| `when` / `if`              | `When`                                            |                                          |
+| `shall`                    | `Then the system shall …`                         |                                          |
+
+A criterion with `examples` rows becomes a **Scenario Outline**: example-backed `{placeholder}`s
+(and `{input.X}` example columns) render as `<col>` with an `Examples:` table; contract/member
+references (`{input.X}`, `{output.X}`, `{alias.socket}`) with no example column stay verbatim for
+the consumer's step definitions to bind. Feature = scope (not system) because `RQ-N`/`AC-N` ids are
+scope-local — one `.feature` per scope keeps every tag unique; `@<system>` groups a system's several
+files at selection time (`cucumber --tags @<system>`), and the `TARGET/<system>/` folder groups them
+on disk.
+
+This is a **disconnected** boundary: yamlet emits the feature files and stops. Step definitions,
+fixtures, the runner and CI belong to whoever consumes them — so `--format` has no place here, there
+is only Gherkin. Scopes with no requirements (a bare composite) have nothing to assert and are
+skipped, surfaced in the summary; files that don't parse are skipped too (`yamlet verify` is the
+authority).
+
 ## Architecture
 
 ```
@@ -208,6 +241,7 @@ main.ts                the command registry + data-driven dispatch (owns the `ve
 src/help.ts            `yamlet help` — pure aggregator over the registry (help = stdout, exit 0)
 src/systems.ts         `yamlet systems` — group spec files by shared `system:` slug (read-only)
 src/graph.ts           `yamlet graph` — emit DOT, the JSON graph model, or the HTML viewer (read-only)
+src/tests.ts           `yamlet tests` — project acceptance criteria into Gherkin `.feature` files (writes)
 src/viewer/            the `--format=html` viewer: template + CSS + JS + `html.ts` assembler; elk vendored
 src/types.ts           shared shapes (Finding, FlatRecord, Result, Command, CmdResult, …)
 src/catalog.ts         the 50-rule catalog (E0xx–E6xx, W00x)
@@ -238,8 +272,8 @@ rolls the file back and exits `3`.
 
 ## Regression oracles (tests)
 
-Two frozen oracles, snapshots of this tool's own deterministic output (the sh+awk reference they
-were once captured from has been retired):
+Three frozen oracles, snapshots of this tool's own deterministic output (the sh+awk reference the
+first two were once captured from has been retired):
 
 - **verify** — `tests/oracle/*.json` (46 fixtures): the `yamlet verify --format=json` output + exit
   code for every fixture. `parity_test.ts` replays each through the verifier and compares
@@ -251,6 +285,10 @@ were once captured from has been retired):
   `author_parity_test.ts` replays the same sequences and asserts byte-identical output + the same
   allocated IDs, plus the full rejection matrix (exit codes, nothing written). Re-freeze with
   `deno run --allow-read --allow-write tests/gen-author-oracle.ts`.
+- **gherkin** — `tests/oracle-gherkin/**/*.feature`: the exact `.feature` tree `yamlet tests`
+  produces for `specs_example/`. `gherkin_test.ts` regenerates into a temp dir and asserts a
+  byte-identical tree, plus the skip/usage paths. Re-freeze after a projection or example-spec
+  change with `deno run --allow-read --allow-write tests/gen-gherkin-oracle.ts`.
 
 The oracle directories are excluded from `deno fmt`/`lint` (they are captured data, not source).
 

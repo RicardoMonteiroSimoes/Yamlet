@@ -12,6 +12,7 @@
     "dist/",
     "tests/oracle/",
     "tests/oracle-author/",
+    "tests/oracle-gherkin/",
     "tests/verifier-fixtures/",
     "src/viewer/vendor/"
   ],

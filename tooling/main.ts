@@ -30,6 +30,7 @@ import {
 } from "./src/author.ts";
 import { systemsCommand } from "./src/systems.ts";
 import { graphCommand } from "./src/graph.ts";
+import { testsCommand } from "./src/tests.ts";
 import { helpFor, USAGE } from "./src/help.ts";
 import { VERSION } from "./src/version.ts";
 import type { CmdResult, Command } from "./src/types.ts";
@@ -135,6 +136,7 @@ export const COMMANDS: Command[] = [
   versionCommand,
   systemsCommand,
   graphCommand,
+  testsCommand,
   initCommand,
   addComponentCommand,
   addConnectionCommand,

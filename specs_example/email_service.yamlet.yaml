@@ -40,7 +40,7 @@ requirements:
     - "{n} retries have already been attempted for the e-mail"
     if: an SMTP timeout occurs on the re-authentication attempt
     shall:
-    - a retry is scheduled with {delay_seconds} seconds backoff delay
+    - schedule a retry with {delay_seconds} seconds backoff delay
     examples:
     - n: 0
       delay_seconds: 10
