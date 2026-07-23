@@ -1,18 +1,13 @@
 name: Release
 
-# One-click release: from the Actions tab, run this workflow and enter a version
-# (e.g. 0.1.0). It cross-compiles the four binaries, publishes a GitHub Release
-# with the tarballs + checksums, and pushes an updated formula to the Homebrew
-# tap. Pushing a `v*` tag runs the same pipeline.
+# Release flow: create a Release from the GitHub UI (which creates the tag).
+# Publishing it triggers this workflow, which cross-compiles the four binaries,
+# attaches the tarballs + checksums to that same Release, and pushes an updated
+# formula to the Homebrew tap. The Release is the trigger, not something this
+# workflow creates — so it never fights an already-existing release.
 on:
-  workflow_dispatch:
-    inputs:
-      version:
-        description: "Version to release, no leading v (e.g. 0.1.0)"
-        required: true
-  push:
-    tags:
-      - "v*"
+  release:
+    types: [published]
 
 permissions:
   contents: write
@@ -36,53 +31,39 @@ jobs:
 
       - name: Resolve version
         id: version
-        # Inputs reach the shell only through env, never spliced into the script
-        # via ${{ }} (which would be a shell-injection vector); GITHUB_* are
-        # trusted built-ins. The regex is a strict semver allow-list, so the
-        # value passed to later steps is constrained to [0-9A-Za-z.-].
+        # The tag reaches the shell only through env, never spliced into the
+        # script via ${{ }} (which would be a shell-injection vector). The regex
+        # is a strict semver allow-list, so the value passed to later steps is
+        # constrained to [0-9A-Za-z.-]. The raw tag (with its leading v) is what
+        # we upload assets against; VERSION (no v) is what the scripts expect.
         env:
-          INPUT_VERSION: ${{ inputs.version }}
+          TAG: ${{ github.event.release.tag_name }}
         run: |
-          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
-            v="${GITHUB_REF_NAME#v}"
-          else
-            v="$INPUT_VERSION"
-          fi
+          v="${TAG#v}"
           if ! printf '%s' "$v" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$'; then
-            echo "::error::version must be semver like 1.2.3 or 1.2.3-rc.1, no leading v (got '$v')"
+            echo "::error::release tag must be semver like v1.2.3 or v1.2.3-rc.1 (got '$TAG')"
             exit 1
           fi
           echo "version=$v" >> "$GITHUB_OUTPUT"
-          echo "Releasing v$v"
-
-      - name: Guard against an existing release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          if gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "::error::Release v$VERSION already exists"; exit 1
-          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Releasing $TAG (version $v)"
 
       - name: Build all targets
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: ./scripts/build-release.sh "$VERSION"
 
-      - name: Publish GitHub Release
+      - name: Attach artifacts to the Release
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
           VERSION: ${{ steps.version.outputs.version }}
+        # --clobber so a re-run of a failed build overwrites any partial uploads
+        # instead of erroring on assets that are already there.
         run: |
-          target_flag=""
-          if [ "$GITHUB_EVENT_NAME" != "push" ]; then
-            target_flag="--target $GITHUB_SHA"
-          fi
-          gh release create "v$VERSION" \
+          gh release upload "$TAG" \
             --repo "$GITHUB_REPOSITORY" \
-            --title "v$VERSION" \
-            --generate-notes \
-            $target_flag \
+            --clobber \
             dist/yamlet-"$VERSION"-*.tar.gz dist/SHA256SUMS
 
       - name: Update Homebrew tap
