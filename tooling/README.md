@@ -179,12 +179,13 @@ never disagree with `yamlet verify`. Like `json`, it is a model format: a direct
 forest — a service switcher jumps to any system (leaf or composite) as the entry point — and
 `--recursive` expands deeply.
 
-The composition navigates **by system**, one level at a time. A level shows *every* scope that
-shares a `system:` slug — the one actually wired here (marked) plus its sibling variants — so drilling
-into, say, an archiver surfaces all of that system's scopes side by side, not just the wired one.
-Click a member card to descend into its system; use the breadcrumb to climb back. A terminal leaf
-opens its contract in a drawer. Pass `--recursive`: without it, composite scopes reached only through
-wiring aren't expanded, so they render as opaque single cards instead of their internals.
+The composition navigates **by system**, one level at a time. A level shows _every_ scope that
+shares a `system:` slug — the one actually wired here (marked) plus its sibling variants — so
+drilling into, say, an archiver surfaces all of that system's scopes side by side, not just the
+wired one. Click a member card to descend into its system; use the breadcrumb to climb back. A
+terminal leaf opens its contract in a drawer. Pass `--recursive`: without it, composite scopes
+reached only through wiring aren't expanded, so they render as opaque single cards instead of their
+internals.
 
 The viewer's own CSS/JS are always inlined; only the layout engine is delivered two ways:
 
