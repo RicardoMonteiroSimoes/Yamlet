@@ -11,8 +11,7 @@
 import { verifyFile } from "../src/verify.ts";
 import { renderJson } from "../src/render.ts";
 
-const fixturesAbs =
-  new URL("../../.claude/skills/yamlet-verifier/tests/", import.meta.url).pathname;
+const fixturesAbs = new URL("./verifier-fixtures/", import.meta.url).pathname;
 const oracleAbs = new URL("./oracle/", import.meta.url).pathname;
 
 Deno.chdir(fixturesAbs);

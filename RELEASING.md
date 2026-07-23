@@ -53,6 +53,21 @@ formula to the *other* repo needs its own token.
 
 When the token expires, regenerate it and update the secret — nothing else changes.
 
+## The skills plugin is not part of this pipeline
+
+The `yamlet-skills` Claude Code plugin ([`plugins/yamlet-skills/`](plugins/yamlet-skills/))
+is **served live from this repo's git tree**, not built or published by the release
+workflow. Its marketplace catalog is [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json).
+Merging a skill change to the branch users track is the "release" — there is nothing to
+tag or upload. The four skills have a single source of truth under
+`plugins/yamlet-skills/skills/`; the repo's `.claude/skills/` entries are symlinks into it
+(dereferenced to real files when Claude Code installs the plugin from the marketplace).
+
+Users install with `/plugin marketplace add RicardoMonteiroSimoes/Yamlet` then
+`/plugin install yamlet-skills@yamlet`. Bump `version` in
+[`plugins/yamlet-skills/.claude-plugin/plugin.json`](plugins/yamlet-skills/.claude-plugin/plugin.json)
+when you want to signal a meaningful skill change; it is independent of the CLI version.
+
 ## Versioning
 
 `src/version.ts` stays at the `0.0.0-dev` placeholder in the source tree; the build

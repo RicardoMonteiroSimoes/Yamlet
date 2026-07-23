@@ -12,6 +12,7 @@
     "dist/",
     "tests/oracle/",
     "tests/oracle-author/",
+    "tests/verifier-fixtures/",
     "src/viewer/vendor/"
   ],
   "fmt": {

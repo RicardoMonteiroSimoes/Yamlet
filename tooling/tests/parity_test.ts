@@ -12,7 +12,7 @@ import type { Finding } from "../src/types.ts";
 
 const testDir = new URL(".", import.meta.url).pathname;
 const oracleDir = testDir + "oracle";
-const fixturesDir = testDir + "../../.claude/skills/yamlet-verifier/tests";
+const fixturesDir = testDir + "verifier-fixtures";
 
 // Oracle goldens were captured with CWD = fixtures dir and bare basenames, so
 // composite member paths resolve relative to ".". Match that here.

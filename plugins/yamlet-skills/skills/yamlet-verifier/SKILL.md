@@ -1,6 +1,6 @@
 ---
 name: yamlet-verifier
-description: Verifies a YAPL/EARS spec file (.yamlet.yaml) against the format rules and reports violations with stable rule IDs. REQUIRES one argument — the path to the .yamlet.yaml file to verify (e.g. `/yamlet-verifier specs/email.yamlet.yaml`). Use for agent self-verification of a spec before relying on it. If no file path is supplied it returns a usage error and does nothing.
+description: Verifies an EARS spec file (.yamlet.yaml) against the format rules and reports violations with stable rule IDs. REQUIRES one argument — the path to the .yamlet.yaml file to verify (e.g. `/yamlet-verifier specs/email.yamlet.yaml`). Use for agent self-verification of a spec before relying on it. If no file path is supplied it returns a usage error and does nothing.
 allowed-tools: Bash(yamlet:*)
 ---
 

@@ -1,0 +1,11 @@
+{
+  "name": "yamlet-skills",
+  "description": "Spec-driven development with yamlet: an interviewing author drills you down to minimal, testable `.yamlet.yaml` specs with EARS acceptance criteria, appending through the `yamlet` CLI so the file is correct by construction (the CLI owns all serialization and IDs). Two adversarial challengers guard the immutable init/commit gates, and a verifier closes the loop. Requires the `yamlet` CLI on PATH.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Ricardo Monteiro Simoes"
+  },
+  "homepage": "https://github.com/RicardoMonteiroSimoes/Yamlet",
+  "license": "MIT",
+  "keywords": ["yamlet", "yapl", "ears", "requirements", "spec-authoring"]
+}

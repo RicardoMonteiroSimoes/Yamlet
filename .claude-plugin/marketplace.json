@@ -1,0 +1,13 @@
+{
+  "name": "yamlet",
+  "owner": {
+    "name": "Ricardo Monteiro Simoes"
+  },
+  "description": "Spec-driven development with yamlet: interview-driven, correct-by-construction authoring of minimal `.yamlet.yaml` specs with EARS acceptance criteria.",
+  "plugins": [
+    {
+      "name": "yamlet-skills",
+      "source": "./plugins/yamlet-skills"
+    }
+  ]
+}

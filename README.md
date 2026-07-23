@@ -117,7 +117,8 @@ JSON document. See
 
 ## Skills
 
-Four Claude Code skills under `.claude/skills/`, no MCP server:
+Four Claude Code skills, bundled as the `yamlet-skills` plugin under
+[`plugins/yamlet-skills/`](plugins/yamlet-skills/) — no MCP server:
 
 - **`yamlet-author`** — interviews you, drills down to precise, testable requirements, and appends them through the `yamlet` tool (`yamlet init` / `add-requirement` / `add-criterion`). The agent never writes the YAML by hand and never picks IDs; the tool serializes everything and generates `RQ-N`/`AC-N` as it goes, so the file is correct by construction.
 - **`yamlet-contract-challenger`** — an independent adversary the author consults **before `yamlet init` freezes the contract**. It forks off (its own Opus context, read-only, blocking) and pokes holes in the proposed scope: summary too broad, a system slug that fragments an existing service, wrong trust boundary, dead or missing inputs/outputs, leaf-vs-composite mix-ups. It never decides — it returns objections for you to adjudicate.
@@ -167,3 +168,26 @@ If you invoke it bare, it just asks for that description first. Everything else 
 3. **Let it close the loop.** When the spec is captured, the author self-runs `yamlet-verifier` and isn't done until it reports no errors.
 
 The challengers are also standalone if you want a second opinion outside the flow: `/yamlet-contract-challenger` or `/yamlet-criteria-challenger` on a proposal, and `/yamlet-verifier <file>` to validate any spec at any time.
+
+### Installing the skills
+
+The skills ship as a Claude Code plugin from this same repo's marketplace. They
+**require the `yamlet` CLI on your `PATH`** (every skill shells out to it), so install
+the binary first, then the plugin:
+
+```sh
+# 1. the CLI
+brew tap RicardoMonteiroSimoes/yamlet
+brew install yamlet
+
+# 2. the skills, from inside Claude Code
+/plugin marketplace add RicardoMonteiroSimoes/Yamlet
+/plugin install yamlet-skills@yamlet
+```
+
+The `brew` package is the CLI; the plugin is the authoring skills — two faces of the
+same release, both served from this repo.
+
+The four skills live at [`plugins/yamlet-skills/skills/`](plugins/yamlet-skills/skills/);
+the repo's own `.claude/skills/` entries are symlinks into that directory, so there is a
+single source of truth. Edit the files under `plugins/yamlet-skills/skills/`.
