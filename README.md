@@ -22,13 +22,18 @@ It focuses on a single source of truth, both for humans and agents. Minimal in i
 Linux, on both Intel and Apple Silicon / arm64.
 
 ```sh
-brew tap RicardoMonteiroSimoes/yamlet   # one-time
+brew tap RicardoMonteiroSimoes/yamlet          # add the tap (one-time)
+brew trust --tap RicardoMonteiroSimoes/yamlet  # trust it (one-time)
 brew install yamlet
 yamlet --version
 ```
 
-Homebrew works on Linux too, so the same two commands install it there. To
-upgrade later: `brew upgrade yamlet`.
+Homebrew 6+ gates non-official taps behind a trust step: without it, `brew
+install` prompts you to confirm the tap on first use. `brew trust --tap`
+pre-approves it so the install runs unattended (and covers future upgrades).
+
+Homebrew works on Linux too, so the same commands install it there. To upgrade
+later: `brew upgrade yamlet`.
 
 Prefer not to use Homebrew? Grab the tarball for your platform from the
 [latest release](https://github.com/RicardoMonteiroSimoes/Yamlet/releases/latest),
