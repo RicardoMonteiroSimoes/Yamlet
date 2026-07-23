@@ -51,7 +51,9 @@ jobs:
       - name: Build all targets
         env:
           VERSION: ${{ steps.version.outputs.version }}
-        run: ./scripts/build-release.sh "$VERSION"
+        # Invoked via `sh` (not ./) so the pipeline never depends on the script
+        # carrying an execute bit in git.
+        run: sh scripts/build-release.sh "$VERSION"
 
       - name: Attach artifacts to the Release
         env:
@@ -70,4 +72,4 @@ jobs:
         env:
           TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           VERSION: ${{ steps.version.outputs.version }}
-        run: ./scripts/update-tap.sh "$VERSION"
+        run: sh scripts/update-tap.sh "$VERSION"
