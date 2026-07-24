@@ -120,13 +120,14 @@ JSON document. See
 
 ## Skills
 
-Four Claude Code skills, bundled as the `yamlet-skills` plugin under
+Five Claude Code skills, bundled as the `yamlet-skills` plugin under
 [`plugins/yamlet-skills/`](plugins/yamlet-skills/) — no MCP server:
 
 - **`yamlet-author`** — interviews you and appends to the spec through the `yamlet` CLI; it never writes YAML or picks IDs itself, so the file is correct by construction.
 - **`yamlet-contract-challenger`** — adversarial review before `yamlet init` freezes the contract.
 - **`yamlet-criteria-challenger`** — adversarial review before each requirement and its criteria are committed.
 - **`yamlet-verifier`** — validates a spec against the rules, reporting violations with stable rule IDs.
+- **`yamlet-tester`** — projects a specs directory into a Gherkin `.feature` tree, wiping and rebuilding the target every run so the tests never drift. Disconnected: it writes features only, never step definitions.
 
 The two challengers exist because the author's flow is **one-way at two points**: the contract is immutable after `init`, and a committed requirement or criterion can't be edited. A gate at each of those points is the last cheap chance to catch a mistake before it freezes.
 
@@ -137,21 +138,23 @@ flowchart TD
     U(["You"]) -->|"/yamlet-author"| A["yamlet-author<br/>interviews you"]
 
     A --> G1{{"Gate 1 · before init"}}
-    G1 -. "fork · blocking · opus" .-> CC["yamlet-contract-challenger<br/>read-only"]
+    G1 -.-> CC["yamlet-contract-challenger"]
     CC -. "BLOCKERS / QUESTIONS" .-> A
     G1 -->|"you adjudicate"| INIT["yamlet init"]
 
     INIT --> D["draft a requirement<br/>+ its criteria"]
     D --> G2{{"Gate 2 · before each commit"}}
-    G2 -. "fork · blocking · opus" .-> RC["yamlet-criteria-challenger<br/>read-only"]
+    G2 -.-> RC["yamlet-criteria-challenger"]
     RC -. "BLOCKERS / QUESTIONS" .-> A
     G2 -->|"you adjudicate"| C["add-requirement<br/>add-criterion"]
     C -->|"next requirement"| D
     C --> V["yamlet-verifier<br/>closing gate"]
     V -. "E### → fix via author" .-> A
+    V -->|"passes"| T["yamlet-tester<br/>regenerate features"]
 
     INIT --> CLI[("yamlet CLI<br/>owns YAML + IDs")]
     C --> CLI
+    T --> CLI
 ```
 
 Dotted arrows are forked, blocking sub-reviews that write nothing; solid arrows are the main flow. Every write goes through the `yamlet` CLI, which owns all serialization and IDs.
@@ -162,7 +165,7 @@ You only ever start `/yamlet-author`, seeded with a one-line description:
 /yamlet-author I want the system to send emails over a single TLS SMTP server
 ```
 
-Everything else fires from inside the flow. At each gate a forked Opus reviewer blocks and hands back objections for you to adjudicate; nothing commits until they're settled, and the author isn't done until `yamlet-verifier` reports no errors. All three also run standalone — `/yamlet-contract-challenger`, `/yamlet-criteria-challenger`, `/yamlet-verifier <file>` — for a second opinion outside the flow.
+Everything else fires from inside the flow. At each gate a forked Opus reviewer blocks and hands back objections for you to adjudicate; nothing commits until they're settled, and the author isn't done until `yamlet-verifier` reports no errors — after which it regenerates the Gherkin feature tree via `yamlet-tester` as a mandatory closing step. The others also run standalone — `/yamlet-contract-challenger`, `/yamlet-criteria-challenger`, `/yamlet-verifier <file>`, `/yamlet-tester <specs-dir>` — for a second opinion or a one-off regeneration outside the flow.
 
 ### Installing the skills
 
