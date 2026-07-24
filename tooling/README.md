@@ -1,8 +1,7 @@
 # yamlet (binary)
 
-A single self-contained `yamlet` binary — one TypeScript codebase compiled by Deno — that is the
-**only** implementation of the yamlet verifier and author. It replaced the original POSIX-shell
-tools (`verify.sh` + `author.sh`), which have been retired. Planned next: `edit`, `rm`.
+A self-contained `yamlet` binary — one TypeScript codebase compiled by Deno — that is the **only**
+implementation of the yamlet verifier and author.
 
 ## Toolchain
 
@@ -34,14 +33,11 @@ Claude Code marketplace plugin that carries **no binary** — they invoke a bare
 (`allowed-tools: Bash(yamlet:*)`) and depend on it being installed separately.
 
 Because the skills call bare `yamlet`, dev needs `yamlet` on PATH too — but **only inside this
-repo**, pointing at the current source. That is done with mise, no global install: `mise.toml` adds
-`tooling/bin` to PATH via `[env] _.path`, and [`tooling/bin/yamlet`](./bin/yamlet) is a launcher
-that runs the CLI **from source** via the mise-pinned Deno (always current, no build step). So in
-this repo `yamlet` is the source build; anywhere else it's whatever is installed (the Homebrew tap).
-
-mise computes this PATH entry when a shell initializes in the repo, so a shell (or Claude Code
-session) started **before** the entry was added won't see it — restart it, then `command -v yamlet`
-should resolve to `tooling/bin/yamlet`.
+repo**, pointing at the current source. `mise.toml` adds `tooling/bin` to PATH, where
+[`tooling/bin/yamlet`](./bin/yamlet) launches the CLI from source via the mise-pinned Deno (no build
+step). So in this repo `yamlet` is the source build; anywhere else it's whatever is installed (the
+Homebrew tap). A shell (or Claude Code session) started **before** mise added that entry won't see
+it — restart it, then `command -v yamlet` should resolve to `tooling/bin/yamlet`.
 
 `dist/yamlet` (from `deno task compile`) is the same kind of self-contained artifact the Homebrew
 tap ships (the release build just produces one per target); it is not used by the skills.
@@ -65,7 +61,9 @@ yamlet graph FILE|DIR [--format=dot|json|html] [--libs=embed|cdn] [--recursive]
 yamlet tests SRC TARGET                            -> project every scope's acceptance criteria into Gherkin: one
                                                       TARGET/<system>/<scope>.feature per scope (Feature=scope,
                                                       Rule=RQ-N, Scenario=AC-N; criteria with examples become Scenario
-                                                      Outlines). Emits features and stops; step defs belong to the consumer
+                                                      Outlines) plus a manifest.json of per-scenario binding obligations.
+                                                      Wipes and rebuilds TARGET each run; emits features and stops; step
+                                                      defs belong to the consumer, in their own directory
 yamlet init FILE --system s --topic t --summary s --description d \
                  --blast-radius low|medium|high --front internal|external \
                  [--expose-name n --expose-intent i --input NAME... --output NAME...]
@@ -176,12 +174,11 @@ whole application from its roots down.
 
 ### The HTML viewer (`yamlet graph --format=html`)
 
-`--format=html` wraps the very same `yamlet.graph/v1` model in a **single self-contained page**: an
-editorial service map, a live SVG composition (laid out by [elkjs](https://github.com/kieler/elkjs)
-in the browser, with pan/zoom), and a completeness ledger — all derived from the model, so it can
-never disagree with `yamlet verify`. Like `json`, it is a model format: a directory yields the whole
-forest — a service switcher jumps to any system (leaf or composite) as the entry point — and
-`--recursive` expands deeply.
+`--format=html` wraps the same `yamlet.graph/v1` model in a **single self-contained page**: a prose
+service map, a live SVG composition (laid out by [elkjs](https://github.com/kieler/elkjs) in the
+browser, with pan/zoom), and a completeness checklist — all derived from the model. Like `json`, it
+is a model format: a directory yields the whole forest — a service switcher jumps to any system
+(leaf or composite) as the entry point — and `--recursive` expands deeply.
 
 The composition navigates **by system**, one level at a time. A level shows _every_ scope that
 shares a `system:` slug — the one actually wired here (marked) plus its sibling variants — so
@@ -234,6 +231,45 @@ is only Gherkin. Scopes with no requirements (a bare composite) have nothing to 
 skipped, surfaced in the summary; files that don't parse are skipped too (`yamlet verify` is the
 authority).
 
+`TARGET` is a **yamlet-owned directory**: every run wipes it and rebuilds from the specs. So a
+renamed or deleted scope can never leave an orphan behind — regeneration is a clean rebuild, not a
+diff. The corollary is that `TARGET` holds nothing but this projection: keep step definitions,
+fixtures and the runner in _their_ directory, never in `TARGET`, or they are erased on the next run.
+The write plan is built in memory first, so a basename collision aborts before anything is wiped.
+
+#### The binding manifest (`TARGET/manifest.json`)
+
+Beside the features, each run writes a `yamlet.tests/v1` manifest: for every scenario, the contract
+tokens it leaves **verbatim** — the inputs/outputs/member-sockets a consumer's step definitions must
+bind. Example-backed tokens are excluded (they render as `<columns>` and carry their own data), so
+the manifest is exactly the set of _binding obligations_:
+
+```jsonc
+{
+  "format": "yamlet.tests/v1",
+  "features": {
+    "e-mail-sending-service/email_service.feature": {
+      "AC-4": {
+        "inputs": ["attachment", "content", "recipient", "subject"],
+        "outputs": [],
+        "sockets": []
+      }
+    },
+    "pdf-archiver/pdf_archiver_resilient.feature": {
+      "AC-2": { "inputs": [], "outputs": [], "sockets": ["uploads.error", "uploads.pdf_file"] }
+    }
+  }
+}
+```
+
+Built from the same records the features are, it lets a downstream check assert **binding coverage**
+(every referenced input/output/socket is wired by a step definition) without re-parsing Gherkin.
+Keys are ordered deterministically (features by path, scenarios by id), arrays deduped and sorted,
+so the file is byte-stable across runs. yamlet stops here: writing the check that consumes the
+manifest — and the step definitions themselves — is the consumer's, on the far side of the
+disconnected boundary. Only scenarios with at least one obligation appear; a feature with none is
+omitted; when no feature is produced, no manifest is written.
+
 ## Architecture
 
 ```
@@ -241,10 +277,10 @@ main.ts                the command registry + data-driven dispatch (owns the `ve
 src/help.ts            `yamlet help` — pure aggregator over the registry (help = stdout, exit 0)
 src/systems.ts         `yamlet systems` — group spec files by shared `system:` slug (read-only)
 src/graph.ts           `yamlet graph` — emit DOT, the JSON graph model, or the HTML viewer (read-only)
-src/tests.ts           `yamlet tests` — project acceptance criteria into Gherkin `.feature` files (writes)
+src/tests.ts           `yamlet tests` — project criteria into Gherkin `.feature` files + a binding manifest (wipes + rebuilds TARGET)
 src/viewer/            the `--format=html` viewer: template + CSS + JS + `html.ts` assembler; elk vendored
 src/types.ts           shared shapes (Finding, FlatRecord, Result, Command, CmdResult, …)
-src/catalog.ts         the 50-rule catalog (E0xx–E6xx, W00x)
+src/catalog.ts         the rule catalog — source of truth for rule ids and severities (E0xx–E6xx, W00x)
 src/flatten.ts         Phase 1: constrained-YAML → tab-free leaf records
 src/composite.ts       cross-file member/socket tables (directional: inputs vs outputs)
 src/validate.ts        Phase 2: structural + semantic rules over records
@@ -275,20 +311,21 @@ rolls the file back and exits `3`.
 Three frozen oracles, snapshots of this tool's own deterministic output (the sh+awk reference the
 first two were once captured from has been retired):
 
-- **verify** — `tests/oracle/*.json` (46 fixtures): the `yamlet verify --format=json` output + exit
-  code for every fixture. `parity_test.ts` replays each through the verifier and compares
-  structurally (findings-as-set, valid flag, summary, exit code). Re-freeze after an intentional
-  rule change with `deno run --allow-read --allow-write tests/gen-oracle.ts`, which reports exactly
-  which oracles moved.
-- **author** — `tests/oracle-author/*.yamlet.yaml` (4 goldens, incl. a composite of `components` +
+- **verify** — `tests/oracle/*.json`: the `yamlet verify --format=json` output + exit code for every
+  fixture. `parity_test.ts` replays each through the verifier and compares structurally
+  (findings-as-set, valid flag, summary, exit code). Re-freeze after an intentional rule change with
+  `deno run --allow-read --allow-write tests/gen-oracle.ts`, which reports exactly which oracles
+  moved.
+- **author** — `tests/oracle-author/*.yamlet.yaml` (incl. a composite of `components` +
   `connections`): the exact file bytes the author runners produce for the full success sequences.
   `author_parity_test.ts` replays the same sequences and asserts byte-identical output + the same
   allocated IDs, plus the full rejection matrix (exit codes, nothing written). Re-freeze with
   `deno run --allow-read --allow-write tests/gen-author-oracle.ts`.
-- **gherkin** — `tests/oracle-gherkin/**/*.feature`: the exact `.feature` tree `yamlet tests`
-  produces for `specs_example/`. `gherkin_test.ts` regenerates into a temp dir and asserts a
-  byte-identical tree, plus the skip/usage paths. Re-freeze after a projection or example-spec
-  change with `deno run --allow-read --allow-write tests/gen-gherkin-oracle.ts`.
+- **gherkin** — `tests/oracle-gherkin/**/*.feature` + `manifest.json`: the exact `.feature` tree
+  _and binding manifest_ `yamlet tests` produces for `specs_example/`. `gherkin_test.ts` regenerates
+  into a temp dir and asserts a byte-identical tree, the manifest's per-scenario obligations, plus
+  the wipe/skip/usage paths. Re-freeze after a projection or example-spec change with
+  `deno run --allow-read --allow-write tests/gen-gherkin-oracle.ts`.
 
 The oracle directories are excluded from `deno fmt`/`lint` (they are captured data, not source).
 

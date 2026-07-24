@@ -37,7 +37,7 @@ src/verify.ts     orchestration: extension -> flatten -> composite -> validate
 src/author.ts     correct-by-construction appender; runs verifier as commit gate
 src/systems.ts    `yamlet systems` (read-only)
 src/graph.ts      `yamlet graph` -> DOT | JSON model | HTML viewer (read-only)
-src/tests.ts      `yamlet tests` -> project acceptance criteria into Gherkin .feature files (writes)
+src/tests.ts      `yamlet tests` -> project criteria into Gherkin .feature files + binding manifest.json (wipes + rebuilds TARGET)
 src/viewer/       the HTML viewer (template + css + js + assembler); elk vendored
 ```
 
@@ -56,8 +56,9 @@ rolled back.
   `deno run --allow-read --allow-write tests/gen-oracle.ts`.
 - `tests/oracle-author/*.yamlet.yaml` — exact author output bytes; `author_parity_test.ts` replays.
   Re-freeze: `gen-author-oracle.ts`.
-- `tests/oracle-gherkin/**/*.feature` — exact `yamlet tests` feature tree for `specs_example/`;
-  `gherkin_test.ts` replays. Re-freeze: `gen-gherkin-oracle.ts`.
+- `tests/oracle-gherkin/**/*.feature` + `manifest.json` — exact `yamlet tests` feature tree and
+  binding manifest for `specs_example/`; `gherkin_test.ts` replays. Re-freeze:
+  `gen-gherkin-oracle.ts`.
 
 Oracle dirs are captured data — excluded from fmt/lint. A moved oracle without an intentional rule
 change is a regression, not a re-freeze.
