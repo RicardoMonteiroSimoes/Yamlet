@@ -1,20 +1,29 @@
 # Yet Another Markup Language Engineering Toolkit
 
-Yamlet, is my own try at coming up with a reliable, minimalistic setup for spec driven development using agents. One that doesn't assume you're a hobby startup founder, but serious about the matter and interested in reliable results.
+**Yamlet is a minimal, single-source-of-truth spec format for spec-driven development with agents.** One component per `.yamlet.yaml` file — a contract, a handful of requirements, and [EARS](https://alistairmavin.com/ears/) acceptance criteria. Minimal in composition, maximal in meaning: small enough to read in full, strict enough that an agent can't quietly reinterpret the goal.
+
+[**`email_service.yamlet.yaml`**](specs_example/email_service.yamlet.yaml) is a complete example of _one such_ file. There can be many, and that's the point — each a small scope, focused on the exact, minimal, must-fulfill requirements.
+
+## How it works
+
+Specs are authored, verified, and projected into tests — every write driven by the `yamlet` CLI, which owns all YAML and IDs, so nothing is hand-edited:
+
+1. **Author** — the `yamlet-author` skill interviews you and appends to the spec through the CLI, so it's correct by construction. Adversarial _challenger_ skills gate the contract and each criterion before they freeze.
+2. **Verify** — `yamlet verify` checks a spec against a mechanical rule catalog, the source of truth for validity.
+3. **Project tests** — `yamlet tests` turns every acceptance criterion into a Gherkin `.feature`, ready for your step definitions.
+4. **Visualize** — `yamlet graph` emits Graphviz DOT, a JSON model, or a self-contained interactive HTML map of the whole composition.
+
+The `yamlet` CLI runs standalone; the skills are an optional Claude Code plugin on top. [Install →](#install)
 
 ## What makes Yamlet so special?
+
+Yamlet is my own try at a reliable, minimalistic setup for spec-driven development with agents — one that doesn't assume you're a hobby startup founder, but serious about the matter and interested in reliable results.
 
 My issue with existing options is that they're verbose and unreliable - the verbosity is at fault here, as it leads agents off through various interpretations of the same goal. Instead of clearly sculpting a goal, they write about how many adjectives fit its description. And nobody reads those in detail, not even agents. Or why are they not following them, hmm? 🧐
 
 But agents suffer from the same pitfalls development teams have suffered the past decades. Unclear requirements, broad scopes, changing goal posts, rushed results, non prioritization of code quality metrics. Until now you paid a pretty penny to people that could manage this field, and could trust their judgement. But agents? They will assume something, misundertand it potentially, and output an avalanche of code based on wrong goals. Good luck reviewing that yourself.
 
 In addition, many of these new "frameworks" are just over the top. Why do I need an mcp server for this? Why do I need 20+ skills to do something?
-
-_So, what does this do?_
-
-It focuses on a single source of truth, both for humans and agents. Minimal in its composition, but maximal in its meaning. It leverages [EARS](https://alistairmavin.com/ears/) for acceptance criterias.
-
-[**`email_service.yamlet.yaml`**](specs_example/email_service.yamlet.yaml) is a complete example of _one such_ file. Yes, there can be many of these, and that's the point. They should encompass a small scope, with the descriptive focus on the exact, minimal, must-fulfill requirements.
 
 ## Install
 
