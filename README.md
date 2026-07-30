@@ -44,6 +44,9 @@ Specs are authored, verified, and projected into tests — every write driven by
 2. **Verify** — `yamlet verify` checks a spec against a mechanical rule catalog, the source of truth for validity.
 3. **Project tests** — `yamlet tests` turns every acceptance criterion into a Gherkin `.feature`, ready for your step definitions.
 
+After that step, its back to your setup. How you generate the steps, the code, and everything else, depends on you now.
+No _dreams of a fully fledged pipeline that will make you financially independent if you throw enough tokens at it_. Just a small part that hopefully improves the spec part of your daily work.
+
 The `yamlet` CLI runs standalone; and in theory can be used by yourself. But where's the fun in that?
 
 ## What makes Yamlet so special?
