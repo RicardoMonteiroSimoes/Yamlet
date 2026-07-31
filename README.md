@@ -3,7 +3,7 @@
 **Yamlet is a minimal, single-source-of-truth spec format for spec-driven development with agents.** One component per `.yamlet.yaml` file, one contract, a handful of requirements, and [EARS](https://alistairmavin.com/ears/) acceptance criteria. Basically, minmaxing the spec game: Write down the minimum that is required, but convey the maximum meaning possible.
 All accompanied by a (hopefully) challenging skillset of sparring partners, that result in a quick and easily verifiable spec definition.
 
-[**`email_service.yamlet.yaml`**](specs_example/email_service.yamlet.yaml) is a complete example of _one such_ file. There can be many, and that's the point — each a small scope, focused on the exact, minimal, must-fulfill requirements.
+[**`email_service.yamlet.yaml`**](specs_example/email_service.yamlet.yaml) is a complete example of _one such_ file. There can be many, and that's the point — each a small scope, focused on the exact, minimal, must-fulfill requirements. The folder [**`specs_example/`**](specs_example/) also contains more examples, as well as the generated test files from the acceptance criteria.
 
 ## Install
 
