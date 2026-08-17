@@ -180,48 +180,58 @@ const agentSearchDirs = (cwd: string): string[] => [
 	join(process.env.PI_CODING_AGENT_DIR ?? join(homedir(), ".pi", "agent"), "agents"),
 ];
 
-/** The `agents/` directory shipped alongside this extension, if reachable. */
-function shippedAgentsDir(): string | undefined {
+/** The installed package root — `extensions/yamlet/index.ts` -> `../..`. */
+function pkgRoot(): string | undefined {
 	try {
-		// extensions/yamlet/index.ts -> ../../agents
-		return resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "agents");
+		return resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 	} catch {
 		return undefined;
 	}
+}
+
+/** The `agents/` directory shipped alongside this extension, if reachable. */
+function shippedAgentsDir(): string | undefined {
+	const root = pkgRoot();
+	return root === undefined ? undefined : join(root, "agents");
 }
 
 /**
- * The author skill's procedure files, shipped alongside this extension.
+ * What `yamlet_guide` can serve: a topic -> its path inside the package.
  *
  * The Claude Code build splits the author skill into a router plus `references/`
- * that it reads on demand, which keeps the always-loaded body small. That relies
- * on Claude Code telling a skill where it lives; pi has no such guarantee, and
- * a skill installed into `~/.pi/agent/skills/` cannot know its own absolute path.
+ * it reads on demand, which keeps the always-loaded body small. That relies on
+ * Claude Code telling a skill where it lives; pi has no such guarantee, and a
+ * skill installed into `~/.pi/agent/skills/` cannot know its own absolute path.
  *
  * So the extension serves them instead. It *does* know where it lives — the same
- * `import.meta.url` trick `shippedAgentsDir` already uses for the challengers —
+ * `import.meta.url` trick `shippedAgentsDir` uses to offer the challengers —
  * which turns "find your own bundled file" into a plain tool call. This is the
  * pi port earning its executable code a second time.
+ *
+ * The last two entries are the challenger *checklists*, served for the degraded
+ * path where `@tintinweb/pi-subagents` is absent: the skill then has to run the
+ * gate inline, and "find the agent file yourself" is exactly the instruction that
+ * turns into skipping the gate.
  */
-function shippedReferencesDir(): string | undefined {
-	try {
-		// extensions/yamlet/index.ts -> ../../skills/yamlet-author/references
-		return resolve(
-			dirname(fileURLToPath(import.meta.url)),
-			"..", "..", "skills", "yamlet-author", "references",
-		);
-	} catch {
-		return undefined;
-	}
-}
+const GUIDE_FILES = {
+	creating: ["skills/yamlet-author/references", "creating.md"],
+	editing: ["skills/yamlet-author/references", "editing.md"],
+	composites: ["skills/yamlet-author/references", "composites.md"],
+	patterns: ["skills/yamlet-author/references", "patterns.md"],
+	"contract-challenge": ["agents", "yamlet-contract-challenger.md"],
+	"criteria-challenge": ["agents", "yamlet-criteria-challenger.md"],
+} as const;
 
-/** The procedures `yamlet_guide` can serve, and what each one is for. */
-const GUIDE_TOPICS = {
+type GuideTopic = keyof typeof GUIDE_FILES;
+
+const GUIDE_TOPICS: Record<GuideTopic, string> = {
 	creating: "Setting up a NEW spec: systems discovery, topic, front, summary, blast-radius, contract, init.",
 	editing: "Changing a spec that ALREADY EXISTS: locating the right file, reading its blast radius, what is possible.",
 	composites: "Declaring members and wiring connections on a composite.",
 	patterns: "The six EARS patterns, the three kinds of {token}, and placeholder examples.",
-} as const;
+	"contract-challenge": "The contract gate's checklist — only for running it inline when the Agent tool is absent.",
+	"criteria-challenge": "The criteria gate's checklist — only for running it inline when the Agent tool is absent.",
+};
 
 const readOrNull = async (p: string): Promise<string | null> => {
 	try {
@@ -502,28 +512,28 @@ export default function (pi: ExtensionAPI) {
 			"new spec or a change to an existing one, then reads the matching procedure from here rather than " +
 			"carrying all of them at once. Load 'creating' or 'editing' at the start of the work, 'composites' " +
 			"when the scope wires existing services together, and 'patterns' when you reach acceptance-criteria. " +
-			"Read only the one in play.",
-		promptSnippet: "Read a yamlet-author procedure (creating | editing | composites | patterns)",
+			"Read only the one in play. The two '*-challenge' topics are the challenger checklists, needed only " +
+			"when the Agent tool is unavailable and the gate has to be run inline.",
+		promptSnippet: "Read a yamlet-author procedure or challenger checklist",
 		parameters: Type.Object({
-			topic: StringEnum(["creating", "editing", "composites", "patterns"] as const, {
+			topic: StringEnum(Object.keys(GUIDE_FILES) as [GuideTopic, ...GuideTopic[]], {
 				description: Object.entries(GUIDE_TOPICS).map(([k, v]) => `${k}: ${v}`).join(" "),
 			}),
 		}),
 		async execute(_id, params) {
-			const dir = shippedReferencesDir();
-			const text = dir ? await readOrNull(join(dir, `${params.topic}.md`)) : null;
+			const root = pkgRoot();
+			const entry = GUIDE_FILES[params.topic as GuideTopic];
+			const path = root && entry ? join(root, ...entry) : undefined;
+			const text = path ? await readOrNull(path) : null;
 			if (text === null) {
 				throw new Error(
-					`The '${params.topic}' procedure could not be read` + (dir ? ` from ${dir}` : "") +
-					".\nThis extension seems to be installed without the author skill's references/ directory " +
-					"alongside it. Reinstall with `pi install git:github.com/RicardoMonteiroSimoes/Yamlet`.\n" +
-					"Do NOT proceed by guessing the procedure — tell the user instead.",
+					`The '${params.topic}' guide could not be read` + (path ? ` from ${path}` : "") +
+					".\nThis extension seems to be installed without the files it ships alongside. Reinstall " +
+					"with `pi install git:github.com/RicardoMonteiroSimoes/Yamlet`.\n" +
+					"Do NOT proceed by guessing the content — tell the user instead.",
 				);
 			}
-			return {
-				content: [{ type: "text" as const, text }],
-				details: { topic: params.topic, path: join(dir!, `${params.topic}.md`) },
-			};
+			return { content: [{ type: "text" as const, text }], details: { topic: params.topic, path } };
 		},
 	});
 

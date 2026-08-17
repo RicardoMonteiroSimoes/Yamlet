@@ -179,10 +179,20 @@ const resetNotes = () => (notes.length = 0);
 // shipped file, not a stub — if the references move, this fails.
 {
 	const { tools } = makePi();
-	for (const topic of ["creating", "editing", "composites", "patterns"]) {
+	const where = {
+		creating: ["skills", "yamlet-author", "references", "creating.md"],
+		editing: ["skills", "yamlet-author", "references", "editing.md"],
+		composites: ["skills", "yamlet-author", "references", "composites.md"],
+		patterns: ["skills", "yamlet-author", "references", "patterns.md"],
+		// The degraded path: no pi-subagents, so the gate runs inline and needs
+		// the agent's own checklist rather than the model's memory of it.
+		"contract-challenge": ["agents", "yamlet-contract-challenger.md"],
+		"criteria-challenge": ["agents", "yamlet-criteria-challenger.md"],
+	};
+	for (const [topic, parts] of Object.entries(where)) {
 		const res = await tools.get("yamlet_guide").execute("id", { topic }, undefined, undefined, ctx);
 		const text = res.content[0].text;
-		const onDisk = readFileSync(join(PKG, "skills", "yamlet-author", "references", `${topic}.md`), "utf8");
+		const onDisk = readFileSync(join(PKG, ...parts), "utf8");
 		ok(`guide serves ${topic} verbatim`, text === onDisk && text.length > 0, `${text.length} chars`);
 	}
 }

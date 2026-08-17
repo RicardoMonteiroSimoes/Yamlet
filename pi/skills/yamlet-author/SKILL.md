@@ -121,7 +121,7 @@ Run this gate **per requirement**, before its commit — never defer the batch t
 The two challenge gates need [`@tintinweb/pi-subagents`](https://pi.dev/packages/@tintinweb/pi-subagents). If you have no `Agent` tool, **do not silently skip the gates** — they are the quality bar of this whole flow. Instead:
 
 1. Tell the user plainly, once: *"pi-subagents isn't installed, so I'll run the contract/criteria challenge inline instead of in an independent context. It's the same checklist, but I'm reviewing my own proposal, so it's a weaker check — install `@tintinweb/pi-subagents` for the real gate."*
-2. Then run the gate yourself: work the corresponding agent's checklist against the proposal and report `BLOCKERS`/`QUESTIONS`/`SUGGESTIONS`/`BOTTOM LINE` in the same shape. The checklists live in the installed package's `agents/` directory (`yamlet-contract-challenger.md`, `yamlet-criteria-challenger.md`); `read` one if you can locate it, and otherwise work from the criteria named in this skill.
+2. Then run the gate yourself against the **real checklist** — never from memory. `yamlet_guide({ topic: "contract-challenge" })` or `yamlet_guide({ topic: "criteria-challenge" })` returns the same checklist the agent would have used; work it against the proposal and report `BLOCKERS`/`QUESTIONS`/`SUGGESTIONS`/`BOTTOM LINE` in the same shape.
 3. Be *harder* on yourself than usual to compensate. You already know what you meant, which is exactly the bias the independent context exists to defeat.
 
 ## Verify before you're done

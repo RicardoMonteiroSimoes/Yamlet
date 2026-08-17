@@ -109,6 +109,13 @@ The procedures live in `skills/yamlet-author/references/` (mirroring the Claude 
 layout, so the two ports stay legible side by side) and the smoke test asserts the
 tool returns those exact files, not a stub — if they move, it fails.
 
+It also serves the two challenger **checklists** (`contract-challenge`,
+`criteria-challenge`) straight out of `agents/`. Those are for the degraded path
+only: with `@tintinweb/pi-subagents` absent there is no `Agent` tool, so the skill
+must run the gate inline — and "go find the agent file yourself" is the instruction
+that quietly becomes "skip the gate". Serving the real checklist keeps the weaker
+path honest instead of leaving it to the model's memory of it.
+
 ## What is enforced
 
 **The one hard rule — never hand-write a `.yamlet.yaml` — is a gate, not a
