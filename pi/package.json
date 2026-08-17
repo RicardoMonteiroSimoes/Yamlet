@@ -1,0 +1,19 @@
+{
+  "name": "yamlet-pi",
+  "version": "0.1.0",
+  "description": "Spec-driven development with yamlet for the pi coding agent: an interviewing author drills you down to minimal, testable `.yamlet.yaml` specs with EARS acceptance criteria, appending through the `yamlet` CLI so the file is correct by construction. Two adversarial challengers guard the immutable init/commit gates. Requires the `yamlet` CLI on PATH; the challengers additionally require @tintinweb/pi-subagents.",
+  "keywords": ["pi-package", "pi", "yamlet", "ears", "requirements", "spec-authoring"],
+  "author": {
+    "name": "Ricardo Monteiro Simoes"
+  },
+  "homepage": "https://github.com/RicardoMonteiroSimoes/Yamlet",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RicardoMonteiroSimoes/Yamlet.git",
+    "directory": "pi"
+  },
+  "license": "MIT",
+  "pi": {
+    "skills": ["./skills"]
+  }
+}

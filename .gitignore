@@ -12,3 +12,7 @@ dist/
 # Per-machine Claude Code permissions. A shared .claude/settings.json (if any)
 # and the .claude/skills/ conventions are tracked; the local overrides are not.
 .claude/settings.local.json
+
+# Project-local pi packages, installed by `pi install -l`. The repo's own pi
+# wiring — .pi/agents/ and .pi/skills/, symlinks into pi/ — is tracked.
+.pi/npm/
