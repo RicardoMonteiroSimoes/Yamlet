@@ -128,9 +128,12 @@ pi/
     └── yamlet-tester/SKILL.md
 ```
 
-The repo's own `.pi/{extensions,agents,skills}` entries symlink here, so a `pi`
-session started in this repo picks all of it up with no install step — the same
-convention as `.claude/skills/*` symlinking into `plugins/yamlet-skills/`.
+To dogfood the port from this repo, run `./pi/install.sh --project` once — it
+links all three into `.pi/`, which pi discovers from the working directory. `.pi/`
+is **gitignored**, not tracked: pi writes its own machine-local state there
+(`pi install -l` packages, settings), so it is only ever a generated view of `pi/`,
+which is the source of truth. This is the one place the pi port deliberately
+differs from `.claude/skills/*`, which *is* tracked as symlinks into the plugin.
 
 > Why `.pi/` and not the cross-tool `.agents/` workspace: pi-subagents reads
 > agents from `.agents/agents/`, but pi 0.84.2 does **not** read skills from

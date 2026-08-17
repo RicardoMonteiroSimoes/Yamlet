@@ -13,9 +13,9 @@ Two separate products, one repo:
   plugin carrying *no binary*; skills call bare `yamlet` on PATH. `.claude/skills/*`
   are symlinks into the plugin — one source, don't edit both.
 
-  A second harness port lives in `pi/` for the [pi coding agent](https://pi.dev),
-  with `.pi/{extensions,agents,skills}/*` symlinked into it the same way
-  `.claude/skills/*` is — one source, don't edit both. It is a **separate port,
+  A second harness port lives in `pi/` for the [pi coding agent](https://pi.dev).
+  Unlike `.claude/skills/*`, its `.pi/` wiring is **not** tracked — run
+  `./pi/install.sh --project` to generate it; `pi/` is the source of truth. It is a **separate port,
   deliberately not shared source** — pi has no `Skill` tool and no way for a
   subagent to ask the user a question, so the split between skills and subagents
   differs. Read [`pi/README.md`](pi/README.md) before touching it; keep
