@@ -21,14 +21,23 @@
 //
 //     npx tsx pi/extensions/yamlet/smoke.test.mjs
 //
+// It must resolve as ESM: @earendil-works/pi-coding-agent exports only an
+// "import" condition, so a CJS resolution fails with ERR_PACKAGE_PATH_NOT_EXPORTED.
+// pi/package.json declares "type": "module", which is what makes that work (and
+// is correct regardless — the extension uses import.meta.url).
+//
 // Exits non-zero if any assertion fails. There is no CI for this yet: the repo's
 // toolchain is Deno and this is the only node code in it. Run it by hand when
 // you change the extension.
 
-import { mkdtempSync, writeFileSync, chmodSync } from "node:fs";
+import { mkdtempSync, writeFileSync, chmodSync, existsSync, readFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import ext from "./index.ts";
+
+// Package root, resolved from this file so the suite runs from any cwd.
+const PKG = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 const HELP = `yamlet — verify and author yamlet specs
 
@@ -71,6 +80,8 @@ function makePi({ onPath = true, help = HELP, code = 0, stdout = "AC-3\n", kille
 	const pi = {
 		on: (name, fn) => { handlers[name] = fn; },
 		registerTool: (t) => tools.set(t.name, t),
+		// No Agent tool here: the agent-install offer is exercised separately in §6.
+		getAllTools: () => [],
 		// Never throws — mirrors execCommand.
 		exec: async (cmd, args) => {
 			calls.push([cmd, ...args]);
@@ -222,6 +233,90 @@ const resetNotes = () => (notes.length = 0);
 		ok(`gate: ${label} -> ${shouldBlock ? "blocked" : "allowed"}`, !!r?.block === shouldBlock, JSON.stringify(r));
 	}
 }
+
+// ── 6. shipping the challenger agents (option B) ───────────────────────────
+// pi-subagents cannot load agents from a package, so the extension offers to
+// place them. These assert it asks first, never clobbers, and stays quiet when
+// there is nothing to install them for.
+const AGENTS = ["yamlet-contract-challenger.md", "yamlet-criteria-challenger.md"];
+const REAL_AGENT_DIR = process.env.PI_CODING_AGENT_DIR;
+
+function agentScenario({ hasAgentTool = true, hasUI = true, answer = true, prepopulate = null } = {}) {
+  const home = mkdtempSync(join(tmpdir(), "yamlet-agents-"));
+  process.env.PI_CODING_AGENT_DIR = home;
+  if (prepopulate) {
+    mkdirSync(join(home, "agents"), { recursive: true });
+    for (const a of AGENTS) writeFileSync(join(home, "agents", a), prepopulate(a));
+  }
+  const notes = [], prompts = [], h = {}, tools = new Map();
+  process.env.PATH = BIN;
+  const pi = {
+    on: (n, f) => (h[n] = f),
+    registerTool: (t) => tools.set(t.name, t),
+    getAllTools: () => (hasAgentTool ? [{ name: "Agent" }] : []),
+    exec: async (_c, a) => a[0] === "--version"
+      ? { stdout: "yamlet 0.4.1\n", stderr: "", code: 0, killed: false }
+      : { stdout: HELP, stderr: "", code: 0, killed: false },
+  };
+  ext(pi);
+  const ctx = {
+    cwd: join(home, "proj"), hasUI, mode: "tui",
+    ui: {
+      notify: (m, t) => notes.push(`[${t}] ${m}`),
+      confirm: async (title, body) => { prompts.push(title); return answer; },
+    },
+  };
+  return { h, ctx, notes, prompts, home,
+           installed: () => AGENTS.filter((a) => existsSync(join(home, "agents", a))) };
+}
+
+{ const s = agentScenario({ hasAgentTool: false });
+  await s.h.session_start({}, s.ctx);
+  ok("agents: silent when pi-subagents absent", s.prompts.length === 0 && s.installed().length === 0,
+     JSON.stringify(s.notes)); }
+
+{ const s = agentScenario({ answer: true });
+  await s.h.session_start({}, s.ctx);
+  ok("agents: asks before writing", s.prompts.length === 1, JSON.stringify(s.prompts));
+  ok("agents: installs both on yes", s.installed().length === 2, JSON.stringify(s.installed()));
+  ok("agents: content matches what the package ships",
+     AGENTS.every((a) => readFileSync(join(s.home, "agents", a), "utf8")
+                       === readFileSync(join(PKG, "agents", a), "utf8")));
+  ok("agents: tells the user a reload is needed",
+     s.notes.some((n) => /reload|Restart/i.test(n)), JSON.stringify(s.notes)); }
+
+{ const s = agentScenario({ answer: false });
+  await s.h.session_start({}, s.ctx);
+  ok("agents: writes nothing on no", s.installed().length === 0, JSON.stringify(s.installed()));
+  ok("agents: says it skipped", s.notes.some((n) => /skipped/i.test(n)), JSON.stringify(s.notes)); }
+
+{ const s = agentScenario({ hasUI: false });
+  await s.h.session_start({}, s.ctx);
+  ok("agents: headless never writes without asking", s.installed().length === 0);
+  ok("agents: headless explains the manual step",
+     s.notes.some((n) => n.includes("install.sh")), JSON.stringify(s.notes)); }
+
+{ const real = (a) => readFileSync(join(PKG, "agents", a), "utf8");
+  const s = agentScenario({ prepopulate: real });
+  await s.h.session_start({}, s.ctx);
+  ok("agents: silent when already installed and current", s.prompts.length === 0 &&
+     !s.notes.some((n) => /challenger/i.test(n)), JSON.stringify(s.notes)); }
+
+{ const s = agentScenario({ prepopulate: () => "locally edited by the user\n" });
+  await s.h.session_start({}, s.ctx);
+  ok("agents: never clobbers a locally-edited agent", s.prompts.length === 0 &&
+     AGENTS.every((a) => readFileSync(join(s.home, "agents", a), "utf8").startsWith("locally edited")),
+     JSON.stringify(s.notes));
+  ok("agents: reports the difference instead",
+     s.notes.some((n) => /differ/i.test(n)), JSON.stringify(s.notes)); }
+
+{ const s = agentScenario({ answer: false });
+  await s.h.session_start({}, s.ctx);
+  await s.h.session_start({}, s.ctx);
+  ok("agents: asks at most once per session", s.prompts.length === 1, JSON.stringify(s.prompts)); }
+
+if (REAL_AGENT_DIR === undefined) delete process.env.PI_CODING_AGENT_DIR;
+else process.env.PI_CODING_AGENT_DIR = REAL_AGENT_DIR;
 
 process.env.PATH = REAL_PATH;
 console.log(`\n${failures === 0 ? "all assertions passed" : `${failures} FAILED`}`);

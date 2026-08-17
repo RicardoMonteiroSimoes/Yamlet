@@ -29,19 +29,32 @@ release flow (GitHub Releases + the Homebrew tap) the single distribution channe
 
 It symlinks rather than copies, so `git pull` updates what pi loads.
 
-The extension and skills are also a normal pi package (`pi install ./pi`), but
-**the agents are not installable that way** — `pi-subagents` discovers agents from
-exactly three hardcoded directories (`.pi/agents/`, `.agents/agents/`,
-`$PI_CODING_AGENT_DIR/agents/`) with no package discovery and no configurable path.
-That is the whole reason `install.sh` exists.
+Or install it as a pi package, no clone needed:
 
-> `pi install git:github.com/RicardoMonteiroSimoes/Yamlet` does **not** work today:
-> pi reads the package manifest from the repository root, and this repo's root is a
-> Deno project with no `package.json`. Adding one at the root (declaring
-> `"pi": { "extensions": ["./pi/extensions"], "skills": ["./pi/skills"] }`) would
-> make git installs work for those two halves — it is deliberately not done here, to
-> keep an npm manifest out of the path of the Deno build. Clone-and-run `install.sh`
-> is the supported route.
+```sh
+pi install git:github.com/RicardoMonteiroSimoes/Yamlet
+```
+
+That works because of the small **private** `package.json` at the repo root, whose
+only job is to point pi at `pi/extensions` and `pi/skills`. It declares no
+dependencies and no scripts, and `tooling/` imports nothing bare (every import
+there is relative, and `tooling/deno.json` is a complete config), so it does not
+participate in the Deno build. It is `"private": true`, so it can never be
+published by accident — the publishable manifest is `pi/package.json`.
+
+**The agents are the exception.** `pi-subagents` discovers agents from exactly
+three hardcoded directories (`.pi/agents/`, `.agents/agents/`,
+`$PI_CODING_AGENT_DIR/agents/`) — no package discovery, no configurable path, and
+its cross-extension RPC exposes only ping/spawn/stop, so there is no registration
+hook either. A package physically cannot ship them.
+
+Rather than half-install, **the extension offers to place them itself**: on the
+first session where pi-subagents is present and the challengers are absent, it
+asks, and on yes copies them into `$PI_CODING_AGENT_DIR/agents/`. It stays silent
+when pi-subagents is not installed (nothing would use them), never writes without
+a UI to ask through, and never overwrites a file whose contents differ from what
+the package ships — it reports the difference instead, so a local edit survives.
+pi-subagents reads agents at startup, so the new ones need a restart or `/reload`.
 
 ## The yamlet tools
 
@@ -114,6 +127,7 @@ Honest residue, in descending order of how much it should bother you:
 ```
 pi/
 ├── README.md
+├── LICENSE                             # MIT, so the published tarball carries it
 ├── package.json                        # pi package manifest (extension + skills)
 ├── install.sh                          # links all three into a pi-discoverable dir
 ├── extensions/yamlet/

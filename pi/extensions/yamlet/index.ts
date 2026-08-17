@@ -27,8 +27,10 @@
 
 import { withFileMutationQueue, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { StringEnum } from "@earendil-works/pi-ai";
-import { access, constants } from "node:fs/promises";
-import { delimiter, join, resolve } from "node:path";
+import { access, constants, mkdir, readFile, writeFile } from "node:fs/promises";
+import { homedir } from "node:os";
+import { delimiter, dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { Type } from "typebox";
 
 /** A spec file, by the only naming the format recognises. */
@@ -151,6 +153,73 @@ function makeProbe(pi: ExtensionAPI): (cwd: string) => Promise<Probe> {
 	};
 }
 
+/* ── shipping the challenger agents ──────────────────────────────────────────
+ *
+ * `pi install` can deliver an extension and skills, but NOT agents:
+ * @tintinweb/pi-subagents discovers those from three hardcoded directories
+ * (.pi/agents/, .agents/agents/, $PI_CODING_AGENT_DIR/agents/) with no
+ * package-based discovery, no configurable path, and no public registration RPC
+ * — its cross-extension surface is ping/spawn/stop only.
+ *
+ * Left alone, that means `pi install npm:yamlet-pi` half-installs: the author
+ * skill runs, finds no `Agent` tool, and quietly degrades to reviewing its own
+ * proposals — losing the adversarial gates, which are the point. So the package
+ * offers to place its own agent files, with consent, and says what it did.
+ *
+ * Deliberately conservative: it asks before writing anything outside its own
+ * directory, never overwrites a file the user has edited without saying so,
+ * stays silent when pi-subagents is absent (there would be nothing to install
+ * them for), and never writes at all without a UI to ask through.
+ */
+const AGENT_FILES = ["yamlet-contract-challenger.md", "yamlet-criteria-challenger.md"];
+
+/** Where pi-subagents looks, in its own precedence order. */
+const agentSearchDirs = (cwd: string): string[] => [
+	join(cwd, ".pi", "agents"),
+	join(cwd, ".agents", "agents"),
+	join(process.env.PI_CODING_AGENT_DIR ?? join(homedir(), ".pi", "agent"), "agents"),
+];
+
+/** The `agents/` directory shipped alongside this extension, if reachable. */
+function shippedAgentsDir(): string | undefined {
+	try {
+		// extensions/yamlet/index.ts -> ../../agents
+		return resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "agents");
+	} catch {
+		return undefined;
+	}
+}
+
+const readOrNull = async (p: string): Promise<string | null> => {
+	try {
+		return await readFile(p, "utf8");
+	} catch {
+		return null;
+	}
+};
+
+/**
+ * Which agent files are missing from every search dir, and which exist but no
+ * longer match what this package ships (an upgrade, or a local edit).
+ */
+async function agentInstallState(cwd: string, src: string) {
+	const missing: string[] = [];
+	const stale: string[] = [];
+	for (const name of AGENT_FILES) {
+		const shipped = await readOrNull(join(src, name));
+		if (shipped === null) continue; // not shipped in this layout; nothing to offer
+		let foundAt: string | undefined;
+		let foundContent: string | null = null;
+		for (const dir of agentSearchDirs(cwd)) {
+			const c = await readOrNull(join(dir, name));
+			if (c !== null) { foundAt = dir; foundContent = c; break; }
+		}
+		if (foundAt === undefined) missing.push(name);
+		else if (foundContent !== shipped) stale.push(name);
+	}
+	return { missing, stale };
+}
+
 /**
  * Run the CLI and shape the result the way yamlet's own exit codes mean it:
  *
@@ -244,7 +313,89 @@ export default function (pi: ExtensionAPI) {
 		if (!probe.ok) {
 			ctx.ui.notify(`yamlet tools unavailable — ${probe.reason}`, "error");
 		}
+		// Convenience, never a prerequisite: a failure here must not take down the
+		// session, and the yamlet_* tools work with or without the challengers.
+		try {
+			await offerAgentInstall(ctx);
+		} catch {
+			// deliberately silent — the author skill reports missing gates itself
+		}
 	});
+
+	// Asked at most once per session: session_start also fires on reload/resume,
+	// and re-prompting someone who already said no is nagging.
+	let agentPromptDone = false;
+
+	async function offerAgentInstall(ctx: ExtensionContext): Promise<void> {
+		if (agentPromptDone) return;
+
+		// No pi-subagents means no `Agent` tool, so there is nothing these files
+		// would be used by. Stay silent rather than explaining an absent feature.
+		// getAllTools is guarded: it is not on every pi version this may run against,
+		// and an absent method must not turn into a thrown session_start.
+		if (typeof pi.getAllTools !== "function") return;
+		if (!pi.getAllTools().some((t) => t.name === "Agent")) return;
+
+		const src = shippedAgentsDir();
+		if (!src) return;
+		const { missing, stale } = await agentInstallState(ctx.cwd, src);
+		if (missing.length === 0 && stale.length === 0) return;
+
+		agentPromptDone = true;
+		const dest = join(process.env.PI_CODING_AGENT_DIR ?? join(homedir(), ".pi", "agent"), "agents");
+
+		if (stale.length > 0 && missing.length === 0) {
+			// Never silently clobber: the difference may be the user's own edit.
+			ctx.ui.notify(
+				`yamlet: ${stale.join(", ")} differ${stale.length === 1 ? "s" : ""} from the version this ` +
+				`package ships. Left untouched — re-copy from ${src} if you want the packaged version.`,
+				"info",
+			);
+			return;
+		}
+
+		const what = missing.join(" and ");
+		if (!ctx.hasUI) {
+			ctx.ui.notify(
+				`yamlet: the challenger agent${missing.length === 1 ? "" : "s"} (${what}) ${missing.length === 1 ? "is" : "are"} ` +
+				`not installed, so the author skill's adversarial gates cannot run. Copy ${src}/*.md into ` +
+				`${dest} (or run the package's install.sh).`,
+				"info",
+			);
+			return;
+		}
+
+		const yes = await ctx.ui.confirm(
+			"Install the yamlet challenger agents?",
+			`The yamlet author flow runs two adversarial reviewers as subagents. ${what} ` +
+			`${missing.length === 1 ? "is" : "are"} not on disk yet, and pi-subagents can only load agents ` +
+			`from a fixed set of directories — a package cannot ship them.\n\n` +
+			`Copy them to ${dest}? Without them the author still works, but reviews its own proposals.`,
+		);
+		if (!yes) {
+			ctx.ui.notify("yamlet: skipped. The author will say so when it reaches a gate.", "info");
+			return;
+		}
+
+		try {
+			await mkdir(dest, { recursive: true });
+			for (const name of missing) {
+				const content = await readOrNull(join(src, name));
+				if (content !== null) await writeFile(join(dest, name), content, "utf8");
+			}
+			ctx.ui.notify(
+				`yamlet: installed ${what} to ${dest}. Restart pi (or /reload) to pick them up — ` +
+				`pi-subagents reads agents at startup.`,
+				"info",
+			);
+		} catch (err) {
+			ctx.ui.notify(
+				`yamlet: could not write to ${dest} (${err instanceof Error ? err.message : String(err)}). ` +
+				`Copy ${src}/*.md there by hand, or run the package's install.sh.`,
+				"error",
+			);
+		}
+	}
 
 	// ── the gate ────────────────────────────────────────────────────────────
 	pi.on("tool_call", async (event) => {
