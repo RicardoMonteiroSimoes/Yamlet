@@ -1,0 +1,12 @@
+{
+  "name": "yamlet-pi-source",
+  "private": true,
+  "description": "Root manifest so `pi install git:github.com/RicardoMonteiroSimoes/Yamlet` resolves the pi port in pi/. The publishable package is pi/package.json; this file only points pi at it and is deliberately private so it is never published. It declares no dependencies and no scripts, and the Deno CLI in tooling/ imports nothing bare, so it does not participate in that build.",
+  "keywords": ["pi-package"],
+  "license": "MIT",
+  "repository": { "type": "git", "url": "git+https://github.com/RicardoMonteiroSimoes/Yamlet.git" },
+  "pi": {
+    "extensions": ["./pi/extensions"],
+    "skills": ["./pi/skills"]
+  }
+}

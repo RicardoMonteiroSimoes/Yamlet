@@ -32,6 +32,13 @@ Verify with `yamlet --version`.
 
 Then start with `/yamlet-author` (or let Claude invoke it when you ask to write a spec).
 
+## Using pi instead?
+
+The same flow is ported to the [pi coding agent](https://pi.dev) under
+[`pi/`](../../pi) in this repo — `pi install git:github.com/RicardoMonteiroSimoes/Yamlet`.
+There the CLI is registered as native pi tools and hand-editing a `.yamlet.yaml`
+is blocked outright, because pi has no permission layer to express that with.
+
 ## Source
 
 These skills live at [`plugins/yamlet-skills/skills/`](./skills) in the

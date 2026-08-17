@@ -36,6 +36,20 @@ The claude code half can be installed by adding the plugin as follows:
 /plugin install yamlet-skills@yamlet
 ```
 
+Using [pi](https://pi.dev) instead? The same flow is ported under
+[`pi/`](pi/), and installs in one line:
+
+```
+pi install git:github.com/RicardoMonteiroSimoes/Yamlet
+```
+
+It registers the CLI as
+native pi tools (one per subcommand) and blocks hand-editing a `.yamlet.yaml`
+outright, so "the file is only ever written by `yamlet`" is enforced rather than
+asked for. The two adversarial challengers additionally need
+`pi install npm:@tintinweb/pi-subagents`, since pi has no built-in sub-agents.
+See [`pi/README.md`](pi/README.md) for the full mapping.
+
 ## How it works
 
 Specs are authored, verified, and projected into tests — every write driven by the `yamlet` CLI, which owns all YAML and IDs, so nothing is hand-edited. You start simply by doing `/yamlet-author <your request>`. The goal is for it to challenge you - so if it's being specifically pesky, that's why. 
@@ -150,6 +164,8 @@ Five Claude Code skills, bundled as the `yamlet-skills` plugin under
 - **`yamlet-tester`** — projects a specs directory into a Gherkin `.feature` tree, wiping and rebuilding the target every run so the tests never drift. Disconnected: it writes features only, never step definitions.
 
 The two challengers exist because the author's flow is **one-way at two points**: the contract is immutable after `init`, and a committed requirement or criterion can't be edited. A gate at each of those points is the last cheap chance to catch a mistake before it freezes.
+
+The [`pi/`](pi/) port carries the same five capabilities, split differently: the three that talk to you stay skills, and the two challengers become `pi-subagents` agents — a pi subagent runs headless and has no way to ask a question, so only an autonomous reviewer can be one. There the challengers are read-only *structurally* (`tools: read, ext:yamlet/yamlet_systems`), because the port also registers the CLI as pi tools rather than shelling out.
 
 ### How they interact
 
