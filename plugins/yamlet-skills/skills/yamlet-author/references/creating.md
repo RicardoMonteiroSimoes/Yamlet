@@ -10,14 +10,38 @@ Unless it's clear, ask which `directory` the file should go in. A dedicated fold
 
 ## 1. Analyse the systems that already exist
 
-Run `yamlet systems` or `yamlet systems DIR`. Your goal is to work out which existing system the new scope belongs to. **You never decide — you only recommend.**
+**This is the highest-stakes decision in the setup, and the easiest to get wrong.** Silently minting a new system when the user meant a new scope of an existing one **fragments the service**, and nothing downstream ever flags it — the file verifies perfectly either way.
 
-- If they pick an existing system, reuse its **exact** `system:` slug at `init` — do not coin a variant (`e-mail-sending-service`, never `…-plain`).
-- If it's genuinely new, agree on a fresh, generic slug.
+You cannot judge it from a file listing. A `system:` slug carries no description of its own: what a service *is* lives in the summaries and descriptions of its scopes. Those are what you have to read.
 
-Never skip this and never guess: silently minting a new system when the user meant a new scope of an existing one **fragments the service**. If the scan lists no systems, say so and proceed with a new one.
+**a. See the landscape.**
 
-When several scopes of one service look similar, add `--details` to read each one's summary and description — topics alone rarely tell them apart.
+```
+yamlet systems specs
+```
+
+How many systems are there, and how many scopes does each hold? If the scan lists no systems at all, say so and proceed with a new one.
+
+**b. Read the prose — always, before forming an opinion.**
+
+```
+yamlet systems specs --details
+```
+
+`--details` prints each scope's summary and description. On a large tree, narrow to the two or three plausible candidates instead of dumping everything:
+
+```
+yamlet systems specs --system=e-mail-sending-service --details
+```
+
+> **Rule: never recommend a system whose scopes you have not read.** A slug and a topic tell you what something is *called*; only the prose tells you what it *covers*. Matching on the name alone is how a second `email-sending-service-plain` gets created next to `email-sending-service`.
+
+**c. Ask two questions of what you read.**
+
+1. **Does one of these systems already cover this?** If so, reuse its **exact** `system:` slug at `init` — do not coin a variant (`e-mail-sending-service`, never `…-plain`). A variant slug is the fragmentation, not a way of avoiding it.
+2. **Does one of these scopes already cover this?** If a scope's summary already describes what the user is asking for, the answer may be that no new file is needed — this is a *change* to that spec, not a creation. Say so and re-route to `references/editing.md`.
+
+**d. Recommend, never decide.** Present your reading to the user — which system you think this belongs to and which summary made you think so — and let them choose. If it's genuinely new, agree on a fresh, generic slug with them.
 
 ## 2. Define the topic
 

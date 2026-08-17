@@ -7,10 +7,10 @@ Do all of this immediately after `init` and **before** the first `add-requiremen
 ## C1. Discover the members you'll wire
 
 ```
-yamlet systems DIR --contracts [--system=SLUG]
+yamlet systems DIR --contracts --details [--system=SLUG]
 ```
 
-This lists existing scopes with their exposed contracts on labelled `in:`/`out:` lines. You wire *against those contracts*, so choose members whose inputs you can supply and whose outputs you need. Add `--details` if summaries would help you pick between similar scopes.
+This lists existing scopes with their exposed contracts on labelled `in:`/`out:` lines. You wire *against those contracts*, so choose members whose inputs you can supply and whose outputs you need — and read `--details` alongside them, because a contract signature tells you the *shape* of a member but only its summary tells you what it actually does. Two scopes of one service often differ by a single socket (`…-plain` without the attachment); the prose is what says which one you want.
 
 A member must already exist as a spec file **and** expose a contract — a contract-less scope cannot be wired.
 
