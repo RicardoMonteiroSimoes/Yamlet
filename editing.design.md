@@ -1,6 +1,7 @@
 # Design note: editing existing specs
 
-**Status: DESIGN** — nothing here is built. This note is the *spec of the spec*: it
+**Status: DESIGN**, with step 0 of §12 shipped (`yamlet systems --details`). Everything
+else is unbuilt. This note is the *spec of the spec*: it
 fixes the model, the safety story and the command surface for mutating an existing
 `.yamlet.yaml` before any tooling code is written, in the same way
 [`composite-connections.design.md`](composite-connections.design.md) did for wiring.
@@ -233,7 +234,45 @@ The transient is bounded and visible: every file it touches is named above, and
 refactor between two commits — acceptable *because* it is reported, and only because the
 alternative is a contract that can never grow.
 
-### 7.5 The phase-order guards are an artifact, and they should go
+### 7.5 Parallel change — duplicates are legal, and they are the migration path
+
+Not every change has to be a mutation. The safest way to alter behaviour that something
+already depends on is to **add the replacement alongside the original, migrate, then
+remove the original** — expand/contract, and yamlet supports it today without a single
+new rule.
+
+**Two requirements may describe the same capability, and the verifier must never
+object.** There is no semantic-duplicate rule in `validate.ts`, and none should ever be
+added: overlap is not mechanically detectable (it would need to compare prose meanings),
+and more importantly a temporary duplicate is a *correct intermediate state*, not a
+mistake. So the migration is:
+
+1. `add-requirement` the new wording; `add-criterion` its criteria. New ids throughout —
+   the old `RQ-2`/`AC-7` keep their ids and keep passing.
+2. Re-project the tests. Both old and new scenarios exist; the consumer writes step
+   definitions for the new ones while the old ones stay green.
+3. `remove-requirement RQ-2` once the new path is live. Its scenarios disappear and the
+   §8 change report names the step definitions now orphaned.
+
+The tree is valid at every step, and nothing breaks in between. That is worth stating in
+the skill explicitly, because the instinct — the agent's especially — is to revise in
+place and leave a green tree that is quietly testing something else. **Revise in place
+when the change is a clarification; run parallel change when the change alters
+behaviour something else relies on.**
+
+The same pattern at file scale is what `SPEC.md` §8 already prescribes for contracts:
+when a contract must change shape, add a **second, total variant spec**, migrate parents
+onto it one at a time, then delete the original. That sidesteps §7.4's transient
+entirely — the old contract stays valid and fully wired the whole time — at the cost of
+duplicated contract text. For a widening that parents will all want anyway, take the
+transient; for a change that parents must adopt individually, take the variant.
+
+Removal of a requirement is, notably, always cross-file safe: requirements are never
+referenced from another spec (only contracts and members are), so `remove-requirement`
+needs no impact refusal. Its only fallout is downstream step definitions, which §8
+reports.
+
+### 7.6 The phase-order guards are an artifact, and they should go
 
 `init → add-component → add-connection → add-requirement` is one-way today because an
 appender that cannot revisit an earlier block would otherwise **trap** the file in an
@@ -271,6 +310,9 @@ Verbs mirror their targets; `set-*` for scalars, `revise-*` for whole blocks,
 `remove-*` for deletion. Every one addresses by id, never by position.
 
 ```sh
+# Discovery — read-only, and the entry point for editing (§11.1)
+yamlet systems [DIR] [--system=SLUG] [--details] [--contracts]   # --details: SHIPPED
+
 # Tier 0 / 1 — file-local
 yamlet set-header      FILE [--topic t] [--summary s] [--description d] \
                             [--blast-radius r] [--front f] [--system s]
@@ -329,7 +371,39 @@ yamlet-author/
 ```
 
 The skill's **first question becomes "new spec, or changing an existing one?"** — then it
-reads the one procedure that applies. Today's `SKILL.md` is ~300 lines and every session
+reads the one procedure that applies.
+
+### 11.1 Editing starts with finding the right file
+
+"I want to adapt the e-mail sending spec" does not name a file, and a service routinely
+has three. Guessing from a filename is exactly the failure the whole design is built to
+prevent, so `references/editing.md` opens with a fixed locate step:
+
+1. **`yamlet systems DIR`** — which systems exist? Map the user's words onto one slug.
+2. **Ask which *behaviour* they mean**, in their terms, before touching anything.
+3. **`yamlet systems DIR --system=SLUG --details`** — read each scope's summary and
+   description and propose the best match, with the reason.
+4. **Confirm the file with the user** before the first mutation. Never infer it.
+
+Step 3 is why `--details` exists and is **shipped in this change**: `renderHumanSystems`
+was collecting `summary` and discarding it, so the human listing showed only a topic —
+and two scopes of one service routinely carry near-interchangeable topics ("Send plain
+e-mail" / "Send e-mail with attachment"). Prose is what separates them:
+
+```
+e-mail-sending-service  (2 scopes)
+  specs/email_service.yamlet.yaml        E-Mail sending service
+    summary:     A generic e-mail sending service that exposes a contract for others
+                 to send emails with a given content
+    description: … connectivity to a single TLS SMTP server …
+  specs/email_service_plain.yamlet.yaml  Attachment-free (plain) e-mail sending
+    summary:     A scope of the e-mail sending service that sends a plain e-mail —
+                 subject and content only, no attachment.
+    description: … a separate, total scope rather than an optional attachment …
+```
+
+The default listing is unchanged; `--details` is additive, and `--contracts` composes
+with it. Today's `SKILL.md` is ~300 lines and every session
 pays for all of it, including the composite branch that most sessions never take; the
 router shrinks the resident cost to the part in play. Splitting the file is also what
 makes room for the editing procedure to be written properly rather than squeezed in.
@@ -361,6 +435,9 @@ Three things must move in step with this, and one needs checking first:
 
 Each step is independently shippable and leaves the tree valid.
 
+0. **Discovery — `yamlet systems --details`.** ✅ **Shipped with this note.** Read-only,
+   additive, and a prerequisite for the editing skill's locate step (§11.1): you cannot
+   edit the right spec until you can tell which one it is.
 1. **`yamlet impact`** — read-only, no mutation semantics, immediately useful.
 2. **Block addressing + the generalized guard** — internal; no new commands. Port the
    existing `add-*` commands onto it and confirm `tests/oracle-author/` does not move.
@@ -372,7 +449,7 @@ Each step is independently shippable and leaves the tree valid.
    the change report land with this, since removal is the first operation that can
    orphan a step definition.
 6. **Connection editing** — `set-connection`, `remove-component`, and the phase guards
-   come out (§7.5).
+   come out (§7.6).
 7. **Contract editing** — `add-input` and friends, with the impact work list (§7.4).
 
 Then, and only then, `rm` becomes a coherent conversation.

@@ -66,5 +66,7 @@ change is a regression, not a re-freeze.
 ## Conventions
 
 - Deno fmt: 2-space, 100 col, semicolons, double quotes. `strict` + `noUncheckedIndexedAccess`.
-- `edit` / `rm` are deliberately not implemented (safe removal needs dependency analysis — out of
-  scope). Don't stub them.
+- `edit` / `rm` are **not implemented yet**, and still must not be stubbed. Safe removal needs the
+  reverse-dependency analysis nothing currently does — but this is now a planned build, not a closed
+  question: [`editing.design.md`](../editing.design.md) fixes the model, the refusal contract and
+  the rollout order. Implement from that note, in its order, or update it first.
