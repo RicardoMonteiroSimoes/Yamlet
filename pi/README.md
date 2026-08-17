@@ -22,39 +22,48 @@ release flow (GitHub Releases + the Homebrew tap) the single distribution channe
 ## Install
 
 ```sh
-./install.sh              # global: ~/.pi/agent/{extensions,agents,skills}/
-./install.sh --project    # project: ./.pi/{extensions,agents,skills}/
-./install.sh --uninstall  # remove what it linked
-```
-
-It symlinks rather than copies, so `git pull` updates what pi loads.
-
-Or install it as a pi package, no clone needed:
-
-```sh
 pi install git:github.com/RicardoMonteiroSimoes/Yamlet
 ```
 
-That works because of the small **private** `package.json` at the repo root, whose
+That is the whole install. No clone, no npm publish, no build step — pi loads the
+extension's TypeScript through `jiti` at runtime, and the package pulls no
+dependencies of its own.
+
+It works because of the small **private** `package.json` at the repo root, whose
 only job is to point pi at `pi/extensions` and `pi/skills`. It declares no
 dependencies and no scripts, and `tooling/` imports nothing bare (every import
 there is relative, and `tooling/deno.json` is a complete config), so it does not
 participate in the Deno build. It is `"private": true`, so it can never be
 published by accident — the publishable manifest is `pi/package.json`.
 
-**The agents are the exception.** `pi-subagents` discovers agents from exactly
-three hardcoded directories (`.pi/agents/`, `.agents/agents/`,
-`$PI_CODING_AGENT_DIR/agents/`) — no package discovery, no configurable path, and
-its cross-extension RPC exposes only ping/spawn/stop, so there is no registration
-hook either. A package physically cannot ship them.
+Working on the port itself, or want it to track a clone? Use the script instead —
+it symlinks rather than copies, so `git pull` updates what pi loads:
 
-Rather than half-install, **the extension offers to place them itself**: on the
-first session where pi-subagents is present and the challengers are absent, it
-asks, and on yes copies them into `$PI_CODING_AGENT_DIR/agents/`. It stays silent
-when pi-subagents is not installed (nothing would use them), never writes without
-a UI to ask through, and never overwrites a file whose contents differ from what
-the package ships — it reports the difference instead, so a local edit survives.
+```sh
+./install.sh              # global: ~/.pi/agent/{extensions,agents,skills}/
+./install.sh --project    # project: ./.pi/{extensions,agents,skills}/
+./install.sh --uninstall  # remove what it linked
+```
+
+`pi install ./pi` works too, for a local path without symlinks.
+
+### The agents are the exception
+
+`pi-subagents` discovers agents from exactly three hardcoded directories
+(`.pi/agents/`, `.agents/agents/`, `$PI_CODING_AGENT_DIR/agents/`) — no package
+discovery, no configurable path, and its cross-extension RPC exposes only
+ping/spawn/stop, so there is no registration hook either. **A package physically
+cannot ship them.**
+
+Rather than half-install, the extension offers to place them itself: on the first
+session where pi-subagents is present and the challengers are absent, it asks, and
+on yes copies them into `$PI_CODING_AGENT_DIR/agents/`. It stays silent when
+pi-subagents is not installed (nothing would use them), never writes without a UI
+to ask through, and never overwrites a file whose contents differ from what the
+package ships — it reports the difference instead, so a local edit survives.
 pi-subagents reads agents at startup, so the new ones need a restart or `/reload`.
+
+`install.sh` places them directly, without the prompt.
 
 ## The yamlet tools
 

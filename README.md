@@ -37,7 +37,13 @@ The claude code half can be installed by adding the plugin as follows:
 ```
 
 Using [pi](https://pi.dev) instead? The same flow is ported under
-[`pi/`](pi/) — clone the repo and run `./pi/install.sh`. It registers the CLI as
+[`pi/`](pi/), and installs in one line:
+
+```
+pi install git:github.com/RicardoMonteiroSimoes/Yamlet
+```
+
+It registers the CLI as
 native pi tools (one per subcommand) and blocks hand-editing a `.yamlet.yaml`
 outright, so "the file is only ever written by `yamlet`" is enforced rather than
 asked for. The two adversarial challengers additionally need
