@@ -47,7 +47,7 @@ const INSTALL_HINT =
 
 /** Subcommands this extension exposes; a CLI missing any of them is too old. */
 const REQUIRED_COMMANDS = [
-	"verify", "systems", "graph", "tests",
+	"verify", "systems", "impact", "graph", "tests",
 	"init", "add-component", "add-connection", "add-requirement", "add-criterion",
 ] as const;
 
@@ -189,6 +189,39 @@ function shippedAgentsDir(): string | undefined {
 		return undefined;
 	}
 }
+
+/**
+ * The author skill's procedure files, shipped alongside this extension.
+ *
+ * The Claude Code build splits the author skill into a router plus `references/`
+ * that it reads on demand, which keeps the always-loaded body small. That relies
+ * on Claude Code telling a skill where it lives; pi has no such guarantee, and
+ * a skill installed into `~/.pi/agent/skills/` cannot know its own absolute path.
+ *
+ * So the extension serves them instead. It *does* know where it lives — the same
+ * `import.meta.url` trick `shippedAgentsDir` already uses for the challengers —
+ * which turns "find your own bundled file" into a plain tool call. This is the
+ * pi port earning its executable code a second time.
+ */
+function shippedReferencesDir(): string | undefined {
+	try {
+		// extensions/yamlet/index.ts -> ../../skills/yamlet-author/references
+		return resolve(
+			dirname(fileURLToPath(import.meta.url)),
+			"..", "..", "skills", "yamlet-author", "references",
+		);
+	} catch {
+		return undefined;
+	}
+}
+
+/** The procedures `yamlet_guide` can serve, and what each one is for. */
+const GUIDE_TOPICS = {
+	creating: "Setting up a NEW spec: systems discovery, topic, front, summary, blast-radius, contract, init.",
+	editing: "Changing a spec that ALREADY EXISTS: locating the right file, reading its blast radius, what is possible.",
+	composites: "Declaring members and wiring connections on a composite.",
+	patterns: "The six EARS patterns, the three kinds of {token}, and placeholder examples.",
+} as const;
 
 const readOrNull = async (p: string): Promise<string | null> => {
 	try {
@@ -436,12 +469,17 @@ export default function (pi: ExtensionAPI) {
 		description:
 			"List the systems already defined across a directory of specs, grouped by their scope files. " +
 			"Run this BEFORE creating any new spec: reusing an existing system's exact slug is what keeps a " +
-			"service from fragmenting into near-duplicates. Pass contracts=true to also print each scope's " +
-			"exposed input/output signature, which is what you wire a composite against.",
-		promptSnippet: "Discover existing yamlet systems and their exposed contracts",
+			"service from fragmenting into near-duplicates. Pass details=true to read each scope's summary " +
+			"and description — a slug and a topic say what a service is CALLED, only the prose says what it " +
+			"COVERS, and nothing downstream ever flags a fragmented service. Pass contracts=true to also " +
+			"print each scope's exposed input/output signature, which is what you wire a composite against.",
+		promptSnippet: "Discover existing yamlet systems, their summaries and their contracts",
 		parameters: Type.Object({
 			dir: Type.Optional(Type.String({ description: "Directory to scan for *.yamlet.yaml (default: .)" })),
 			system: Type.Optional(Type.String({ description: "Show only the system with this exact slug" })),
+			details: Type.Optional(Type.Boolean({
+				description: "Include each scope's summary and description — required before recommending a system",
+			})),
 			contracts: Type.Optional(Type.Boolean({ description: "Include each scope's exposed contract signature" })),
 			format: Type.Optional(StringEnum(["human", "json"] as const)),
 		}),
@@ -449,7 +487,65 @@ export default function (pi: ExtensionAPI) {
 			const args = ["systems"];
 			if (params.dir) args.push(cleanPath(params.dir));
 			if (params.system) args.push(`--system=${params.system}`);
+			if (params.details) args.push("--details");
 			if (params.contracts) args.push("--contracts");
+			if (params.format) args.push(`--format=${params.format}`);
+			return run(ctx, args, signal);
+		},
+	});
+
+	pi.registerTool({
+		name: "yamlet_guide",
+		label: "yamlet guide",
+		description:
+			"Read one of the yamlet-author procedures. The author skill is a router: it asks whether this is a " +
+			"new spec or a change to an existing one, then reads the matching procedure from here rather than " +
+			"carrying all of them at once. Load 'creating' or 'editing' at the start of the work, 'composites' " +
+			"when the scope wires existing services together, and 'patterns' when you reach acceptance-criteria. " +
+			"Read only the one in play.",
+		promptSnippet: "Read a yamlet-author procedure (creating | editing | composites | patterns)",
+		parameters: Type.Object({
+			topic: StringEnum(["creating", "editing", "composites", "patterns"] as const, {
+				description: Object.entries(GUIDE_TOPICS).map(([k, v]) => `${k}: ${v}`).join(" "),
+			}),
+		}),
+		async execute(_id, params) {
+			const dir = shippedReferencesDir();
+			const text = dir ? await readOrNull(join(dir, `${params.topic}.md`)) : null;
+			if (text === null) {
+				throw new Error(
+					`The '${params.topic}' procedure could not be read` + (dir ? ` from ${dir}` : "") +
+					".\nThis extension seems to be installed without the author skill's references/ directory " +
+					"alongside it. Reinstall with `pi install git:github.com/RicardoMonteiroSimoes/Yamlet`.\n" +
+					"Do NOT proceed by guessing the procedure — tell the user instead.",
+				);
+			}
+			return {
+				content: [{ type: "text" as const, text }],
+				details: { topic: params.topic, path: join(dir!, `${params.topic}.md`) },
+			};
+		},
+	});
+
+	pi.registerTool({
+		name: "yamlet_impact",
+		label: "yamlet impact",
+		description:
+			"The reverse dependency index: which composites declare this spec as a member, under which alias, " +
+			"and which of its sockets each one binds, consumes or names in prose. Every exposes contract is " +
+			"TOTAL — a composite must bind every input of every member — so adding an input reaches every file " +
+			"listed here, and removing an input or output breaks each consumer that uses it. Run this before " +
+			"proposing any change to an exposes block, and before removing a spec. Read the scanned count: a " +
+			"consumer outside the scanned tree is one this cannot see.",
+		promptSnippet: "List the composites that consume a spec (blast radius of a contract change)",
+		parameters: Type.Object({
+			file: Type.String({ description: "The spec whose consumers you want" }),
+			dir: Type.Optional(Type.String({ description: "Directory to scan for composites (default: .)" })),
+			format: Type.Optional(StringEnum(["human", "json"] as const)),
+		}),
+		async execute(_id, params, signal, _onUpdate, ctx) {
+			const args = ["impact", cleanPath(params.file)];
+			if (params.dir) args.push(cleanPath(params.dir));
 			if (params.format) args.push(`--format=${params.format}`);
 			return run(ctx, args, signal);
 		},
@@ -651,15 +747,21 @@ export default function (pi: ExtensionAPI) {
 		name: "yamlet_add_criterion",
 		label: "yamlet add-criterion",
 		description:
-			"Append one EARS acceptance criterion and return its AC-N. The pattern picks the clauses: " +
+			"Add one EARS acceptance criterion and return its AC-N. The pattern picks the clauses: " +
 			"ubiquitous (none), state (while), event (when), optional (where), unwanted (if), complex " +
 			"(while + exactly one of when/if). Each shall is one atomic, observable obligation. " +
 			"{input.X}/{output.X} need no examples; any other {placeholder} requires examples, with every " +
-			"row binding every placeholder.",
-		promptSnippet: "Append an EARS acceptance criterion (returns its AC-N)",
+			"row binding every placeholder. rq may name ANY requirement in the file, not only the newest; " +
+			"pass after=AC-N to insert directly behind a named sibling instead of appending.",
+		promptSnippet: "Add an EARS acceptance criterion (returns its AC-N)",
 		parameters: Type.Object({
 			file: Type.String(),
-			rq: Type.String({ description: "The requirement id, e.g. RQ-1 — as printed by yamlet_add_requirement" }),
+			rq: Type.String({ description: "The requirement id, e.g. RQ-1 — any requirement, not only the newest" }),
+			after: Type.Optional(Type.String({
+				description:
+					"Insert directly after this criterion (must belong to rq). The new id takes a letter " +
+					"suffix on it — after AC-3 comes AC-3a — so nothing is renumbered. Omit to append.",
+			})),
 			pattern: StringEnum(["ubiquitous", "state", "event", "optional", "unwanted", "complex"] as const),
 			when: Type.Optional(Type.String({ description: "event / complex: the discrete trigger" })),
 			if: Type.Optional(Type.String({ description: "unwanted / complex: the error or undesired condition" })),
@@ -673,6 +775,7 @@ export default function (pi: ExtensionAPI) {
 		async execute(_id, params, signal, _onUpdate, ctx) {
 			return mutate(params.file, ctx, () => {
 				const args = ["add-criterion", cleanPath(params.file), "--rq", params.rq, "--pattern", params.pattern];
+				if (params.after) args.push("--after", params.after);
 				if (params.when) args.push("--when", params.when);
 				if (params.if) args.push("--if", params.if);
 				repeat("--while", params.while, args);

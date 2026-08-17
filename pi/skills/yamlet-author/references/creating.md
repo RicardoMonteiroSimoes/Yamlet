@@ -1,0 +1,141 @@
+# Creating a new spec
+
+The setup procedure for a spec that does not exist yet. Everything from the first requirement onward is in the skill body; this file ends at `yamlet_init` (or, for a composite, hands off to the `composites` guide).
+
+## 0. Get the rough idea, and a home for it
+
+If the user hasn't already, ask for a short write-down of what they want. The goal is an initial idea before proceeding. **PUSH BACK if it is already too vague** — worst case, tell them to rethink it before continuing.
+
+Unless it's clear, ask which `directory` the file should go in. A dedicated folder for specs is best practice; push the user to create one if none exists.
+
+## 1. Analyse the systems that already exist
+
+**This is the highest-stakes decision in the setup, and the easiest to get wrong.** Silently minting a new system when the user meant a new scope of an existing one **fragments the service**, and nothing downstream ever flags it — the file verifies perfectly either way.
+
+You cannot judge it from a file listing. A `system` slug carries no description of its own: what a service *is* lives in the summaries and descriptions of its scopes. Those are what you have to read.
+
+**a. See the landscape.**
+
+```
+yamlet_systems({ dir: "specs" })
+```
+
+How many systems are there, and how many scopes does each hold? If the scan lists no systems at all, say so and proceed with a new one.
+
+**b. Read the prose — always, before forming an opinion.**
+
+```
+yamlet_systems({ dir: "specs", details: true })
+```
+
+`details` prints each scope's summary and description. On a large tree, narrow to the two or three plausible candidates instead of dumping everything:
+
+```
+yamlet_systems({ dir: "specs", system: "e-mail-sending-service", details: true })
+```
+
+> **Rule: never recommend a system whose scopes you have not read.** A slug and a topic tell you what something is *called*; only the prose tells you what it *covers*. Matching on the name alone is how a second `email-sending-service-plain` gets created next to `email-sending-service`.
+
+**c. Ask two questions of what you read.**
+
+1. **Does one of these systems already cover this?** If so, reuse its **exact** `system` slug at init — do not coin a variant (`e-mail-sending-service`, never `…-plain`). A variant slug is the fragmentation, not a way of avoiding it.
+2. **Does one of these scopes already cover this?** If a scope's summary already describes what the user is asking for, the answer may be that no new file is needed — this is a *change* to that spec, not a creation. Say so, then load `yamlet_guide({ topic: "editing" })` instead.
+
+**d. Recommend, never decide.** Present your reading to the user — which system you think this belongs to and which summary made you think so — and let them choose. If it's genuinely new, agree on a fresh, generic slug with them.
+
+## 2. Define the topic
+
+A `topic` is a short, specific title for the scope. An `email-service` might hold several yamlet files, one per topic:
+
+- Service connects to an SMTP server
+- Send out emails using a template
+- Send out emails with attachments
+
+If a scope cannot be titled that briefly, you **have to** advise the user on how to split it. Too large a scope per yamlet defeats the point of the file.
+
+## 3. Define the front
+
+`front` is `internal` or `external`, and it marks a **trust boundary** — *who* calls this scope, not merely whether it is used.
+
+- **`external`** — an **untrusted caller** crosses here: an end user *or* a third-party system whose input cannot be trusted.
+- **`internal`** — the caller is another component we deploy and control.
+
+A scope is exactly one of the two, never both. A `pdf-verifier` that only stores and checks files is `internal`; the `pdf-uploader` receiving untrusted uploads (from a human *or* a foreign system) is `external`.
+
+An `external` scope therefore **owes extra `unwanted`/`if` acceptance-criteria** for malformed or hostile input — factor that in when you drill the requirements. This also serves as a scope-limiting factor, which makes it easier to judge whether the requirements are concise.
+
+## 4. Converge on a summary
+
+The `summary` is one short sentence of what the scope encompasses, free of technicalities. *"Accepts an uploaded file, verifies it is a well-formed PDF, and returns the validated PDF."* is a perfect example.
+
+If a short summary is not possible, the scope is too broad and needs splitting further.
+
+## 5. Categorise the blast-radius
+
+`blast_radius` is the impact of this scope failing or being misconfigured: `low`, `medium` or `high`. A service handling authentication is `high` — everything else *might* become unusable if it fails. Use YOUR experience to interview the user and help them categorise it.
+
+## 6. Discuss the exposed contract
+
+A scope may expose a contract: named `input` and `output` attributes. These expose functionality and are what overarching systems wire together into more complex behaviour. Recommend generic options that make sense now *and* later — a `pdf-validator` should offer an `error` output, reusable to display a problem with the PDF.
+
+**This is optional, and not required.** The contract is a *signature, not a schema*: a name, an intent, named inputs, and optional named outputs (the return half — `inputs → outputs`, like a function's parameters and its return value). No types.
+
+The contract needs its own slug, `expose_name`, which is **different from `system`** and unique per scope. The system `email-service` might have two topics whose contract names are `e-mail-plain-sending` and `e-mail-attachment-sending`, so a system referencing both can tell them apart.
+
+**Two different name rules — do not conflate them.** `expose_name` is a **slug** (`^[a-z0-9]+(-[a-z0-9]+)*$`, dash-separated, e.g. `pdf-upload`). Each `inputs`/`outputs` entry is a **token** (`^[a-z][a-z0-9_]*$`, underscore-separated, e.g. `target_email`, `pdf_file`). Dashes in an input name, or underscores in the contract name, are rejected. `inputs`/`outputs` **require `expose_name`** (which itself requires `expose_intent`). An input and an output *may* share a name — uniqueness is per-list, not global.
+
+Every declared input **must** be referenced by some criterion as `{input.NAME}`, and every declared output as `{output.NAME}`, before the spec is complete. So only declare inputs and outputs the behaviour actually uses.
+
+**Get this right now.** Adding an input to a contract later is not supported, and even once it is, it will reach every composite that wires this spec — contracts are total, so a new input leaves every parent with an unbound member input. If you are unsure how costly a mistake here would be, `yamlet_impact` on a comparable spec shows you the shape of it.
+
+**Leaf or composite?** Decide here, because it changes what the contract *means*. A **leaf** does the work itself; its inputs and outputs are referenced by its own criteria. A **composite** does none of the work — it wires *existing* scopes together and its contract is a **boundary**: inputs it accepts from its caller and routes to members, outputs it surfaces from what members produce. If the behaviour is "take these inputs, run them through services X and Y, hand back their results," it's a composite. If unsure, it's a leaf.
+
+## 7. Challenge the contract before you freeze it
+
+The contract is set at init and cannot be changed afterwards — this is your last cheap chance to catch a mistake. Before calling `yamlet_init`, spawn the **`yamlet-contract-challenger`** agent with a compact serialization of everything decided so far: the six header fields (system, topic, front, blast_radius, summary, description), the contract (expose_name, expose_intent, every input, every output), whether this is a **leaf** or **composite**, and the target directory:
+
+```
+Agent({
+  subagent_type: "yamlet-contract-challenger",
+  description: "Challenge the frozen contract",
+  prompt: "<the full serialization described above>"
+})
+```
+
+It runs in an isolated context whose only tools are `read` and `yamlet_systems` — it cannot mutate anything — and returns `BLOCKERS` / `QUESTIONS` / `SUGGESTIONS` / `BOTTOM LINE`. Because it is headless it **cannot ask the user anything**; relaying its questions is your job.
+
+You do **not** obey it blindly and it does not decide — bring its findings back to the user in plain prose:
+
+- Any **BLOCKER** (unused input, missing output, misclassified leaf/composite, fragmented system) must be resolved with the user *before* init.
+- Put its **QUESTIONS** to the user and its **SUGGESTIONS** up for a decision.
+
+Run this gate **once**, right before init. Do not skip it: a contract mistake is the most expensive error in the whole flow. If you have no `Agent` tool, see the skill body's fallback — do not silently skip the gate.
+
+## 8. Create the spec
+
+```
+yamlet_init({
+  file: "specs/email.yamlet.yaml",
+  system: "email-sending-service",
+  topic: "E-Mail sending service",
+  summary: "A service that sends emails over a single TLS SMTP server",
+  description: "The generic e-mail sending service offers connectivity to a single TLS SMTP server for the platform.",
+  blast_radius: "high",
+  front: "internal"
+})
+```
+
+With a contract:
+
+```
+yamlet_init({
+  file: "specs/upload.yamlet.yaml",
+  ...the six fields above...,
+  expose_name: "pdf-upload",
+  expose_intent: "verify a file is a well-formed PDF and return it",
+  inputs: ["file", "filename"],
+  outputs: ["pdf_file"]
+})
+```
+
+**Next:** if this is a composite, load `yamlet_guide({ topic: "composites" })` before adding any requirement. Otherwise return to the skill body's working rhythm and start eliciting requirements.

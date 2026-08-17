@@ -45,6 +45,7 @@ Commands:
   verify            check a spec against the rule catalog
   version           print the yamlet version
   systems           list existing systems grouped by their scope files
+  impact            list the composites that consume a spec (reverse dependency index)
   graph             emit a DOT, JSON, or HTML graph model of a spec or a directory
   tests             project spec acceptance criteria into Gherkin feature files
   init              create a new spec, correct by construction
@@ -109,7 +110,9 @@ const resetNotes = () => (notes.length = 0);
 {
 	const { tools } = makePi();
 	const names = [...tools.keys()].sort();
-	ok("9 tools registered", names.length === 9, names.join(","));
+	ok("11 tools registered", names.length === 11, names.join(","));
+	ok("impact and guide are registered",
+		names.includes("yamlet_impact") && names.includes("yamlet_guide"), names.join(","));
 }
 
 // ── 2. argv construction ───────────────────────────────────────────────────
@@ -128,6 +131,81 @@ const resetNotes = () => (notes.length = 0);
 		"--shall", "schedule a retry with {delay_seconds}s backoff", "--shall", "emit a metric",
 		"--example", "n=0;delay_seconds=10", "--example", "n=1;delay_seconds=30"];
 	ok("add_criterion argv", JSON.stringify(calls.at(-1)) === JSON.stringify(expected), JSON.stringify(calls.at(-1)));
+}
+{
+	// `after` inserts behind a named sibling; it must land before the clause flags.
+	const { tools, calls } = makePi();
+	await tools.get("yamlet_add_criterion").execute("id", {
+		file: "specs/e.yamlet.yaml", rq: "RQ-1", after: "AC-1", pattern: "event",
+		when: "a send is retried", shall: ["log the retry attempt"],
+	}, undefined, undefined, ctx);
+	const expected = ["yamlet", "add-criterion", "specs/e.yamlet.yaml", "--rq", "RQ-1", "--pattern", "event",
+		"--after", "AC-1", "--when", "a send is retried", "--shall", "log the retry attempt"];
+	ok("add_criterion --after argv", JSON.stringify(calls.at(-1)) === JSON.stringify(expected),
+		JSON.stringify(calls.at(-1)));
+}
+{
+	// Omitting `after` must not emit the flag at all — an empty --after would be
+	// a usage error rather than an append.
+	const { tools, calls } = makePi();
+	await tools.get("yamlet_add_criterion").execute("id", {
+		file: "specs/e.yamlet.yaml", rq: "RQ-1", pattern: "ubiquitous", shall: ["do a thing"],
+	}, undefined, undefined, ctx);
+	ok("add_criterion omits --after when not given", !calls.at(-1).includes("--after"),
+		JSON.stringify(calls.at(-1)));
+}
+{
+	const { tools, calls } = makePi();
+	await tools.get("yamlet_systems").execute("id", {
+		dir: "specs", system: "e-mail-sending-service", details: true, contracts: true,
+	}, undefined, undefined, ctx);
+	const expected = ["yamlet", "systems", "specs", "--system=e-mail-sending-service", "--details", "--contracts"];
+	ok("systems --details argv", JSON.stringify(calls.at(-1)) === JSON.stringify(expected),
+		JSON.stringify(calls.at(-1)));
+}
+{
+	const { tools, calls } = makePi();
+	await tools.get("yamlet_impact").execute("id", {
+		file: "@specs/up.yamlet.yaml", dir: "specs", format: "json",
+	}, undefined, undefined, ctx);
+	const expected = ["yamlet", "impact", "specs/up.yamlet.yaml", "specs", "--format=json"];
+	ok("impact argv (and strips leading @)", JSON.stringify(calls.at(-1)) === JSON.stringify(expected),
+		JSON.stringify(calls.at(-1)));
+}
+
+// ── 2b. yamlet_guide serves the author skill's procedures ──────────────────
+// The whole point of this tool is that the extension knows where it lives and a
+// skill does not. So the assertion that matters is that it resolves the REAL
+// shipped file, not a stub — if the references move, this fails.
+{
+	const { tools } = makePi();
+	for (const topic of ["creating", "editing", "composites", "patterns"]) {
+		const res = await tools.get("yamlet_guide").execute("id", { topic }, undefined, undefined, ctx);
+		const text = res.content[0].text;
+		const onDisk = readFileSync(join(PKG, "skills", "yamlet-author", "references", `${topic}.md`), "utf8");
+		ok(`guide serves ${topic} verbatim`, text === onDisk && text.length > 0, `${text.length} chars`);
+	}
+}
+{
+	// It reads a bundled file, so it must not depend on the CLI being installed:
+	// the procedure has to be readable even while the user is still setting up.
+	const { tools, calls } = makePi({ onPath: false });
+	const res = await tools.get("yamlet_guide").execute("id", { topic: "creating" }, undefined, undefined, ctx);
+	ok("guide works without the yamlet CLI on PATH", res.content[0].text.length > 0);
+	ok("guide shells out to nothing", calls.length === 0, JSON.stringify(calls));
+}
+{
+	// A missing procedure must say what to do, not return an empty string that
+	// the model would then paper over by inventing the steps.
+	const { tools } = makePi();
+	let msg = "";
+	try {
+		await tools.get("yamlet_guide").execute("id", { topic: "nope" }, undefined, undefined, ctx);
+	} catch (e) {
+		msg = e.message;
+	}
+	ok("missing guide throws an actionable error",
+		msg.includes("could not be read") && msg.includes("Reinstall") && msg.includes("Do NOT proceed"), msg);
 }
 {
 	const { tools, calls } = makePi();
