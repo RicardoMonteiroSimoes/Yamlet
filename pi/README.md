@@ -12,7 +12,7 @@ source: pi's model differs enough that a symlink would lie.
 
 | | |
 | --- | --- |
-| **`yamlet` CLI** (required) | `brew tap RicardoMonteiroSimoes/yamlet && brew install yamlet` — the extension shells out to it and is inert without it. It is checked at session start, and again on every tool call, with an actionable message either way. |
+| **`yamlet` CLI** (required) | `brew tap RicardoMonteiroSimoes/yamlet && brew trust --tap RicardoMonteiroSimoes/yamlet && brew install yamlet` (Homebrew 6+ gates non-official taps behind the trust step) — the extension shells out to it and is inert without it. It is checked at session start, and again on every tool call, with an actionable message either way. |
 | **`@tintinweb/pi-subagents`** (required for the challengers) | `pi install npm:@tintinweb/pi-subagents` — provides the `Agent` tool the two adversarial gates run in. Without it the author degrades loudly rather than skipping the gates. |
 
 The binary is **not** bundled. Keeping it out preserves the rule the Claude Code

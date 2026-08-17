@@ -27,7 +27,8 @@
 
 import { withFileMutationQueue, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { StringEnum } from "@earendil-works/pi-ai";
-import { resolve } from "node:path";
+import { access, constants } from "node:fs/promises";
+import { delimiter, join, resolve } from "node:path";
 import { Type } from "typebox";
 
 /** A spec file, by the only naming the format recognises. */
@@ -56,6 +57,36 @@ type Probe =
 	| { ok: false; reason: string };
 
 /**
+ * Resolve `cmd` on PATH, or undefined.
+ *
+ * We cannot infer "not installed" from the exit code. pi's `execCommand` never
+ * rejects and never surfaces 127: it spawns with `shell: false`, and a spawn
+ * ENOENT is caught and resolved as `{ code: 1, stdout: "", stderr: "" }` — which
+ * is indistinguishable from a real command that genuinely exited 1. Checking
+ * PATH ourselves is the only way to tell "yamlet is missing" (actionable: here
+ * is how to install it) from "yamlet ran and failed" (actionable: here is what
+ * it said).
+ */
+async function findOnPath(cmd: string): Promise<string | undefined> {
+	// On Windows an executable is only executable by extension, and node reports
+	// X_OK true for any readable file — so probe the PATHEXT candidates there.
+	const exts = process.platform === "win32"
+		? (process.env.PATHEXT ?? ".EXE;.CMD;.BAT;.COM").split(";").filter(Boolean)
+		: [""];
+	for (const dir of (process.env.PATH ?? "").split(delimiter).filter(Boolean)) {
+		for (const ext of exts) {
+			try {
+				await access(join(dir, cmd + ext), constants.X_OK);
+				return join(dir, cmd + ext);
+			} catch {
+				// not here; keep looking
+			}
+		}
+	}
+	return undefined;
+}
+
+/**
  * Build the "is a usable `yamlet` on PATH?" probe for one extension instance.
  *
  * Checked once at session start so the user hears about a missing CLI up front,
@@ -78,36 +109,37 @@ function makeProbe(pi: ExtensionAPI): (cwd: string) => Promise<Probe> {
 	return function probeYamlet(cwd: string): Promise<Probe> {
 		if (cachedProbe) return cachedProbe;
 		const run = (async (): Promise<Probe> => {
-			let version: string;
-			try {
-				const v = await pi.exec("yamlet", ["--version"], { cwd, timeout: 5000 });
-				if (v.code === 127) return { ok: false, reason: INSTALL_HINT };
-				if (v.code !== 0) {
-					return { ok: false, reason: `\`yamlet --version\` exited ${v.code}.\n${v.stderr.trim()}` };
-				}
-				version = v.stdout.trim() || "unknown version";
-			} catch (err) {
-				const detail = err instanceof Error ? err.message : String(err);
-				return { ok: false, reason: `${INSTALL_HINT}\n\n(${detail})` };
-			}
+			if (!(await findOnPath("yamlet"))) return { ok: false, reason: INSTALL_HINT };
 
-			try {
-				const h = await pi.exec("yamlet", ["help"], { cwd, timeout: 5000 });
-				if (h.code === 0) {
-					const missing = REQUIRED_COMMANDS.filter((c) => !new RegExp(`^\\s+${c}\\s`, "m").test(h.stdout));
-					if (missing.length > 0) {
-						return {
-							ok: false,
-							reason:
-								`Found ${version}, but it is missing the command(s) this extension needs: ` +
-								`${missing.join(", ")}.\nUpgrade with \`brew upgrade yamlet\`, or download a newer ` +
-								`build from https://github.com/RicardoMonteiroSimoes/Yamlet/releases/latest.`,
-						};
-					}
+			const v = await pi.exec("yamlet", ["--version"], { cwd, timeout: 5000 });
+			// `killed` is the only signal that a run was cut short: a process killed
+			// by a signal reports a null exit code, which pi coerces to 0.
+			if (v.killed) {
+				return { ok: false, reason: "`yamlet --version` timed out after 5s. Is the binary on PATH wedged?" };
+			}
+			if (v.code !== 0) {
+				return {
+					ok: false,
+					reason: `\`yamlet --version\` exited ${v.code}.\n${v.stderr.trim() || "(no output)"}`,
+				};
+			}
+			const version = v.stdout.trim() || "unknown version";
+
+			const h = await pi.exec("yamlet", ["help"], { cwd, timeout: 5000 });
+			// Only conclude "too old" from a help listing we actually got. A killed or
+			// failed `help` yields empty stdout, which would otherwise read as every
+			// command missing and disable the whole toolset for the session.
+			if (!h.killed && h.code === 0 && h.stdout.trim()) {
+				const missing = REQUIRED_COMMANDS.filter((c) => !new RegExp(`^\\s+${c}\\s`, "m").test(h.stdout));
+				if (missing.length > 0) {
+					return {
+						ok: false,
+						reason:
+							`Found ${version}, but it is missing the command(s) this extension needs: ` +
+							`${missing.join(", ")}.\nUpgrade with \`brew upgrade yamlet\`, or download a newer ` +
+							`build from https://github.com/RicardoMonteiroSimoes/Yamlet/releases/latest.`,
+					};
 				}
-			} catch {
-				// `help` is a capability nicety; if it cannot run but --version could,
-				// do not fail the session over it — the per-call errors still apply.
 			}
 			return { ok: true, version };
 		})();
@@ -130,6 +162,11 @@ function makeProbe(pi: ExtensionAPI): (cwd: string) => Promise<Probe> {
  *
  * 2 and 3 mean the call itself was wrong, so they throw: pi marks the result
  * isError and the model sees it as a failure to correct rather than an answer.
+ *
+ * A cancelled or timed-out run is checked FIRST and separately, because pi
+ * reports it as `{ code: 0, killed: true }` — a signal death has a null exit
+ * code, which is coerced to 0. Reading that as success would tell the model a
+ * mutation landed when it may have been killed mid-write.
  */
 async function runYamlet(
 	pi: ExtensionAPI,
@@ -143,16 +180,16 @@ async function runYamlet(
 	const probe = await probeYamlet(ctx.cwd);
 	if (!probe.ok) throw new Error(probe.reason);
 
-	let res: { stdout: string; stderr: string; code: number; killed: boolean };
-	try {
-		res = await pi.exec("yamlet", args, { signal, cwd: ctx.cwd });
-	} catch (err) {
-		const detail = err instanceof Error ? err.message : String(err);
-		throw new Error(`${INSTALL_HINT}\n\n(${detail})`);
-	}
-	if (res.code === 127) throw new Error(INSTALL_HINT);
+	const res = await pi.exec("yamlet", args, { signal, cwd: ctx.cwd });
 
 	const text = [res.stdout, res.stderr].map((s) => s.trimEnd()).filter(Boolean).join("\n");
+	if (res.killed) {
+		throw new Error(
+			`\`yamlet ${args[0]}\` was cancelled or timed out before it finished. Do not assume it ` +
+			`did or did not take effect — read the spec file back before continuing.` +
+			(text ? `\n\nPartial output:\n${text}` : ""),
+		);
+	}
 	if (res.code === 2 || res.code === 3) {
 		throw new Error(text || `yamlet ${args[0]} exited ${res.code}`);
 	}
@@ -183,12 +220,13 @@ function shellWritesSpec(command: string): boolean {
 	return command.split(/\|\||&&|[;\n|]/).some((segment) => {
 		const s = segment.trim();
 		if (!SPEC_RE.test(s)) return false;
+		// A redirect into a spec is blocked whatever produced the bytes — including
+		// `yamlet graph a.yamlet.yaml > b.yamlet.yaml`, which is still the shell
+		// writing the file rather than the CLI's own serializer.
+		if (/>>?\s*\S*\.yamlet\.ya?ml\b/i.test(s)) return true;
+		// Otherwise the CLI itself is the sanctioned writer and passes.
 		if (/^(?:sudo\s+)?yamlet\b/.test(s)) return false;
-		return (
-			/>>?\s*\S*\.yamlet\.ya?ml\b/i.test(s) ||
-			/\btee\b/.test(s) ||
-			/\bsed\b[^&]*\s-i\b/.test(s)
-		);
+		return /\btee\b/.test(s) || /\bsed\b[^&]*\s-i\b/.test(s);
 	});
 }
 
@@ -357,12 +395,8 @@ export default function (pi: ExtensionAPI) {
 		label: "yamlet init",
 		description:
 			"Create a new spec, correct by construction. The exposed contract (expose_name, expose_intent, " +
-			"inputs, outputs) is IMMUTABLE after this call — it cannot be added to or corrected later, so " +
-			"settle it with the user first. expose_name is a dash slug (^[a-z0-9]+(-[a-z0-9]+)*$); each input " +
-			"and output is an underscore token (^[a-z][a-z0-9_]*$). Declaring inputs/outputs requires " +
-			"expose_name, which requires expose_intent. On a leaf, every declared input must later be " +
-			"referenced by a criterion as {input.NAME} and every output as {output.NAME}, or verify fails — " +
-			"so declare only what the behaviour actually uses.",
+			"inputs, outputs) is IMMUTABLE after this call — settle it with the user first. Naming rules and " +
+			"what must reference each input/output: see the yamlet-author skill.",
 		promptSnippet: "Create a new .yamlet.yaml spec (freezes its contract)",
 		parameters: Type.Object({
 			file: Type.String({ description: "Path of the .yamlet.yaml to create" }),
@@ -401,12 +435,9 @@ export default function (pi: ExtensionAPI) {
 		name: "yamlet_add_component",
 		label: "yamlet add-component",
 		description:
-			"Declare one member of a composite. alias is a token you coin as the local handle for this member " +
-			"in the wiring ('input' and 'output' are reserved); path is the member's spec, resolved relative " +
-			"to the composite, which must already exist and expose a contract. Echoes the member's contract: " +
-			"every listed input MUST be wired or verify fails, outputs are consumed as needed. Declare all " +
-			"components before any connection, and all wiring before the first requirement — the CLI refuses " +
-			"components once a requirement exists.",
+			"Declare one member of a composite. Echoes the member's contract: every listed input MUST be " +
+			"wired or verify fails; outputs are consumed as needed. All components before any connection, " +
+			"and all wiring before the first requirement — the CLI refuses components once one exists.",
 		parameters: Type.Object({
 			file: Type.String({ description: "The composite .yamlet.yaml" }),
 			alias: Type.String({ description: "Local handle for this member (^[a-z][a-z0-9_]*$)" }),
@@ -423,12 +454,10 @@ export default function (pi: ExtensionAPI) {
 		name: "yamlet_add_connection",
 		label: "yamlet add-connection",
 		description:
-			"Wire one group of a composite atomically. group is a member alias (binding that member's inputs) " +
-			"or the reserved 'output' (feeding the composite's own declared outputs). The call must bind ALL " +
-			"of that group's sinks at once — partial wiring is rejected, so gather them first. Direction is " +
-			"strict: a source is either 'input.NAME' (a boundary input) or 'alias.SOCKET' (an OUTPUT of an " +
-			"already-declared member). A member input, or 'output.NAME', is a sink and never a source. Cycles " +
-			"are allowed.",
+			"Wire one group of a composite atomically — group is a member alias, or 'output' for the " +
+			"composite's own outputs. Must bind ALL of that group's sinks in one call; partial wiring is " +
+			"rejected. A source is 'input.NAME' or 'alias.SOCKET' (a member OUTPUT); member inputs and " +
+			"'output.NAME' are sinks, never sources. Cycles are allowed.",
 		parameters: Type.Object({
 			file: Type.String({ description: "The composite .yamlet.yaml" }),
 			group: Type.String({ description: "A member alias, or the reserved 'output'" }),
@@ -452,10 +481,9 @@ export default function (pi: ExtensionAPI) {
 		name: "yamlet_add_requirement",
 		label: "yamlet add-requirement",
 		description:
-			"Append a requirement and print its assigned RQ-N — never invent that id yourself, read it from " +
-			"the output. One capability per requirement; split anything joined by 'and'. This is ONE-WAY: a " +
-			"committed requirement cannot be edited or deleted in this version, and criteria can only be " +
-			"attached to the most recent requirement, so finish each one before starting the next.",
+			"Append a requirement and return its assigned RQ-N — read that id from the output, never invent " +
+			"it. One capability per requirement. ONE-WAY: a committed requirement cannot be edited, and " +
+			"criteria attach only to the most recent one, so finish each before starting the next.",
 		promptSnippet: "Append a requirement to a spec (returns its RQ-N)",
 		parameters: Type.Object({
 			file: Type.String(),
@@ -472,12 +500,11 @@ export default function (pi: ExtensionAPI) {
 		name: "yamlet_add_criterion",
 		label: "yamlet add-criterion",
 		description:
-			"Append one EARS acceptance criterion to a requirement and print its AC-N. Pick the pattern by " +
-			"what triggers the behaviour: ubiquitous (always on, no clause), state (while), event (when), " +
-			"optional (where), unwanted (if — error/undesired conditions), complex (while + exactly one of " +
-			"when/if). Each shall is one atomic, observable obligation. {input.NAME}/{output.NAME} reference " +
-			"the declared contract and need no examples; any other {placeholder} REQUIRES examples, and every " +
-			"row must bind every placeholder. Pass text plainly — do not quote {...} yourself.",
+			"Append one EARS acceptance criterion and return its AC-N. The pattern picks the clauses: " +
+			"ubiquitous (none), state (while), event (when), optional (where), unwanted (if), complex " +
+			"(while + exactly one of when/if). Each shall is one atomic, observable obligation. " +
+			"{input.X}/{output.X} need no examples; any other {placeholder} requires examples, with every " +
+			"row binding every placeholder.",
 		promptSnippet: "Append an EARS acceptance criterion (returns its AC-N)",
 		parameters: Type.Object({
 			file: Type.String(),

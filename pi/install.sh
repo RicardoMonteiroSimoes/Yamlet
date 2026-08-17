@@ -25,7 +25,7 @@ for arg in "$@"; do
     case "$arg" in
         --project|-l) SCOPE=project ;;
         --uninstall)  ACTION=uninstall ;;
-        -h|--help)    sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        -h|--help)    sed -n '2,/^[^#]/p' "$0" | grep '^#' | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) printf 'install.sh: unknown option %s (try --help)\n' "$arg" >&2; exit 2 ;;
     esac
 done
@@ -96,6 +96,6 @@ done
 printf '\nNext:\n'
 command -v yamlet >/dev/null 2>&1 \
     && printf '  ok   yamlet on PATH (%s)\n' "$(yamlet --version 2>/dev/null || echo 'version unknown')" \
-    || printf '  TODO install the yamlet CLI — brew tap RicardoMonteiroSimoes/yamlet && brew install yamlet\n'
+    || printf '  TODO install the yamlet CLI:\n         brew tap RicardoMonteiroSimoes/yamlet\n         brew trust --tap RicardoMonteiroSimoes/yamlet\n         brew install yamlet\n'
 printf '  TODO install the subagent host if you have not: pi install npm:@tintinweb/pi-subagents\n'
 printf '  then: pi, and ask it to write a yamlet spec (or /skill:yamlet-author)\n'
