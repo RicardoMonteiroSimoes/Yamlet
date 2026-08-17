@@ -167,14 +167,52 @@ behave quite differently:
 So `add-output` is cross-file safe and the other three are not. A rename is a remove
 plus an add and inherits the worse half.
 
-### 7.3 The transient is unavoidable — so it must be *reported*, not hidden
+### 7.3 Two directions, two answers — and refusing is the feature
+
+The tool exists to enforce correctness. A refusal is therefore a **correct outcome**,
+not a usability failure to be designed around, and the design should reach for it
+wherever a valid order exists. Which direction the dependency runs decides which answer
+is right:
+
+**Downward — editing A, which depends on B.** A is a composite; B is a member it wires.
+An edit to A that asks for something B does not offer (a socket that isn't declared, an
+input that isn't there) has an ordering that works: **fix B, then A.** So the tool
+refuses, and it must say so in those words — naming the file to edit and the command
+that would do it, never just emitting a rule id:
+
+```
+error: cannot wire mailer.locale
+  email_service.yamlet.yaml declares no input 'locale', so this connection
+  cannot resolve (E607).
+
+  B doesn't allow for this — edit it first:
+      yamlet add-input email_service.yamlet.yaml locale
+  then re-run this command.
+
+nothing was written.
+```
+
+This is the single most important message in the whole feature. The user is holding a
+half-formed intention about A and the tool knows exactly which other file blocks it;
+that knowledge must land as an instruction, not as a diagnostic. `yamlet impact` (§7.1)
+is what makes it cheap to produce.
+
+The same shape applies to `remove-*`: deleting something a parent consumes has a valid
+order (unwire the parent, then delete), so it **refuses** and names every consumer.
+
+**Upward — editing B, which parents depend on.** This is the one case with no valid
+order, and §7.4 is about it.
+
+### 7.4 The one unavoidable transient
 
 Widening a contract necessarily passes through an invalid tree: the input must exist on
-the child before any parent can wire it. There is no ordering that avoids this, and
-cascading the fix is impossible — the tool cannot know what should feed the new input.
+B before any parent can wire it, and §7.3's refusal is precisely what forces that order.
+There is no sequence that avoids the gap, and cascading the fix is impossible — the tool
+cannot know what should feed the new input.
 
-Therefore `add-input` **succeeds**, permits exactly the findings it predicted (§5), and
-prints the resulting work list:
+Refusing here would make widening a used contract permanently impossible, which is the
+one outcome worse than a transient. So `add-input` **succeeds**, permits exactly the
+findings it predicted (§5), and prints the resulting work list:
 
 ```
 added input 'locale' to pdf_upload.yamlet.yaml
@@ -190,7 +228,12 @@ of it.** That work list is only actionable if a single sink can be added to an e
 group — and today `add-connection` refuses a group that already exists (`author.ts:511`)
 and refuses anything at all once a requirement exists (`:485`). Both must go first.
 
-### 7.4 The phase-order guards are an artifact, and they should go
+The transient is bounded and visible: every file it touches is named above, and
+`yamlet verify` on the tree is what closes it. It is the same shape as any multi-file
+refactor between two commits — acceptable *because* it is reported, and only because the
+alternative is a contract that can never grow.
+
+### 7.5 The phase-order guards are an artifact, and they should go
 
 `init → add-component → add-connection → add-requirement` is one-way today because an
 appender that cannot revisit an earlier block would otherwise **trap** the file in an
@@ -263,7 +306,58 @@ composites. The cost of a mistake moved from *impossible to fix* to *expensive t
 across files you are not currently looking at* — which is still ample justification to
 challenge before committing, and is the argument `yamlet impact` makes concrete.
 
-## 11. Rollout order
+## 11. Partitioning the author skill
+
+Editing does **not** get its own skill. A separate `yamlet-editor` was the obvious first
+answer and it is the wrong one: the two paths share almost everything that matters — the
+challenger gates, the interrogation rhythm, the verify gate, the closing test
+projection — so splitting would either duplicate them or need cross-skill delegation.
+Discovery argues the same way: "I want to change a spec" and "I want to write a spec"
+should not require the user to already know which door to knock on.
+
+Instead **`yamlet-author` becomes a router**, and the long procedures move out of the
+always-loaded body into files it reads on demand:
+
+```
+yamlet-author/
+├── SKILL.md                 # router + the one hard rule + the shared closing gates
+└── references/
+    ├── creating.md          # setup steps 0–7: systems discovery → contract → init
+    ├── composites.md        # C1–C5: members and wiring
+    ├── editing.md           # locate → impact → propose → challenge → apply
+    └── patterns.md          # the EARS table and the three {token} kinds
+```
+
+The skill's **first question becomes "new spec, or changing an existing one?"** — then it
+reads the one procedure that applies. Today's `SKILL.md` is ~300 lines and every session
+pays for all of it, including the composite branch that most sessions never take; the
+router shrinks the resident cost to the part in play. Splitting the file is also what
+makes room for the editing procedure to be written properly rather than squeezed in.
+
+**The tasklist is shared, and that is the point.** Adding and changing run the same
+rhythm — draft with the user → challenge → commit through a `yamlet` command → verify →
+re-project the tests. Only the *setup* differs (creation discovers systems and designs a
+contract; editing locates a block and reads its impact), which is exactly the part the
+reference files hold. The router picks a setup file; everything after it converges.
+
+Three things must move in step with this, and one needs checking first:
+
+- **`SKILL.md`'s "Scope of this version"** is the section that becomes false — append-only,
+  one-way phase order, criteria-attach-to-newest-only. It goes; what replaces it is the
+  §7.3 refusal contract, so the model knows a blocked edit names its own fix.
+- **The `pi/` port needs the same partition**, hand-ported as always — plus one registered
+  tool per new subcommand in `pi/extensions/yamlet/index.ts`, and its `write`/`edit` gate
+  already covers the new commands since it keys on the `*.yamlet.yaml` path, not the verb.
+- **Verify that pi resolves a skill-relative path.** Claude Code needs no wiring — the
+  `.claude/skills/*` symlinks point at skill *directories*, so `references/` travels for
+  free — and `pi/skills` is directory-based too, so the files ship. What is unconfirmed is
+  whether a pi skill can reference its own bundled files once installed into `~/.pi/agent/`
+  or `.pi/`, where the absolute path isn't knowable in advance. If it cannot, the pi build
+  keeps a single flat `SKILL.md` and accepts the divergence; the two ports are already
+  deliberately not shared source, so this would be one more honest split rather than a
+  blocker. **Check this before committing to the layout.**
+
+## 12. Rollout order
 
 Each step is independently shippable and leaves the tree valid.
 
@@ -278,26 +372,23 @@ Each step is independently shippable and leaves the tree valid.
    the change report land with this, since removal is the first operation that can
    orphan a step definition.
 6. **Connection editing** — `set-connection`, `remove-component`, and the phase guards
-   come out (§7.4).
-7. **Contract editing** — `add-input` and friends, with the impact work list (§7.3).
+   come out (§7.5).
+7. **Contract editing** — `add-input` and friends, with the impact work list (§7.4).
 
 Then, and only then, `rm` becomes a coherent conversation.
 
 **Riding along, per step:** a frozen oracle for every new command's bytes (the appender
-has one; the mutators must too); `plugins/yamlet-skills/` **and** the `pi/` port kept in
-step, including a registered pi tool per new subcommand in `pi/extensions/yamlet/`; and
-the author skill's "Scope of this version" section, which becomes wrong the moment step
-3 lands. A separate **`yamlet-editor`** skill is the right home for the edit loop
-(locate → show current → propose → challenge → apply → re-verify → re-project) — the
-author skill is an interview for *creation* and is already ~300 lines; bolting a second
-flow onto it would obscure both.
+has one; the mutators must too), and both harness builds kept in step (§11). The skill
+partition lands with step 3 — that is the moment "Scope of this version" becomes false —
+and `references/editing.md` grows with steps 4 through 7 rather than being written once
+up front.
 
 `SPEC.md` needs two touch-ups but no format change: the *Authoring* open sub-decision
 under Composition ("composites are hand-written; `author.sh` gains no connection
 support") is already stale, and id holes plus the `AC-Na` suffix deserve an explicit
 sentence now that they are load-bearing rather than incidental.
 
-## 12. Open questions
+## 13. Open questions
 
 - **Moving a criterion between requirements.** `revise-criterion --rq` would be a
   *move*, not a revision. Deliberately excluded above. It is probably wanted (splitting
@@ -311,6 +402,13 @@ sentence now that they are load-bearing rather than incidental.
   changes every feature path in the manifest. Wants the change report of §8 to say so.
 - **Concurrent edits.** Every mutation is read–modify–write with no locking. Fine for a
   single interactive agent; worth a sentence before anything runs these in parallel.
-- **Whether `remove-*` should refuse on a non-empty impact set**, or succeed with a work
-  list the way `add-input` does. §7.3 argues for the work list on widening because the
-  transient is unavoidable; for removal it is avoidable, so refusing may be right.
+- **Can a pi skill read its own bundled reference files?** §11 depends on it, and the
+  fallback (a flat `SKILL.md` on pi only) is acceptable but should be a decision rather
+  than a discovery. This is the one item to settle before the layout is committed to.
+- **How wide should `impact` search?** It needs a root to walk. Defaulting to the spec's
+  own directory is predictable but silently misses a composite that lives one level up —
+  and a refusal that names the wrong set of blockers is worse than no refusal.
+
+*Settled by review, kept for the record:* whether `remove-*` should refuse on a non-empty
+impact set or succeed with a work list — it **refuses** (§7.3). Removal always has a
+valid order, so the work list is reserved for the one case that does not (§7.4).
