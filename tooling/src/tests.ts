@@ -340,8 +340,15 @@ function featureBinds(doc: SpecDoc): FeatureBinds {
 
 /** Numeric order for `AC-N` ids (`AC-2` before `AC-10`). */
 function acOrder(a: string, b: string): number {
-  const n = (s: string) => Number(s.replace(/\D+/g, "")) || 0;
-  return n(a) - n(b);
+  // Number first, then the inserted-sibling suffix (`AC-3` < `AC-3a` < `AC-3b`),
+  // since an id may carry one (E203) and comparing digits alone would tie them.
+  const parse = (s: string) => {
+    const m = s.match(/^AC-([0-9]+)([a-z]?)$/);
+    return { n: m ? Number(m[1]) : 0, suffix: m?.[2] ?? "" };
+  };
+  const x = parse(a), y = parse(b);
+  if (x.n !== y.n) return x.n - y.n;
+  return x.suffix < y.suffix ? -1 : x.suffix > y.suffix ? 1 : 0;
 }
 
 /**

@@ -18,6 +18,7 @@ import { flatten } from "./flatten.ts";
 import { verifyText } from "./verify.ts";
 import { type Contract, contractOf } from "./systems.ts";
 import { type CompositeInfo, resolveComposite, socketKey } from "./composite.ts";
+import { type Block, blocksOf, criteriaKeyLine, findBlock, spliceAfter } from "./blocks.ts";
 
 const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const NAME = /^[a-z][a-z0-9_]*$/;
@@ -37,7 +38,8 @@ const USAGE = `Usage:
   yamlet add-component   FILE ALIAS PATH
   yamlet add-connection  FILE GROUP SOCKET=SOURCE [SOCKET=SOURCE ...]
   yamlet add-requirement FILE --description "..."
-  yamlet add-criterion   FILE --rq RQ-N --pattern ubiquitous|state|event|optional|unwanted|complex \\
+  yamlet add-criterion   FILE --rq RQ-N [--after AC-N] \\
+                   --pattern ubiquitous|state|event|optional|unwanted|complex \\
                    [--when ...|--if ...|--while ... (repeatable)|--where ...] \\
                    --shall "..." [--shall "..." ...] [--example "k=v;k=v" ...]
 `;
@@ -130,6 +132,31 @@ function maxAcNum(text: string): number {
     if (n > max) max = n;
   }
   return max;
+}
+
+/**
+ * The id for a criterion inserted directly after `afterId`.
+ *
+ * Appending allocates `AC-<max+1>`, but an *insertion* cannot: the next number
+ * is already taken by something further down the file, and renumbering to make
+ * room is the one thing ids may never do (the Gherkin manifest keys on them).
+ * `E203` has always accepted `^AC-[0-9]+[a-z]?$` while the author never emitted
+ * a suffix — that spare letter is exactly this affordance. Inserting after
+ * `AC-3` yields `AC-3a`, then `AC-3b`, so the new id sorts into position and no
+ * existing id moves.
+ *
+ * Returns "" when all 26 letters on that base are taken.
+ */
+function suffixedAcId(text: string, afterId: string): string {
+  const base = afterId.match(/^AC-([0-9]+)/)?.[1] ?? "";
+  if (base === "") return "";
+  const used = new Set<string>();
+  for (const m of text.matchAll(new RegExp(`id: AC-${base}([a-z])\\b`, "g"))) used.add(m[1]!);
+  for (let c = "a".charCodeAt(0); c <= "z".charCodeAt(0); c++) {
+    const letter = String.fromCharCode(c);
+    if (!used.has(letter)) return `AC-${base}${letter}`;
+  }
+  return "";
 }
 
 // Declared exposes inputs/outputs, read back from the file the tool itself wrote,
@@ -665,6 +692,7 @@ export function runAddCriterion(args: string[]): CmdResult {
     if (file === "") return usageResult();
 
     let rq = "";
+    let after = "";
     let pattern = "";
     let when = "";
     let ifClause = "";
@@ -709,6 +737,10 @@ export function runAddCriterion(args: string[]): CmdResult {
           examples.push(argVal(args, i, a));
           i += 2;
           break;
+        case "--after":
+          after = argVal(args, i, a);
+          i += 2;
+          break;
         default:
           return die(`unknown flag for add-criterion: ${a}`);
       }
@@ -721,18 +753,44 @@ export function runAddCriterion(args: string[]): CmdResult {
 
     const text = Deno.readTextFileSync(file);
 
-    // --rq must be the most recently added requirement.
-    const wantMatch = rq.match(/([0-9]+)$/);
-    const want = wantMatch ? wantMatch[1]! : "";
-    const last = maxRqNum(text);
-    if (last === 0) return die("no requirements yet; add a requirement before its criteria");
-    if (!want) return die(`invalid --rq value: ${rq} (expected RQ-N)`);
-    if (Number(want) !== last) {
+    // Locate the target requirement — any of them, not just the newest. The old
+    // "most recent only" rule was never a property of the format; it was the
+    // appender being unable to name a block that already exists.
+    const blocks = blocksOf(text);
+    const requirements = blocks.filter((b) => b.kind === "requirement");
+    if (requirements.length === 0) {
+      return die("no requirements yet; add a requirement before its criteria");
+    }
+    if (!/^RQ-[0-9]+$/.test(rq)) return die(`invalid --rq value: ${rq} (expected RQ-N)`);
+
+    const target = findBlock(blocks, rq);
+    if (target === undefined || target.kind !== "requirement") {
+      const known = requirements.map((b) => b.id).filter((id) => id !== "").join(", ");
+      return die(`no such requirement: ${rq} (this spec has ${known || "none"})`);
+    }
+    if (criteriaKeyLine(text, target) === 0) {
       return die(
-        `criteria can only be added to the most recent requirement (RQ-${last}).\n` +
-          `Attaching to an earlier requirement (${rq}) is not supported in this version:\n` +
-          `that would require EDITING an existing block, which is out of scope for now.`,
+        `${rq} has no 'acceptance-criteria:' key to insert under.\n` +
+          `It was not written by this tool; add the key before adding criteria.`,
       );
+    }
+
+    // `--after` pins the insertion point to a specific sibling. It must be a
+    // criterion of the requirement named by --rq, so the two can never disagree
+    // about where the new block lands.
+    let anchor: Block = target;
+    if (after !== "") {
+      const a = findBlock(blocks, after);
+      if (a === undefined || a.kind !== "criterion") {
+        return die(`no such criterion: ${after}`);
+      }
+      if (a.parentId !== rq) {
+        return die(
+          `--after ${after} belongs to ${a.parentId || "another requirement"}, not ${rq}.\n` +
+            `Pass --rq ${a.parentId} to insert there, or drop --after to append to ${rq}.`,
+        );
+      }
+      anchor = a;
     }
 
     const hasWhile = whiles.length > 0;
@@ -889,7 +947,16 @@ export function runAddCriterion(args: string[]): CmdResult {
     }
 
     const backup = text;
-    const acid = `AC-${maxAcNum(text) + 1}`;
+
+    // Appending to a requirement's criteria takes the next number; inserting
+    // after a named sibling takes a letter suffix on it, so no existing id moves.
+    const acid = after === "" ? `AC-${maxAcNum(text) + 1}` : suffixedAcId(text, after);
+    if (acid === "") {
+      return die(
+        `cannot insert after ${after}: every suffix AC-…a through AC-…z is taken.\n` +
+          `Append to the requirement instead (drop --after), or split it.`,
+      );
+    }
 
     let block = "";
     block += `  - id: ${acid}\n`;
@@ -924,7 +991,11 @@ export function runAddCriterion(args: string[]): CmdResult {
       }
     }
 
-    const next = backup + block;
+    // Splice after the anchor: the named sibling with `--after`, otherwise the
+    // requirement's full extent (its last criterion, or its `acceptance-criteria:`
+    // key when it has none). Appending to the file's final requirement lands at
+    // end-of-file, byte-identical to the append this used to be.
+    const next = spliceAfter(backup, anchor.outerEnd, block);
     Deno.writeTextFileSync(file, next);
 
     const guard = guardCheck(file, next);
@@ -1073,12 +1144,22 @@ Usage:
 export const addCriterionCommand: Command = {
   name: "add-criterion",
   summary: "append an acceptance criterion (prints AC-N)",
-  help: `yamlet add-criterion — append an acceptance criterion; prints the new AC-N
+  help: `yamlet add-criterion — add an acceptance criterion; prints the new AC-N
 
 Usage:
-  yamlet add-criterion FILE --rq RQ-N --pattern P \\
+  yamlet add-criterion FILE --rq RQ-N [--after AC-N] --pattern P \\
     [--when ...|--if ...|--while ... (repeatable)|--where ...] \\
     --shall "..." [--shall ...] [--example "k=v;k=v" ...]
+
+--rq      any requirement in the file, not only the newest one.
+--after   insert directly after this criterion instead of appending. It must be
+          a criterion of --rq. The new id takes a letter suffix on the anchor
+          (after AC-3 comes AC-3a, then AC-3b) so it sorts into position and no
+          existing id changes — ids are never renumbered, because the projected
+          Gherkin manifest keys on them.
+
+Without --after the criterion is appended to the end of that requirement's
+criteria and takes the next free number.
 `,
   run: runAddCriterion,
 };

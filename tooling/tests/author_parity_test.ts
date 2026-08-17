@@ -641,11 +641,26 @@ Deno.test("rejection paths: same inputs rejected with exit 2, nothing written", 
     "duplicate --output token",
   );
 
-  // add-criterion rejections against F (RQ-2 latest)
+  // add-criterion rejections against F (RQ-1 and RQ-2 both exist and are both
+  // valid targets now — an earlier requirement is no longer refused).
   assertEquals(
-    reject("add-criterion", F, ["--rq", "RQ-1", "--pattern", "ubiquitous", "--shall", "x"]),
+    reject("add-criterion", F, ["--rq", "RQ-9", "--pattern", "ubiquitous", "--shall", "x"]),
     2,
-    "criteria on an earlier requirement",
+    "criterion on a requirement that does not exist",
+  );
+  assertEquals(
+    reject("add-criterion", F, [
+      "--rq",
+      "RQ-1",
+      "--after",
+      "AC-1",
+      "--pattern",
+      "ubiquitous",
+      "--shall",
+      "x",
+    ]),
+    2,
+    "--after names a criterion that does not exist",
   );
   assertEquals(
     reject("add-criterion", F, [
