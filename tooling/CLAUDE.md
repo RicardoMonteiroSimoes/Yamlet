@@ -35,7 +35,9 @@ src/catalog.ts    the rule catalog (source of truth for rule ids/severities)
 src/render.ts     byte-exact human/JSON output
 src/verify.ts     orchestration: extension -> flatten -> composite -> validate
 src/author.ts     correct-by-construction appender; runs verifier as commit gate
+src/blocks.ts     address an existing RQ-N/AC-N by id + its line extent (starts from records, ends from the next start)
 src/systems.ts    `yamlet systems` (read-only)
+src/impact.ts     `yamlet impact` — reverse dependency index: which composites consume a spec (read-only)
 src/graph.ts      `yamlet graph` -> DOT | JSON model | HTML viewer (read-only)
 src/tests.ts      `yamlet tests` -> project criteria into Gherkin .feature files + binding manifest.json (wipes + rebuilds TARGET)
 src/viewer/       the HTML viewer (template + css + js + assembler); elk vendored

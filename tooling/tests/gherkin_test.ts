@@ -146,3 +146,26 @@ Deno.test("tests: a scope with no requirements is skipped, not written", () => {
   assertEquals([...Deno.readDirSync(out)].length, 0);
   assertEquals(res.stdout.includes("no requirements"), true);
 });
+
+Deno.test("tests: manifest scenario keys order a suffixed id after its base", () => {
+  const src = Deno.makeTempDirSync();
+  // An inserted criterion carries a letter suffix (AC-1a). Ordering the manifest
+  // by digits alone would tie it with AC-1 and leave the key order incidental.
+  const ac = (id: string, shall: string) =>
+    `  - id: ${id}\n    pattern: ubiquitous\n    shall:\n    - ${shall} {input.thing}\n`;
+  Deno.writeTextFileSync(
+    `${src}/s.yamlet.yaml`,
+    "system: svc\ntopic: T\nsummary: s\ndescription: d\n" +
+      "blast_radius: low\nfront: internal\n" +
+      "exposes:\n  name: svc\n  intent: i\n  inputs:\n  - thing\n" +
+      "requirements:\n- id: RQ-1\n  description: r\n  acceptance-criteria:\n" +
+      ac("AC-2", "c") + ac("AC-1", "a") + ac("AC-1b", "d") + ac("AC-1a", "b"),
+  );
+
+  const out = Deno.makeTempDirSync();
+  assertEquals(runTests([src, out]).exitCode, 0);
+
+  const manifest = JSON.parse(Deno.readTextFileSync(`${out}/manifest.json`));
+  const keys = Object.keys(manifest.features["svc/s.feature"]);
+  assertEquals(keys, ["AC-1", "AC-1a", "AC-1b", "AC-2"]);
+});

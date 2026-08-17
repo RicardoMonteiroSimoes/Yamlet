@@ -6,6 +6,7 @@
 //   yamlet verify [--format=human|json] <file.yamlet.yaml>
 //   yamlet verify --list-rules [--format=human|json]
 //   yamlet systems [DIR] [--format=human|json]
+//   yamlet impact FILE [DIR] [--format=human|json]
 //   yamlet graph FILE|DIR [--format=dot|json] [--recursive]
 //   yamlet init FILE ...
 //   yamlet add-requirement FILE --description "..."
@@ -29,6 +30,7 @@ import {
   initCommand,
 } from "./src/author.ts";
 import { systemsCommand } from "./src/systems.ts";
+import { impactCommand } from "./src/impact.ts";
 import { graphCommand } from "./src/graph.ts";
 import { testsCommand } from "./src/tests.ts";
 import { helpFor, USAGE } from "./src/help.ts";
@@ -135,6 +137,7 @@ export const COMMANDS: Command[] = [
   verifyCommand,
   versionCommand,
   systemsCommand,
+  impactCommand,
   graphCommand,
   testsCommand,
   initCommand,
