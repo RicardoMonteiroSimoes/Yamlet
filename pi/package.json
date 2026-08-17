@@ -1,8 +1,8 @@
 {
   "name": "yamlet-pi",
   "version": "0.1.0",
-  "description": "Spec-driven development with yamlet for the pi coding agent: an interviewing author drills you down to minimal, testable `.yamlet.yaml` specs with EARS acceptance criteria, appending through the `yamlet` CLI so the file is correct by construction. Two adversarial challengers guard the immutable init/commit gates. Requires the `yamlet` CLI on PATH; the challengers additionally require @tintinweb/pi-subagents.",
-  "keywords": ["pi-package", "pi", "yamlet", "ears", "requirements", "spec-authoring"],
+  "description": "Spec-driven development with yamlet for the pi coding agent: the yamlet CLI registered as first-class pi tools, with a gate that blocks hand-editing a .yamlet.yaml, an interviewing author skill, and two adversarial challengers guarding the immutable init/commit gates. Requires the `yamlet` CLI on PATH; the challengers additionally require @tintinweb/pi-subagents.",
+  "keywords": ["pi-package", "pi", "pi-extension", "yamlet", "ears", "requirements", "spec-authoring"],
   "author": {
     "name": "Ricardo Monteiro Simoes"
   },
@@ -14,6 +14,12 @@
   },
   "license": "MIT",
   "pi": {
+    "extensions": ["./extensions"],
     "skills": ["./skills"]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "typebox": "*"
   }
 }

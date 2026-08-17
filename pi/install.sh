@@ -1,20 +1,20 @@
 #!/bin/sh
 # install.sh — link the yamlet pi resources into a location pi discovers.
 #
-# Why this exists: pi loads *skills* from packages, but `@tintinweb/pi-subagents`
-# discovers *agents* from exactly three hardcoded directories — `.pi/agents/`,
-# `.agents/agents/` and `$PI_CODING_AGENT_DIR/agents/` (default
-# `~/.pi/agent/agents/`). There is no package-based agent discovery and no
-# configurable path, so the agent files have to be placed on disk. This script
-# does that, and links the skills alongside them so both halves stay in sync
-# with the repo (symlinks, not copies — `git pull` updates them).
+# Why this exists: pi loads *extensions* and *skills* from packages, but
+# `@tintinweb/pi-subagents` discovers *agents* from exactly three hardcoded
+# directories — `.pi/agents/`, `.agents/agents/` and `$PI_CODING_AGENT_DIR/agents/`
+# (default `~/.pi/agent/agents/`). There is no package-based agent discovery and
+# no configurable path, so the agent files have to be placed on disk. This script
+# does that, and links the extension and skills alongside them so all three stay
+# in sync with the repo (symlinks, not copies — `git pull` updates them).
 #
-#   ./install.sh              # global: ~/.pi/agent/{agents,skills}/
-#   ./install.sh --project    # project: ./.pi/{agents,skills}/ in the CWD
+#   ./install.sh              # global: ~/.pi/agent/{extensions,agents,skills}/
+#   ./install.sh --project    # project: ./.pi/{extensions,agents,skills}/ in the CWD
 #   ./install.sh --uninstall  # remove links this script created (honours --project)
 #
-# Skills alternatively install as a normal pi package (`pi install ./pi`), which
-# does not need this script — but the agents still do.
+# The extension and skills alternatively install as a normal pi package
+# (`pi install ./pi`), which does not need this script — but the agents still do.
 set -eu
 
 SRC=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
@@ -59,6 +59,9 @@ unlink_if_ours() {
 
 if [ "$ACTION" = uninstall ]; then
     printf 'Removing yamlet pi resources from %s\n' "$DEST"
+    for d in "$SRC"/extensions/*/; do
+        [ -d "$d" ] && unlink_if_ours "${d%/}" "$DEST/extensions"
+    done
     for f in "$SRC"/agents/*.md; do
         [ -e "$f" ] && unlink_if_ours "$f" "$DEST/agents"
     done
@@ -70,7 +73,13 @@ if [ "$ACTION" = uninstall ]; then
 fi
 
 printf 'Installing yamlet pi resources into %s\n' "$DEST"
-mkdir -p "$DEST/agents" "$DEST/skills"
+mkdir -p "$DEST/extensions" "$DEST/agents" "$DEST/skills"
+
+printf 'extension (registers the yamlet_* tools and the write/edit gate):\n'
+for d in "$SRC"/extensions/*/; do
+    [ -d "$d" ] || { printf '  (none)\n'; break; }
+    link "${d%/}" "$DEST/extensions"
+done
 
 printf 'agents (require @tintinweb/pi-subagents):\n'
 for f in "$SRC"/agents/*.md; do

@@ -37,10 +37,12 @@ The claude code half can be installed by adding the plugin as follows:
 ```
 
 Using [pi](https://pi.dev) instead? The same flow is ported under
-[`pi/`](pi/) — clone the repo and run `./pi/install.sh`. The two adversarial
-challengers additionally need `pi install npm:@tintinweb/pi-subagents`, since pi
-has no built-in sub-agents. See [`pi/README.md`](pi/README.md) for what the pi
-harness can and cannot enforce.
+[`pi/`](pi/) — clone the repo and run `./pi/install.sh`. It registers the CLI as
+native pi tools (one per subcommand) and blocks hand-editing a `.yamlet.yaml`
+outright, so "the file is only ever written by `yamlet`" is enforced rather than
+asked for. The two adversarial challengers additionally need
+`pi install npm:@tintinweb/pi-subagents`, since pi has no built-in sub-agents.
+See [`pi/README.md`](pi/README.md) for the full mapping.
 
 ## How it works
 
@@ -157,7 +159,7 @@ Five Claude Code skills, bundled as the `yamlet-skills` plugin under
 
 The two challengers exist because the author's flow is **one-way at two points**: the contract is immutable after `init`, and a committed requirement or criterion can't be edited. A gate at each of those points is the last cheap chance to catch a mistake before it freezes.
 
-The [`pi/`](pi/) port carries the same five capabilities, split differently: the three that talk to you stay skills, and the two challengers become `pi-subagents` agents — a pi subagent runs headless and has no way to ask a question, so only an autonomous reviewer can be one.
+The [`pi/`](pi/) port carries the same five capabilities, split differently: the three that talk to you stay skills, and the two challengers become `pi-subagents` agents — a pi subagent runs headless and has no way to ask a question, so only an autonomous reviewer can be one. There the challengers are read-only *structurally* (`tools: read, ext:yamlet/yamlet_systems`), because the port also registers the CLI as pi tools rather than shelling out.
 
 ### How they interact
 
