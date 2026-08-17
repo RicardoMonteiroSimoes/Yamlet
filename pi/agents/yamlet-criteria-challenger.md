@@ -1,13 +1,12 @@
 ---
 description: >-
-  Adversarial gate used INSIDE the yamlet-author flow, before a requirement and
-  its acceptance-criteria are committed. Given a proposed requirement plus the
-  EARS acceptance-criteria intended for it (patterns, clauses, shalls,
-  placeholders/examples) and the scope's contract for context, it pokes holes:
-  requirement bundling more than one capability, vague or untestable shalls,
-  wrong EARS pattern, missing unwanted/if coverage on external fronts, unbound
-  placeholders, contract inputs/outputs left unreferenced. Spawned by the
-  yamlet-author skill before each `add-requirement`; not a standalone tool.
+  Adversarial gate used INSIDE the yamlet-author flow, before a requirement and its
+  acceptance-criteria are committed. Given a proposed requirement plus the EARS
+  acceptance-criteria intended for it (patterns, clauses, shalls, placeholders/examples) and the
+  scope's contract for context, it pokes holes: requirement bundling more than one capability,
+  vague or untestable shalls, wrong EARS pattern, missing unwanted/if coverage on external fronts,
+  unbound placeholders, contract inputs/outputs left unreferenced. Invoked by yamlet-author before
+  each `add-requirement`; not a standalone tool.
 display_name: Yamlet Criteria Challenger
 color: orange
 model: opus

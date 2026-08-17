@@ -1,7 +1,15 @@
 ---
 name: yamlet-tester
 description: >-
-  Projects a directory of EARS specs (.yamlet.yaml) into a Gherkin `.feature` tree with the yamlet_tests tool, force-regenerating the whole tree every run so it can never drift from the specs. Needs one argument — the specs source directory (e.g. `/skill:yamlet-tester specs`); an optional second is the target directory, defaulting to `<src>/tests`. Use as the closing step after a spec is authored and verified, or whenever specs change. It is a DISCONNECTED projection: the target is yamlet-owned and wiped+rebuilt every run, holding `.feature` files only; never create, edit, or delete step definitions (which belong in the consumer's own directory) — only flag where they need attention.
+  Projects a directory of EARS specs (.yamlet.yaml) into a Gherkin `.feature` tree with `yamlet
+  tests`, force-regenerating the whole tree every run so it can never drift from the specs.
+  REQUIRES one argument — the specs source directory (e.g. `/yamlet-tester specs`); an optional
+  second argument is the target directory, defaulting to `<src>/tests`. Use as the closing step
+  after a spec is authored/verified, or whenever specs change, to refresh the feature files. It is
+  a DISCONNECTED projection: TARGET is yamlet-owned and wiped+rebuilt every run, holding
+  `.feature` files only; the skill NEVER creates, edits, or deletes step definitions (which belong
+  in the consumer's own directory) — it merely flags where they need attention. If no source
+  directory is supplied it returns a usage error and does nothing.
 ---
 
 # Yamlet Tester Skill

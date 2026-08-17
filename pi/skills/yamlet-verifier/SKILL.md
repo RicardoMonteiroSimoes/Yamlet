@@ -1,7 +1,10 @@
 ---
 name: yamlet-verifier
 description: >-
-  Verifies an EARS spec file (.yamlet.yaml) against the format rules with the yamlet_verify tool and reports violations with stable rule IDs. Needs one argument — the path to the .yamlet.yaml to verify (e.g. `/skill:yamlet-verifier specs/email.yamlet.yaml`). Use for agent self-verification of a spec before relying on it, and as the closing gate of the yamlet-author flow. It only verifies — it never creates, authors, or fixes specs. If no file path was supplied, ask for one and do nothing else.
+  Verifies an EARS spec file (.yamlet.yaml) against the format rules and reports violations with
+  stable rule IDs. REQUIRES one argument — the path to the .yamlet.yaml file to verify (e.g.
+  `/yamlet-verifier specs/email.yamlet.yaml`). Use for agent self-verification of a spec before
+  relying on it. If no file path is supplied it returns a usage error and does nothing.
 ---
 
 # Yamlet Verifier Skill
