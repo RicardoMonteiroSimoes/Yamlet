@@ -50,10 +50,12 @@ yamlet <command> --help | -h                       -> the same per-command synop
 yamlet version | --version | -V                    -> print the yamlet version
 yamlet verify [--format=human|json] <file.yamlet.yaml>
 yamlet verify --list-rules [--format=human|json]
-yamlet systems [DIR] [--system=SLUG] [--contracts] [--format=human|json]
+yamlet systems [DIR] [--system=SLUG] [--details] [--contracts] [--format=human|json]
                                                    -> existing systems grouped by their scope files; --contracts adds each
                                                       scope's exposed contract on labelled `in:`/`out:` lines (what you can
-                                                      wire as a member), --system=SLUG narrows to one service
+                                                      wire as a member), --details adds its summary and description as
+                                                      wrapped prose (which scope did I mean?), --system=SLUG narrows to
+                                                      one service
 yamlet graph FILE|DIR [--format=dot|json|html] [--libs=embed|cdn] [--recursive]
                                                    -> Graphviz DOT of one spec (pipe to `dot -Tsvg`), the JSON graph
                                                       model, or a self-contained interactive HTML viewer of that model;

@@ -114,6 +114,46 @@ Deno.test("runSystems --contracts renders the signature line; outputs only when 
   );
 });
 
+Deno.test("collectSystems omits description unless --details is asked for", () => {
+  const dir = Deno.makeTempDirSync();
+  seed(dir, "a.yamlet.yaml", "svc", "A");
+
+  assertEquals(collectSystems(dir)[0]!.scopes[0]!.description, undefined);
+  assertEquals(collectSystems(dir, { details: true })[0]!.scopes[0]!.description, "ctx");
+});
+
+Deno.test("runSystems --details renders summary and description; default is unchanged", () => {
+  const dir = Deno.makeTempDirSync();
+  seed(dir, "a.yamlet.yaml", "svc", "A");
+
+  const plain = runSystems([dir]);
+  assertEquals(plain.stdout.includes("summary:"), false);
+  assertEquals(plain.stdout.includes("description:"), false);
+
+  const detailed = runSystems([dir, "--details"]);
+  assertEquals(detailed.exitCode, 0);
+  assertStringIncludes(detailed.stdout, "    summary:     a summary\n");
+  assertStringIncludes(detailed.stdout, "    description: ctx\n");
+});
+
+Deno.test("runSystems --details wraps long prose with a hanging indent", () => {
+  const dir = Deno.makeTempDirSync();
+  const long = "word ".repeat(40).trim();
+  Deno.writeTextFileSync(
+    `${dir}/w.yamlet.yaml`,
+    `system: svc\ntopic: T\nsummary: ${long}\ndescription: >-\n  ctx\n` +
+      `blast_radius: low\nfront: internal\nrequirements:\n`,
+  );
+
+  const r = runSystems([dir, "--details"]);
+  const lines = r.stdout.split("\n").filter((l) => l.includes("word"));
+  // Wrapped across several lines, none longer than the indent + label + 72 columns.
+  assertEquals(lines.length > 1, true);
+  for (const l of lines) assertEquals(l.length <= 4 + 13 + 72, true);
+  // Continuation lines align under the text, not under the label.
+  assertStringIncludes(r.stdout, "\n                 word");
+});
+
 Deno.test("runSystems --system filters to one slug; a miss is a clean empty result", () => {
   const dir = Deno.makeTempDirSync();
   seed(dir, "a.yamlet.yaml", "svc-a", "A");

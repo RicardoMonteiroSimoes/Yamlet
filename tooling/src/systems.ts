@@ -4,11 +4,18 @@
 // share one `system:` slug, each describing a different functionality *scope* of
 // that service (e.g. a send-with-attachment scope, a send-plain scope, and a
 // connection scope all under `e-mail-sending-service`). This command walks a
-// directory for spec files, reads each one's `system`/`topic`/`summary` (and, with
-// `--contracts`, its exposed contract with labelled inputs and outputs) through the same
-// flattener the verifier uses, and groups them by system so an author can decide
-// whether a new spec is a new scope of an existing system or a new one — and, when
-// composing, which scope's contract to wire as a member.
+// directory for spec files, reads each one's `system`/`topic`/`summary` (with
+// `--details`, the summary and description as prose; with `--contracts`, its exposed
+// contract with labelled inputs and outputs) through the same flattener the verifier
+// uses, and groups them by system so an author can decide whether a new spec is a new
+// scope of an existing system or a new one — and, when composing, which scope's
+// contract to wire as a member.
+//
+// `--details` exists for the reverse question: given a service, *which of its scopes
+// did I mean?* Two scopes of one service routinely carry near-identical topics
+// ("Send plain e-mail" / "Send e-mail with attachment"), so narrowing with
+// `--system=SLUG --details` and reading the prose is how a human or an agent picks
+// the right file to open before editing it.
 //
 // Read-only: it never writes. Exit codes: 0 ok · 2 usage/path error.
 
@@ -25,6 +32,9 @@ export interface Scope {
   file: string;
   topic: string;
   summary: string;
+  // Present only when details were requested (a topic alone rarely separates two
+  // scopes of the same service; the prose is what tells them apart).
+  description?: string;
   // Present only when contracts were requested; `null` means the scope exposes none.
   contract?: Contract | null;
 }
@@ -90,7 +100,10 @@ export function contractOf(records: readonly { path: string; value: string }[]):
 }
 
 /** Group every spec file under `root` by its `system:` slug (sorted, deterministic). */
-export function collectSystems(root: string, opts: { contracts?: boolean } = {}): SystemGroup[] {
+export function collectSystems(
+  root: string,
+  opts: { contracts?: boolean; details?: boolean } = {},
+): SystemGroup[] {
   const files = listSpecs(root);
 
   const bySystem = new Map<string, Scope[]>();
@@ -106,6 +119,7 @@ export function collectSystems(root: string, opts: { contracts?: boolean } = {})
     const system = get("system");
     if (system === "") continue; // no system key → not part of any group
     const scope: Scope = { file: f, topic: get("topic"), summary: get("summary") };
+    if (opts.details) scope.description = get("description");
     if (opts.contracts) scope.contract = contractOf(records);
     const arr = bySystem.get(system) ?? [];
     arr.push(scope);
@@ -131,6 +145,42 @@ function contractLine(c: Contract | null | undefined): string {
   return `    exposes ${c.name}\n      in:  ${ins}\n      out: ${outs}\n`;
 }
 
+/** Break `text` into lines of at most `width` characters, on word boundaries. */
+function wrap(text: string, width: number): string[] {
+  const words = text.split(/\s+/).filter((w) => w !== "");
+  if (words.length === 0) return [];
+  const lines: string[] = [];
+  let line = words[0]!;
+  for (const w of words.slice(1)) {
+    if (line.length + 1 + w.length <= width) line += " " + w;
+    else {
+      lines.push(line);
+      line = w;
+    }
+  }
+  lines.push(line);
+  return lines;
+}
+
+// A labelled, wrapped prose block under a scope. Continuation lines align under
+// the text rather than the label, so a multi-sentence description reads as one
+// paragraph instead of a ragged list.
+function prose(label: string, text: string): string {
+  const pad = " ".repeat(label.length);
+  return wrap(text, 72).map((l, i) => `    ${i === 0 ? label : pad}${l}\n`).join("");
+}
+
+// Summary and description under a scope, when `--details` asked for them. A topic
+// is a title and two scopes of one service often have near-identical titles; the
+// prose is what actually tells them apart, so anyone — or any agent — choosing
+// *which* spec to open reads these rather than guessing from the filename.
+// `description` is populated only under `--details`, so its presence is the flag —
+// without it the default listing stays byte-for-byte what it always was.
+function detailLines(sc: Scope): string {
+  if (sc.description === undefined) return "";
+  return prose("summary:     ", sc.summary) + prose("description: ", sc.description);
+}
+
 function renderHumanSystems(root: string, groups: SystemGroup[]): string {
   if (groups.length === 0) return `no systems found under ${root}\n`;
 
@@ -143,6 +193,7 @@ function renderHumanSystems(root: string, groups: SystemGroup[]): string {
     const width = Math.max(...g.scopes.map((sc) => sc.file.length));
     for (const sc of g.scopes) {
       s += `  ${sc.file.padEnd(width)}  ${sc.topic}\n`;
+      s += detailLines(sc);
       s += contractLine(sc.contract);
     }
   }
@@ -153,11 +204,13 @@ export function runSystems(args: string[]): CmdResult {
   let format: "human" | "json" = "human";
   let root = "";
   let contracts = false;
+  let details = false;
   let system = "";
   for (const a of args) {
     if (a === "--format=json") format = "json";
     else if (a === "--format=human") format = "human";
     else if (a === "--contracts") contracts = true;
+    else if (a === "--details") details = true;
     else if (a.startsWith("--system=")) system = a.slice("--system=".length);
     else if (a.startsWith("--")) return die(`unknown flag for systems: ${a}`);
     else if (root !== "") return die(`too many arguments: ${a}`);
@@ -171,7 +224,7 @@ export function runSystems(args: string[]): CmdResult {
     return die(`directory not found: ${root}`);
   }
 
-  let groups = collectSystems(root, { contracts });
+  let groups = collectSystems(root, { contracts, details });
   if (system !== "") groups = groups.filter((g) => g.system === system);
 
   let stdout: string;
@@ -191,15 +244,22 @@ export const systemsCommand: Command = {
   help: `yamlet systems — list systems grouped by their scope files
 
 Usage:
-  yamlet systems [DIR] [--system=SLUG] [--contracts] [--format=human|json]
+  yamlet systems [DIR] [--system=SLUG] [--details] [--contracts] [--format=human|json]
 
 Arguments:
   DIR                   directory to scan for *.yamlet.yaml (default: .)
 
 Options:
   --system=SLUG         show only the system with this slug
+  --details             include each scope's summary and description
   --contracts           include each scope's exposed contract signature
   --format=human|json   output shape (default: human)
+
+Narrowing then reading detail is the way to find a specific spec among several
+scopes of one service — a topic alone rarely separates them:
+
+  yamlet systems specs                                  # which systems exist?
+  yamlet systems specs --system=e-mail-sending-service --details
 `,
   run: runSystems,
 };
