@@ -406,7 +406,23 @@ e-mail-sending-service  (2 scopes)
 ```
 
 The default listing is unchanged; `--details` is additive, and `--contracts` composes
-with it. Today's `SKILL.md` is ~300 lines and every session
+with it.
+
+**The creating route needs the same prose, for a higher-stakes decision.** Choosing
+*which system a new spec belongs to* has no verifier behind it — a fragmented service
+verifies exactly as cleanly as a coherent one, so nothing downstream ever catches it.
+And a `system:` slug carries no description of its own: what a service covers lives in
+the summaries of its scopes. A file listing therefore cannot answer the question, and
+neither can a topic. So `references/creating.md` and the `yamlet-contract-challenger`
+(whose check 2 *is* the fragmentation gate) both read `--details` before forming an
+opinion, under one rule: **never recommend a system whose scopes you have not read.**
+Reading them also catches the case where the proposed scope already exists — which
+makes the work a change, not a creation, and re-routes.
+
+This is instruction, not enforcement, and worth being honest about: nothing in the CLI
+can compel an agent to read what it printed. What the tooling can do is make the prose
+available in one command, and make the skill's default invocation the one that includes
+it. Today's `SKILL.md` is ~300 lines and every session
 pays for all of it, including the composite branch that most sessions never take; the
 router shrinks the resident cost to the part in play. Splitting the file is also what
 makes room for the editing procedure to be written properly rather than squeezed in.
