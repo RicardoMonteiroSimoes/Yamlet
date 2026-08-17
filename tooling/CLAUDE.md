@@ -68,7 +68,16 @@ change is a regression, not a re-freeze.
 ## Conventions
 
 - Deno fmt: 2-space, 100 col, semicolons, double quotes. `strict` + `noUncheckedIndexedAccess`.
-- `edit` / `rm` are **not implemented yet**, and still must not be stubbed. Safe removal needs the
-  reverse-dependency analysis nothing currently does — but this is now a planned build, not a closed
-  question: [`editing.design.md`](../editing.design.md) fixes the model, the refusal contract and
-  the rollout order. Implement from that note, in its order, or update it first.
+- `edit` / `rm` are **not implemented yet**, and must not be stubbed. Two pieces of the groundwork
+  do exist: `src/blocks.ts` addresses an existing `RQ-N`/`AC-N` and its line extent, and
+  `yamlet impact` supplies the reverse-dependency analysis safe removal needs. What is still missing
+  is the mutation itself — and the commit gate that would police it. `guardCheck`'s allowlist is not
+  a general safety property; it is the _append_ commands' predicted findings, written as a constant.
+  A command that rewrites or deletes an existing block needs the stricter rule ("the resulting
+  findings must be a subset of the pre-existing ones plus the ones this command predicts"), keyed on
+  `(rule, message, owning RQ/AC)` rather than on path, since indices shift under insert and remove.
+  Build that first.
+- **IDs are permanent.** Never renumber and never reuse one: `yamlet tests` keys its manifest on
+  `AC-N`, so a renumber silently re-points step definitions — the one failure mode with no loud
+  symptom. Deletion leaves a gap, and the gap is correct. Ordered insertion uses the letter suffix
+  `E203` already allows (`AC-3` → `AC-3a`).
