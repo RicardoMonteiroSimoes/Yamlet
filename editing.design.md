@@ -1,7 +1,10 @@
 # Design note: editing existing specs
 
-**Status: DESIGN**, with step 0 of §12 shipped (`yamlet systems --details`). Everything
-else is unbuilt. This note is the *spec of the spec*: it
+**Status: IN BUILD.** Steps 0–3 of §12 are shipped — `yamlet systems --details`,
+`yamlet impact`, block addressing (`src/blocks.ts`), and insertion (`add-criterion`
+into any requirement, `--after` for `AC-Na`) — along with the §11 skill partition on
+the Claude Code build. Steps 4–7 and the `pi/` port are unbuilt; the pi port follows
+once the Claude Code side is complete. This note is the *spec of the spec*: it
 fixes the model, the safety story and the command surface for mutating an existing
 `.yamlet.yaml` before any tooling code is written, in the same way
 [`composite-connections.design.md`](composite-connections.design.md) did for wiring.
@@ -435,14 +438,19 @@ Three things must move in step with this, and one needs checking first:
 
 Each step is independently shippable and leaves the tree valid.
 
-0. **Discovery — `yamlet systems --details`.** ✅ **Shipped with this note.** Read-only,
-   additive, and a prerequisite for the editing skill's locate step (§11.1): you cannot
-   edit the right spec until you can tell which one it is.
-1. **`yamlet impact`** — read-only, no mutation semantics, immediately useful.
-2. **Block addressing + the generalized guard** — internal; no new commands. Port the
-   existing `add-*` commands onto it and confirm `tests/oracle-author/` does not move.
-3. **Insert** — `add-criterion --rq` to any requirement, `--after` for `AC-Na`. Drops
-   the first wall with zero mutation risk.
+0. ✅ **Discovery — `yamlet systems --details`.** Read-only, additive, and a
+   prerequisite for the editing skill's locate step (§11.1): you cannot edit the right
+   spec until you can tell which one it is.
+1. ✅ **`yamlet impact`** — read-only, no mutation semantics, immediately useful.
+2. ✅ **Block addressing** (`src/blocks.ts`) — internal; no new commands. Blocks carry
+   two extents, `end` (the header alone, what a revision replaces) and `outerEnd`
+   (through the last nested criterion, what a removal cuts and an append anchors to).
+   The generalized guard of §5 is **not** part of this step: nothing yet mutates an
+   existing block, so the append allowlist still covers every command. It lands with
+   step 4, which is the first to need it.
+3. ✅ **Insert** — `add-criterion --rq` to any requirement, `--after` for `AC-Na`.
+   Dropped the first wall with zero mutation risk; `tests/oracle-author/` did not move,
+   confirming an append to the final requirement is still byte-identical.
 4. **Tier 0 revise** — `set-header`, `set-contract`, `revise-requirement`,
    `revise-criterion`.
 5. **Tier 1 remove** — `remove-requirement`, `remove-criterion`; manifest v2 digests and
@@ -479,12 +487,16 @@ sentence now that they are load-bearing rather than incidental.
   changes every feature path in the manifest. Wants the change report of §8 to say so.
 - **Concurrent edits.** Every mutation is read–modify–write with no locking. Fine for a
   single interactive agent; worth a sentence before anything runs these in parallel.
-- **Can a pi skill read its own bundled reference files?** §11 depends on it, and the
-  fallback (a flat `SKILL.md` on pi only) is acceptable but should be a decision rather
-  than a discovery. This is the one item to settle before the layout is committed to.
-- **How wide should `impact` search?** It needs a root to walk. Defaulting to the spec's
-  own directory is predictable but silently misses a composite that lives one level up —
-  and a refusal that names the wrong set of blockers is worse than no refusal.
+- **Can a pi skill read its own bundled reference files?** §11's layout is now live on
+  the Claude Code build — the `.claude/skills/*` symlinks point at skill directories, so
+  `references/` travelled with no wiring at all. The pi answer is still unknown, and the
+  fallback (a flat `SKILL.md` on pi only) should be a decision rather than a discovery.
+  Settle it when the port is done.
+
+*Settled by build:* **how wide `impact` searches.** It takes an optional `DIR` and
+defaults to the working directory, matching `yamlet systems` rather than the target's own
+directory — and it always reports how many specs it scanned, so a search too narrow to
+see a consumer is visible instead of a false all-clear.
 
 *Settled by review, kept for the record:* whether `remove-*` should refuse on a non-empty
 impact set or succeed with a work list — it **refuses** (§7.3). Removal always has a

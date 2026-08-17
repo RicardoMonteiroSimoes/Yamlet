@@ -5,7 +5,7 @@ minimal, testable `.yamlet.yaml` specs with EARS acceptance criteria.
 
 | Skill | What it does |
 | --- | --- |
-| `yamlet-author` | Interviews you to build a spec, appending through the `yamlet` CLI (never writing YAML directly). Orchestrates the challengers, verifier and tester below. |
+| `yamlet-author` | Interviews you to build **or change** a spec, driving the `yamlet` CLI (never writing YAML directly). Routes on "new spec, or changing an existing one?" and loads the matching procedure from its `references/` directory. Orchestrates the challengers, verifier and tester below. |
 | `yamlet-contract-challenger` | Adversarial gate before `yamlet init` freezes a scope's contract. |
 | `yamlet-criteria-challenger` | Adversarial gate before each requirement + acceptance-criteria is committed. |
 | `yamlet-verifier` | Verifies a `.yamlet.yaml` against the format rules and reports violations. |
