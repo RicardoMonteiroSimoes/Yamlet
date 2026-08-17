@@ -24,7 +24,14 @@ Your job is to turn a fuzzy idea in the user's head into a **precise, testable, 
 
 ## Prerequisite
 
-This skill drives the `yamlet_*` tools from the yamlet pi extension. If you do not have `yamlet_systems`, `yamlet_init`, `yamlet_add_requirement` and friends, **stop and tell the user** to install the package — `pi install npm:yamlet-pi` (or `./pi/install.sh` from a clone) plus the `yamlet` CLI itself (`brew install yamlet`). Do not fall back to running `yamlet` through `bash`: the tools exist precisely so the read/mutate split is structural, and the extension blocks the shell paths that would bypass it.
+This skill drives the `yamlet_*` tools from the yamlet pi extension. If you do not have `yamlet_systems`, `yamlet_init`, `yamlet_add_requirement` and friends, **stop and tell the user** to install it:
+
+```sh
+pi install git:github.com/RicardoMonteiroSimoes/Yamlet   # the extension and skills
+brew install yamlet                                      # the CLI they shell out to
+```
+
+Do not fall back to running `yamlet` through `bash`: the tools exist precisely so the read/mutate split is structural, and the extension blocks the shell paths that would bypass it.
 
 ## The one hard rule
 

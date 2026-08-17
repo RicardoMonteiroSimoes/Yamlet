@@ -161,7 +161,7 @@ function makeProbe(pi: ExtensionAPI): (cwd: string) => Promise<Probe> {
  * package-based discovery, no configurable path, and no public registration RPC
  * — its cross-extension surface is ping/spawn/stop only.
  *
- * Left alone, that means `pi install npm:yamlet-pi` half-installs: the author
+ * Left alone, that means a `pi install` of this package half-installs: the author
  * skill runs, finds no `Agent` tool, and quietly degrades to reviewing its own
  * proposals — losing the adversarial gates, which are the point. So the package
  * offers to place its own agent files, with consent, and says what it did.

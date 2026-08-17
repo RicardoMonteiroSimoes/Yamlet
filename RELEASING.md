@@ -14,6 +14,27 @@ Users then get it with `brew tap RicardoMonteiroSimoes/yamlet && brew install ya
 (and `brew upgrade yamlet` after each release). Pushing a `v*` tag by hand runs
 the same pipeline.
 
+## What a release does *not* cover
+
+The release flow ships the **CLI only**. The Claude Code plugin
+(`plugins/yamlet-skills/`) and the pi port (`pi/`) both carry *no binary* — they
+call bare `yamlet` on PATH — and neither is versioned or published by this
+pipeline:
+
+- the plugin is consumed straight from the repo via `/plugin marketplace add`;
+- the pi port is consumed straight from the repo via
+  `pi install git:github.com/RicardoMonteiroSimoes/Yamlet`.
+
+Both therefore track the default branch, and both are usable the moment a change
+merges — no tag required. They float against the CLI on purpose: `pi/`'s extension
+checks the CLI by *command name* rather than a version floor, so it keeps working
+across releases and names the missing subcommands if it ever meets a CLI too old
+to serve it.
+
+If the pi package is ever published to npm (for gallery discoverability at
+pi.dev/packages — the only thing npm adds), give it its own trigger rather than
+bolting it onto this one, precisely because the two version independently.
+
 The pipeline is defined in [`.github/workflows/release.yml`](.github/workflows/release.yml)
 and driven by two checked-in scripts you can also run locally:
 

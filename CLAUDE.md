@@ -28,6 +28,12 @@ Two separate products, one repo:
   and drops a skill's `allowed-tools`. It still ships **no binary**: the tools
   shell out to bare `yamlet` on PATH, same as the skills.
 
+  The repo root carries a small **private** `package.json` — not cruft, don't
+  delete it. Its only job is to point `pi install git:…` at `pi/extensions` and
+  `pi/skills`, which is how the pi port is distributed (no npm publish). It has
+  no dependencies and no scripts, and `tooling/` imports nothing bare, so the
+  Deno build never consults it.
+
 ## Authority
 
 - **`SPEC.md`** — authoritative definition of the format (every field, why).
