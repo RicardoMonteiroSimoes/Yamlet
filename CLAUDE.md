@@ -28,6 +28,12 @@ Two separate products, one repo:
   and drops a skill's `allowed-tools`. It still ships **no binary**: the tools
   shell out to bare `yamlet` on PATH, same as the skills.
 
+  One tool is not a subcommand: `yamlet_guide` serves the author skill's own
+  `references/` procedures. Claude Code skills read bundled files relative to
+  themselves; a pi skill cannot know its installed path, but the extension knows
+  its own (`import.meta.url`), so on pi the router fetches a procedure through a
+  tool instead of a relative read.
+
   The repo root carries a small **private** `package.json` — not cruft, don't
   delete it. Its only job is to point `pi install git:…` at `pi/extensions` and
   `pi/skills`, which is how the pi port is distributed (no npm publish). It has

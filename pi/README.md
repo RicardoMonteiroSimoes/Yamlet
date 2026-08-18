@@ -74,9 +74,9 @@ read/mutate split is expressible in a `tools:` line instead of hoped for in pros
 | --- | --- | --- |
 | `yamlet_systems` | `yamlet_init` | `yamlet_tests` |
 | `yamlet_verify` | `yamlet_add_component` | |
-| `yamlet_graph` | `yamlet_add_connection` | |
-| | `yamlet_add_requirement` | |
-| | `yamlet_add_criterion` | |
+| `yamlet_impact` | `yamlet_add_connection` | |
+| `yamlet_graph` | `yamlet_add_requirement` | |
+| `yamlet_guide` | `yamlet_add_criterion` | |
 
 Arguments go across as an argv array, never a shell string, so there is no quoting
 or injection surface. Exit codes keep yamlet's own meaning: `verify` exiting 1 is a
@@ -87,6 +87,34 @@ or injection surface. Exit codes keep yamlet's own meaning: `verify` exiting 1 i
 require it rather than falling back to `bash`. A fallback would mean two code paths
 where only one is enforceable, and the unenforceable one would silently become the
 normal one.
+
+### `yamlet_guide` — why a tool serves the author's own documentation
+
+`yamlet_guide` is the odd one out: it shells out to nothing and reads a bundled
+markdown file. It exists because of a difference between the two harnesses.
+
+The author skill is a **router** — it asks whether this is a new spec or a change to
+an existing one, then reads only the procedure that applies, which keeps the
+always-loaded body small. On Claude Code that is a plain relative read: the
+`.claude/skills/*` symlinks point at skill *directories*, so a `references/` folder
+travels with the skill and the harness tells the skill where it lives.
+
+pi gives no such guarantee. A skill installed into `~/.pi/agent/skills/` cannot know
+its own absolute path, so "read the file next to me" is not expressible. The
+**extension** can — it already resolves `../../agents` from `import.meta.url` to offer
+the challengers — so it resolves `../../skills/yamlet-author/references` the same way
+and hands the text back as a tool result. Guessing a path becomes a tool call.
+
+The procedures live in `skills/yamlet-author/references/` (mirroring the Claude Code
+layout, so the two ports stay legible side by side) and the smoke test asserts the
+tool returns those exact files, not a stub — if they move, it fails.
+
+It also serves the two challenger **checklists** (`contract-challenge`,
+`criteria-challenge`) straight out of `agents/`. Those are for the degraded path
+only: with `@tintinweb/pi-subagents` absent there is no `Agent` tool, so the skill
+must run the gate inline — and "go find the agent file yourself" is the instruction
+that quietly becomes "skip the gate". Serving the real checklist keeps the weaker
+path honest instead of leaving it to the model's memory of it.
 
 ## What is enforced
 
@@ -146,7 +174,13 @@ pi/
 │   ├── yamlet-contract-challenger.md
 │   └── yamlet-criteria-challenger.md
 └── skills/
-    ├── yamlet-author/SKILL.md
+    ├── yamlet-author/
+    │   ├── SKILL.md                    # the router: route, gates, closing steps
+    │   └── references/                 # served by `yamlet_guide`, not read directly
+    │       ├── creating.md             #   new spec: discovery -> contract -> init
+    │       ├── editing.md              #   existing spec: locate -> impact -> change
+    │       ├── composites.md           #   members and wiring
+    │       └── patterns.md             #   EARS patterns and {token} kinds
     ├── yamlet-verifier/SKILL.md
     └── yamlet-tester/SKILL.md
 ```
@@ -213,7 +247,14 @@ Start `pi` and ask for a spec, or invoke the author directly:
 /skill:yamlet-author
 ```
 
-The flow is unchanged from the Claude Code build: discover systems → agree the
-contract → **contract challenge** → init → (composite: wire members) → per
-requirement, draft then **criteria challenge** then commit → verify → regenerate the
-Gherkin feature tree.
+The flow is unchanged from the Claude Code build. It opens by asking whether this is
+a **new** spec or a **change** to one that exists, then:
+
+- **new** — read existing scopes' summaries (`yamlet_systems` with `details: true`) to
+  decide whether this belongs to a service that already exists → agree the contract →
+  **contract challenge** → init → (composite: wire members);
+- **change** — locate the right file the same way, then read its blast radius with
+  `yamlet_impact` before proposing anything.
+
+Both then converge: per requirement, draft → **criteria challenge** → commit → verify →
+regenerate the Gherkin feature tree.
