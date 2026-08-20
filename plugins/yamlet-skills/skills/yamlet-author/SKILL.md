@@ -97,3 +97,10 @@ A verified spec is the source of truth for its tests too. As the **mandatory clo
 The tester states the projection's boundary and reads its own output. Your job is to carry its report back to the user: new or changed scenarios need step definitions written, and those belong in the consumer's **own** directory, never in the generated tree.
 
 The spec work is not complete until the feature tree has been regenerated.
+
+## If you're asked for a graph
+
+`yamlet graph` is not part of the authoring flow, but you have `Bash(yamlet:*)` and the user may ask for one mid-interview. Two rules:
+
+- **Always pass `--out=FILE`.** It is required in every format; the CLI refuses the command without it. Tell the user the path it reports.
+- **Never `Read` the file back.** `--format=html` inlines the elk layout engine, so it is **~1.6 MB whatever the spec count** — reading it would end your context in one call, mid-interview, losing everything the user has told you. The one-line summary on stdout is all you need: it reports the format, size, and the roots/members/wires written.

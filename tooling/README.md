@@ -63,10 +63,14 @@ yamlet impact FILE [DIR] [--format=human|json]
                                                       widening one reaches every file listed; read this before changing
                                                       an `exposes` block. Reports the scanned count, so a search that
                                                       was too narrow is visible rather than a false all-clear
-yamlet graph FILE|DIR [--format=dot|json|html] [--libs=embed|cdn] [--recursive]
-                                                   -> Graphviz DOT of one spec (pipe to `dot -Tsvg`), the JSON graph
-                                                      model, or a self-contained interactive HTML viewer of that model;
-                                                      a DIR or --recursive imply a model format and expand the whole tree
+yamlet graph FILE|DIR --out=FILE [--format=dot|json|html] [--libs=embed|cdn] [--recursive]
+                                                   -> Graphviz DOT of one spec (render the written file with
+                                                      `dot -Tsvg`), the JSON graph model, or a self-contained
+                                                      interactive HTML viewer of that model; a DIR or --recursive imply
+                                                      a model format and expand the whole tree. --out is REQUIRED and
+                                                      takes every format: stdout gets a one-line summary, never the
+                                                      payload (--format=html is ~1.6 MB, which would swamp an agent's
+                                                      context). A *.yamlet.yaml --out is refused
 yamlet tests SRC TARGET                            -> project every scope's acceptance criteria into Gherkin: one
                                                       TARGET/<system>/<scope>.feature per scope (Feature=scope,
                                                       Rule=RQ-N, Scenario=AC-N; criteria with examples become Scenario
@@ -210,8 +214,14 @@ The viewer's own CSS/JS are always inlined; only the layout engine is delivered 
   the `cdn.jsdelivr.net` origin is allowed. `--libs` applies only to `--format=html`.
 
 ```sh
-yamlet graph specs_example --format=html > graph.html            # offline, self-contained
-yamlet graph specs_example --format=html --libs=cdn > graph.html # small, fetches elk at load time
+yamlet graph specs_example --format=html --out=graph.html            # offline, self-contained
+yamlet graph specs_example --format=html --libs=cdn --out=graph.html # small, fetches elk at load time
+```
+
+The payload is written to `--out`, never printed; stdout carries one summary line:
+
+```
+wrote graph.html — html, 1.6 MB, 2 roots, 7 members, 23 wires
 ```
 
 ### The Gherkin projection (`yamlet tests`)
@@ -290,7 +300,7 @@ src/help.ts            `yamlet help` — pure aggregator over the registry (help
 src/systems.ts         `yamlet systems` — group spec files by shared `system:` slug (read-only)
 src/impact.ts          `yamlet impact` — the reverse dependency index: which composites consume a spec (read-only)
 src/blocks.ts          address an existing RQ-N/AC-N by id and know its line extent (the primitive editing needs)
-src/graph.ts           `yamlet graph` — emit DOT, the JSON graph model, or the HTML viewer (read-only)
+src/graph.ts           `yamlet graph` — write DOT, the JSON graph model, or the HTML viewer to --out
 src/tests.ts           `yamlet tests` — project criteria into Gherkin `.feature` files + a binding manifest (wipes + rebuilds TARGET)
 src/viewer/            the `--format=html` viewer: template + CSS + JS + `html.ts` assembler; elk vendored
 src/types.ts           shared shapes (Finding, FlatRecord, Result, Command, CmdResult, …)

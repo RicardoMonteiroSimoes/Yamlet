@@ -46,7 +46,7 @@ Commands:
   version           print the yamlet version
   systems           list existing systems grouped by their scope files
   impact            list the composites that consume a spec (reverse dependency index)
-  graph             emit a DOT, JSON, or HTML graph model of a spec or a directory
+  graph             write a DOT, JSON, or HTML graph model of a spec or a directory to a file
   tests             project spec acceptance criteria into Gherkin feature files
   init              create a new spec, correct by construction
   add-component     declare a composite member (echoes its contract)
@@ -171,6 +171,23 @@ const resetNotes = () => (notes.length = 0);
 	const expected = ["yamlet", "impact", "specs/up.yamlet.yaml", "specs", "--format=json"];
 	ok("impact argv (and strips leading @)", JSON.stringify(calls.at(-1)) === JSON.stringify(expected),
 		JSON.stringify(calls.at(-1)));
+}
+{
+	// `out` is required by the schema and always reaches the CLI: the payload has
+	// no path back into context, and a dropped --out would restore the ~1.6 MB
+	// stdout that this flag exists to prevent.
+	const { tools, calls } = makePi();
+	await tools.get("yamlet_graph").execute("id", {
+		target: "@specs", out: "@build/graph.html", format: "html", libs: "cdn", recursive: true,
+	}, undefined, undefined, ctx);
+	const expected = [
+		"yamlet", "graph", "specs", "--out=build/graph.html", "--format=html", "--libs=cdn", "--recursive",
+	];
+	ok("graph argv (always passes --out)", JSON.stringify(calls.at(-1)) === JSON.stringify(expected),
+		JSON.stringify(calls.at(-1)));
+
+	ok("graph schema requires out", tools.get("yamlet_graph").parameters.required?.includes("out") === true,
+		JSON.stringify(tools.get("yamlet_graph").parameters.required));
 }
 
 // ── 2b. yamlet_guide serves the author skill's procedures ──────────────────
