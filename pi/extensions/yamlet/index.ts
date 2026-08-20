@@ -334,7 +334,9 @@ function shellWritesSpec(command: string): boolean {
 		if (!SPEC_RE.test(s)) return false;
 		// A redirect into a spec is blocked whatever produced the bytes — including
 		// `yamlet graph a.yamlet.yaml > b.yamlet.yaml`, which is still the shell
-		// writing the file rather than the CLI's own serializer.
+		// writing the file rather than the CLI's own serializer. (`graph` itself
+		// now refuses a `*.yamlet.yaml` --out, so the two guards agree: a graph
+		// never lands on a spec, by either route.)
 		if (/>>?\s*\S*\.yamlet\.ya?ml\b/i.test(s)) return true;
 		// Otherwise the CLI itself is the sanctioned writer and passes.
 		if (/^(?:sudo\s+)?yamlet\b/.test(s)) return false;
@@ -592,11 +594,23 @@ export default function (pi: ExtensionAPI) {
 		name: "yamlet_graph",
 		label: "yamlet graph",
 		description:
-			"Emit a graph model of one spec or a whole directory — dot (one spec, one level), json (the " +
-			"yamlet.graph/v1 model), or html (a self-contained interactive viewer). Use recursive=true to " +
-			"expand composite members deeply; a directory or recursive requires json or html, not dot.",
+			"WRITE a graph model of one spec or a whole directory TO A FILE — dot (one spec, one level), " +
+			"json (the yamlet.graph/v1 model), or html (a self-contained interactive viewer). The graph is " +
+			"never returned to you: `out` is required, the payload goes there, and this tool returns one " +
+			"summary line (path, format, size, roots/members/wires). Report that path to the user and stop " +
+			"— do NOT read the file back. format=html inlines the elk layout engine and is ~1.6 MB whatever " +
+			"the spec count; reading it would end the session's context in a single call. Use recursive=true " +
+			"to expand composite members deeply; a directory or recursive requires json or html, not dot.",
+		promptSnippet: "Write a spec graph (dot/json/html) to a file",
+		promptGuidelines: [
+			"yamlet_graph writes to `out` and returns only a summary — hand the user the path, never read the graph file back into context.",
+		],
 		parameters: Type.Object({
 			target: Type.Optional(Type.String({ description: "A spec file or a directory of specs (default: .)" })),
+			out: Type.String({
+				description:
+					"REQUIRED. Path to write the graph to (e.g. graph.html). Must not be a *.yamlet.yaml path.",
+			}),
 			format: Type.Optional(StringEnum(["dot", "json", "html"] as const)),
 			libs: Type.Optional(StringEnum(["embed", "cdn"] as const)),
 			recursive: Type.Optional(Type.Boolean({ description: "Expand composite members deeply" })),
@@ -604,6 +618,7 @@ export default function (pi: ExtensionAPI) {
 		async execute(_id, params, signal, _onUpdate, ctx) {
 			const args = ["graph"];
 			if (params.target) args.push(cleanPath(params.target));
+			args.push(`--out=${cleanPath(params.out)}`);
 			if (params.format) args.push(`--format=${params.format}`);
 			if (params.libs) args.push(`--libs=${params.libs}`);
 			if (params.recursive) args.push("--recursive");

@@ -146,6 +146,13 @@ A verified spec is the source of truth for its tests too. As the **mandatory clo
 
 The spec work is not complete until the feature tree has been regenerated.
 
+## If you're asked for a graph
+
+`yamlet_graph` is not part of the authoring flow, but the user may ask for one mid-interview. Two rules:
+
+- **`out` is required** — the tool will not run without it. Tell the user the path it reports.
+- **Never read the file back.** `format: "html"` inlines the elk layout engine, so it is **~1.6 MB whatever the spec count** — reading it would end your context in one call, mid-interview, losing everything the user has told you. The tool returns a one-line summary (format, size, roots/members/wires); that is all you need.
+
 ## Final notes
 
 You challenge, you demand thought. You do not decide, and you do not accept implicit definitions or vagueness. You're the quality gate for further work, so a mistake at this level costs dearly later.

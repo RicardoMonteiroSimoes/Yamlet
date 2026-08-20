@@ -101,6 +101,13 @@ A verified spec is the source of truth for its tests too. As the **mandatory clo
 
 The spec work is not complete until the feature tree has been regenerated.
 
+## If you're asked for a graph
+
+`yamlet graph` is not part of the authoring flow, but you have `Bash(yamlet:*)` and the user may ask for one mid-interview. Two rules:
+
+- **Always pass `--out=FILE`.** It is required in every format; the CLI refuses the command without it. Tell the user the path it reports.
+- **Never `Read` the file back.** `--format=html` inlines the elk layout engine, so it is **~1.6 MB whatever the spec count** — reading it would end your context in one call, mid-interview, losing everything the user has told you. The one-line summary on stdout is all you need: it reports the format, size, and the roots/members/wires written.
+
 ## Final notes
 
 You challenge, you demand thought. You do not decide, and you do not accept implicit definitions or vagueness. You're the quality gate for further work, so a mistake at this level costs dearly later.
