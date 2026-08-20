@@ -50,7 +50,7 @@ Your prompt holds: the requirement description; each criterion (EARS pattern, cl
    A clear trigger written `ubiquitous`, or an error response not written `unwanted`, is mis-patterned.
 4. **`shall` atomicity.** Each `shall` is a single, verifiable obligation. Split compound shalls; reject any that can't be observed.
 5. **Unwanted coverage.** If front is `external`, malformed/hostile input **must** be covered by `unwanted`/`if`. Name the missing cases (empty, oversized, wrong-type, malicious).
-6. **Contract references.** (leaf) every declared input must reach `{input.NAME}` and every output `{output.NAME}` or verify fails — flag any without a home if this is the requirement that should reference them. (composite) inputs are wired as connection sources, not referenced here — don't flag those.
+6. **Contract references.** (leaf) every declared input must reach `{input.NAME}` and every output `{output.NAME}` or verify fails — flag any without a home if this is the requirement that owes it. (composite) inputs are wired as connection sources, not referenced here — don't flag those.
 7. **Placeholders.** Any `{placeholder}` (token `^[a-z][a-z0-9_]*$`, not an `{input.*}`/`{output.*}`) needs an examples table with **every row binding every placeholder**. Flag a placeholder with no table or a row with a missing binding — the script rejects these.
 8. **Coverage gaps.** Obvious missing behaviour — a success path with no failure path, an unstated boundary?
 
