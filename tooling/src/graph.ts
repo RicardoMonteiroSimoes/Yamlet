@@ -10,9 +10,10 @@
 //
 // `--format=dot` emits DOT *text*, not a rendered image: a real layout engine
 // (`dot -Tsvg`) places the nodes, which is exactly the fragile hand-placement
-// this command exists to eliminate. Pipe it:
+// this command exists to eliminate. Render the file it writes:
 //
-//   yamlet graph specs_example/pdf_archiver.yamlet.yaml | dot -Tsvg > diagram.svg
+//   yamlet graph specs_example/pdf_archiver.yamlet.yaml --out=archiver.dot
+//   dot -Tsvg archiver.dot > diagram.svg
 //
 // `--format=json` emits the same structure as a stable `yamlet.graph/v1`
 // document (nodes, ports, typed wires, per-member metadata + source paths) so a
@@ -31,7 +32,16 @@
 // the connections records) so the picture can never disagree with the verifier
 // about which wires exist.
 //
-// Read-only. Exit codes: 0 ok · 2 usage/parse error (run `yamlet verify` first).
+// EVERY format is written to `--out=FILE` and `--out` is REQUIRED; no format
+// has a path to stdout. The payload is a deliverable for a renderer or a
+// browser, not something to read inline — `--format=html` inlines the elk
+// layout engine and is ~1.6 MB whatever the spec count. Streaming that into an
+// agent's tool result exhausts a context window in one call, so stdout carries
+// only a one-line summary of what was written.
+//
+// Reads the spec(s) and writes exactly one file, refusing a `*.yamlet.yaml`
+// target so a graph can never overwrite a spec.
+// Exit codes: 0 ok · 2 usage/parse/write error (run `yamlet verify` first).
 
 import type { CmdResult, Command } from "./types.ts";
 import { flatten } from "./flatten.ts";
@@ -511,11 +521,62 @@ function forestModel(root: string, opts: BuildOpts): ForestModel {
   return model;
 }
 
-const json = (v: unknown): CmdResult => ({
-  exitCode: 0,
-  stdout: JSON.stringify(v, null, 2) + "\n",
-  stderr: "",
-});
+/** `--out` must never name a spec: a graph is not a spec and must not overwrite one. */
+const SPEC_PATH_RE = /\.yamlet\.ya?ml$/i;
+
+/** Human-readable byte size, for the one-line summary stdout gets instead of the payload. */
+function humanBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  const units = ["KB", "MB", "GB"];
+  let v = n / 1024;
+  let i = 0;
+  while (v >= 1024 && i < units.length - 1) {
+    v /= 1024;
+    i++;
+  }
+  return `${v < 10 ? v.toFixed(1) : Math.round(v)} ${units[i]}`;
+}
+
+interface Counts {
+  roots: number;
+  members: number;
+  wires: number;
+}
+
+/** Deep member/wire totals, so the summary describes the graph without printing it. */
+function countsOf(model: GraphModel | ForestModel): Counts {
+  let members = 0;
+  let wires = 0;
+  const walk = (b: GraphBody | undefined): void => {
+    if (!b) return;
+    members += b.members.length;
+    wires += b.wires.length;
+    for (const m of b.members) walk(m.graph);
+  };
+  const roots = model.kind === "forest" ? model.roots : [model];
+  for (const r of roots) walk(r.graph);
+  return { roots: roots.length, members, wires };
+}
+
+/** Write the payload to `out`; stdout gets the summary, never the bytes. */
+function writeOut(out: string, payload: string, format: string, counts: Counts): CmdResult {
+  try {
+    Deno.writeTextFileSync(out, payload);
+  } catch (e) {
+    const why = e instanceof Deno.errors.NotFound
+      ? "no such directory"
+      : e instanceof Deno.errors.PermissionDenied
+      ? "permission denied"
+      : e instanceof Error
+      ? e.message
+      : String(e);
+    return die(`could not write ${out}: ${why}`);
+  }
+  const parts = [format, humanBytes(new TextEncoder().encode(payload).length)];
+  parts.push(`${counts.roots} root${counts.roots === 1 ? "" : "s"}`);
+  if (counts.members > 0) parts.push(`${counts.members} members`, `${counts.wires} wires`);
+  return { exitCode: 0, stdout: `wrote ${out} — ${parts.join(", ")}\n`, stderr: "" };
+}
 
 /** A human page title for a model: the first root's topic (forest) or the spec's own. */
 function titleOf(model: GraphModel | ForestModel): string {
@@ -545,6 +606,7 @@ function loadSpec(
 
 export function runGraph(args: string[]): CmdResult {
   let target = "";
+  let out = "";
   let format = "dot";
   let formatSet = false;
   let recursive = false;
@@ -552,6 +614,7 @@ export function runGraph(args: string[]): CmdResult {
   let libsSet = false;
   for (const a of args) {
     if (a === "--recursive" || a === "-r") recursive = true;
+    else if (a.startsWith("--out=")) out = a.slice("--out=".length);
     else if (a.startsWith("--format=")) {
       format = a.slice("--format=".length);
       formatSet = true;
@@ -567,6 +630,18 @@ export function runGraph(args: string[]): CmdResult {
     else target = a;
   }
   if (target === "") target = ".";
+
+  // Required, and deliberately so: the payload has no path to stdout, because a
+  // single `--format=html` is ~1.6 MB and would exhaust an agent's context.
+  if (out === "") {
+    return die(
+      "graph requires --out=FILE — the model is written to a file, never to stdout.\n" +
+        `  try: yamlet graph ${target} --format=html --out=graph.html`,
+    );
+  }
+  if (SPEC_PATH_RE.test(out)) {
+    return die(`--out must not name a spec file: ${out} would overwrite it with a graph`);
+  }
 
   let isDir: boolean;
   try {
@@ -601,12 +676,10 @@ export function runGraph(args: string[]): CmdResult {
       const composite = resolveComposite(target, spec.text, spec.records);
       model = graphModel(target, metaOf(spec.records), composite, spec.records, { recursive });
     }
-    if (format === "json") return json(model);
-    return {
-      exitCode: 0,
-      stdout: renderViewerHtml(JSON.stringify(model), titleOf(model), libs),
-      stderr: "",
-    };
+    const payload = format === "json"
+      ? JSON.stringify(model, null, 2) + "\n"
+      : renderViewerHtml(JSON.stringify(model), titleOf(model), libs);
+    return writeOut(out, payload, format, countsOf(model));
   }
 
   // dot: a single spec at one level (directory/recursive already rejected above).
@@ -615,22 +688,31 @@ export function runGraph(args: string[]): CmdResult {
   const meta = metaOf(spec.records);
   const composite = resolveComposite(target, spec.text, spec.records);
   const dot = composite.isComposite ? dotComposite(meta, composite, spec.records) : dotLeaf(meta);
-  return { exitCode: 0, stdout: dot, stderr: "" };
+  const model = graphModel(target, meta, composite, spec.records, { recursive: false });
+  return writeOut(out, dot, "dot", countsOf(model));
 }
 
 export const graphCommand: Command = {
   name: "graph",
-  summary: "emit a DOT, JSON, or HTML graph model of a spec or a directory",
-  help: `yamlet graph — emit a graph model of one spec or a whole directory
+  summary: "write a DOT, JSON, or HTML graph model of a spec or a directory to a file",
+  help: `yamlet graph — write a graph model of one spec or a whole directory to a file
 
 Usage:
-  yamlet graph [FILE|DIR] [--format=dot|json|html] [--libs=embed|cdn] [--recursive]
+  yamlet graph [FILE|DIR] --out=FILE [--format=dot|json|html] [--libs=embed|cdn] [--recursive]
 
 Arguments:
   FILE|DIR                a spec file or a directory of specs (default: .)
 
 Options:
-  --format=dot|json|html  dot:  Graphviz for one spec, one level (pipe to \`dot -Tsvg\`)
+  --out=FILE              REQUIRED. Where to write the graph. The model never goes
+                          to stdout in any format — stdout gets one summary line
+                          (path, format, size, roots/members/wires). --format=html
+                          is ~1.6 MB whatever the spec count, because it inlines the
+                          elk layout engine; printing that exhausts an agent's
+                          context window in a single call. Refuses a *.yamlet.yaml
+                          path so a graph can never overwrite a spec.
+  --format=dot|json|html  dot:  Graphviz for one spec, one level (render the written
+                                file: \`dot -Tsvg graph.dot > diagram.svg\`)
                           json: the yamlet.graph/v1 model (renderer-agnostic)
                           html: a self-contained interactive viewer of that model
   --libs=embed|cdn        html only — how the layout engine (elkjs) is delivered:
@@ -643,6 +725,11 @@ Options:
 A directory or --recursive implies a model format (json/html) and expands the whole
 tree. --format=dot with a directory or --recursive is an error: DOT renders a single
 spec at one level. --libs is meaningful only with --format=html.
+
+Examples:
+  yamlet graph specs --format=html --out=graph.html    # the interactive viewer
+  yamlet graph specs --format=json --out=graph.json    # the yamlet.graph/v1 model
+  yamlet graph specs/pdf_upload.yamlet.yaml --out=upload.dot
 
 The html viewer navigates by system: each level shows every scope that shares a
 system: slug (the wired one, marked, plus its sibling variants). Click a member to

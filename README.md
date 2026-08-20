@@ -69,7 +69,7 @@ Specs are authored, verified, and projected into tests — every write driven by
 3. **Verify** — `yamlet verify` checks a spec against a mechanical rule catalog, the source of truth for validity.
 4. **Project tests** — `yamlet tests` turns every acceptance criterion into a Gherkin `.feature`, ready for your step definitions.
 
-Changing an existing spec adds one read before the interview: `yamlet impact` reports the blast radius — every composite that wires the spec as a member, under which alias, and which of its sockets each one binds. Contracts are total, so widening one reaches every file on that list; you get to see it before you touch anything. And at any point `yamlet graph --format=html` drops out a self-contained interactive viewer of how the whole tree fits together.
+Changing an existing spec adds one read before the interview: `yamlet impact` reports the blast radius — every composite that wires the spec as a member, under which alias, and which of its sockets each one binds. Contracts are total, so widening one reaches every file on that list; you get to see it before you touch anything. And at any point `yamlet graph --format=html --out=graph.html` drops out a self-contained interactive viewer of how the whole tree fits together.
 
 After that step, its back to your setup. How you generate the steps, the code, and everything else, depends on you now.
 No _dreams of a fully fledged pipeline that will make you financially independent if you throw enough tokens at it_. Just a small part that hopefully improves the spec part of your daily work.
@@ -92,14 +92,15 @@ In addition, many of these new "frameworks" are just over the top. Why do I need
 
 One binary, one data-driven command registry — `yamlet help` generates its own
 table from that registry, so the help can never drift from the code. The
-read-only commands first, then the authoring primitives the skills orchestrate:
+querying commands first, then the authoring primitives the skills orchestrate
+(`graph` is the one query that writes: its payload goes to `--out`, never stdout):
 
 | command | what it does |
 |---|---|
 | `yamlet verify FILE` | check a spec against the rule catalog; `--list-rules` prints the catalog itself |
 | `yamlet systems [DIR]` | which systems exist, grouped by their scope files. `--details` adds each scope's summary and description (a topic alone rarely separates two scopes of one service), `--contracts` its exposed signature, `--system=SLUG` narrows to one |
 | `yamlet impact FILE [DIR]` | the reverse of `components:` — which composites declare this spec as a member, under which alias, and which sockets each one binds, consumes or names in prose |
-| `yamlet graph [FILE\|DIR]` | a DOT, JSON, or interactive HTML view of one spec or a whole directory |
+| `yamlet graph [FILE\|DIR] --out=F` | write a DOT, JSON, or interactive HTML view of one spec or a whole directory to `F`. `--out` is required — the payload never goes to stdout |
 | `yamlet tests SRC TARGET` | project every acceptance criterion into a Gherkin `.feature` tree |
 | `yamlet init FILE ...` | create a spec, contract and all, correct by construction |
 | `yamlet add-component` · `add-connection` | declare a composite's members, and wire them a group at a time |
@@ -181,9 +182,17 @@ Placeholders like `{n}` may appear in clause and `shall` text; when they do, an
 
 ### Visualizing (`yamlet graph`)
 
-`yamlet graph` emits a diagram of any spec's structure — a leaf's contract, or a
-composite's boundary-and-wiring block diagram. With no argument it takes the
-current directory.
+`yamlet graph` writes a diagram of any spec's structure — a leaf's contract, or a
+composite's boundary-and-wiring block diagram — to the file named by **`--out`**.
+With no path argument it graphs the current directory.
+
+`--out` is **required, in every format**, and the graph never reaches stdout;
+stdout gets one summary line instead (`wrote graph.html — html, 1.6 MB, 2 roots,
+7 members, 23 wires`). That is not tidiness: `--format=html` inlines the elk
+layout engine, so it is ~1.6 MB *whatever the spec count*, and an agent that
+runs `graph` and receives the payload as a tool result loses its whole context
+window in one call. An `--out` naming a `*.yamlet.yaml` file is refused, so a
+graph can never overwrite a spec.
 
 - **`--format=html`** is a self-contained interactive viewer: one file, no build
   step, no server. It navigates **by system** — each level shows every scope that
@@ -197,8 +206,11 @@ current directory.
   without re-parsing yamlet. The HTML viewer is one such renderer over exactly
   this model.
 - **`--format=dot`** (the default for a single spec) is Graphviz DOT for
-  `dot -Tsvg` to lay out:
-  `yamlet graph specs_example/pdf_archiver.yamlet.yaml | dot -Tsvg > diagram.svg`
+  `dot -Tsvg` to lay out — render the file it writes:
+  ```sh
+  yamlet graph specs_example/pdf_archiver.yamlet.yaml --out=archiver.dot
+  dot -Tsvg archiver.dot > diagram.svg
+  ```
 
 Because a project's specs are expected to **live together in one directory**,
 `yamlet graph <dir>` (or `--recursive` on a single root) expands the whole
