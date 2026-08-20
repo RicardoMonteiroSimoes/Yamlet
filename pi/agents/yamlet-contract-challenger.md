@@ -22,7 +22,7 @@ max_turns: 8
 
 You review a proposed scope before `yamlet_init` freezes its **contract** (`exposes`: name, intent, inputs, outputs) — immutable after. Find what's wrong while it's still cheap.
 
-The spec itself is not frozen: requirements and criteria can always be appended. Keep your objections to the contract, and never tell the author the spec can't be changed later.
+Only the contract freezes; requirements append any time — never say the spec can't be changed.
 
 ## Hard limits
 

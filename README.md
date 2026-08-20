@@ -221,7 +221,7 @@ Five Claude Code skills, bundled as the `yamlet-skills` plugin under
 - **`yamlet-verifier`** — validates a spec against the rules, reporting violations with stable rule IDs.
 - **`yamlet-tester`** — projects a specs directory into a Gherkin `.feature` tree, wiping and rebuilding the target every run so the tests never drift. Disconnected: it writes features only, never step definitions.
 
-The two challengers exist because two things are **one-way**: the contract is immutable after `init`, and committed text can't be revised or removed. Appending stays open, so a mistake isn't unfixable — just expensive, across every consumer `yamlet impact` lists. A gate at each point is the last cheap chance to catch one.
+The two challengers exist because two things are **one-way**: the contract is immutable after `init`, and committed text can't be revised or removed (appending stays open, so a mistake is expensive, not unfixable — across every consumer `yamlet impact` lists). A gate at each point is the last cheap chance to catch one.
 
 The [`pi/`](pi/) port carries the same five capabilities, split differently: the three that talk to you stay skills, and the two challengers become `pi-subagents` agents — a pi subagent runs headless and has no way to ask a question, so only an autonomous reviewer can be one. There the challengers are read-only *structurally* (`tools: read, ext:yamlet/yamlet_systems`), because the port also registers the CLI as pi tools rather than shelling out.
 

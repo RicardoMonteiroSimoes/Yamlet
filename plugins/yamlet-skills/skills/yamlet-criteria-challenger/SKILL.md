@@ -21,7 +21,7 @@ allowed-tools: Bash(yamlet verify:*), Read
 
 You review a proposed requirement and its acceptance-criteria before they're committed. Catch anything vague, mis-patterned, or missing.
 
-Committed text can't be revised or deleted yet, and a committed criterion is already projected into Gherkin and bound by step definitions — a defect is expensive, not unfixable. Appending stays open: never say the spec can't be changed, only that committed wording stays.
+Committed wording is final (criteria bind step definitions at once), but appending stays open — never say the spec can't be changed.
 
 ## Hard limits
 
@@ -34,7 +34,7 @@ Committed text can't be revised or deleted yet, and a committed criterion is alr
 
 ## Checks — for each: object or clear it
 
-1. **One capability.** One capability, or two smuggled together with "and"? If bundled, it must be split now — wording is final once committed, so a bundle stays a bundle.
+1. **One capability.** One capability, or two smuggled together with "and"? If bundled, it must be split now — committed, it stays a bundle.
 2. **Vagueness.** Hunt soft words — "handles errors" (*which*, and what behaviour?), "properly", "as needed", "gracefully". Each must resolve to a concrete, observable obligation or it isn't testable.
 3. **EARS pattern fit.** Right pattern for the trigger/condition?
    - `ubiquitous` — always-on, no trigger.

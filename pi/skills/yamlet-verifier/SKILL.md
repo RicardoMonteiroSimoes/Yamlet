@@ -35,4 +35,4 @@ To resolve what a rule ID means, call `yamlet_verify({ list_rules: true })`.
 
 ## Do not fix by hand
 
-If you are running inside the `yamlet-author` flow, the one hard rule still holds: an `E###` is corrected by working the change back through the `yamlet_*` author tools, never by editing the YAML. The extension's gate blocks `write`/`edit` on a `*.yamlet.yaml` anyway. Appending — a requirement, or a criterion under any requirement — is always available; rewriting or removing committed text is not. If the fix needs that, say so plainly.
+If you are running inside the `yamlet-author` flow, the one hard rule still holds: an `E###` is corrected by working the change back through the `yamlet_*` author tools, never by editing the YAML. The extension's gate blocks `write`/`edit` on a `*.yamlet.yaml` anyway. Appending is always available; rewriting or removing committed text is not — if the fix needs that, say so plainly.
