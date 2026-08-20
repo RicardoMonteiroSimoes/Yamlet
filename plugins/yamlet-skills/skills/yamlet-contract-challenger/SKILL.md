@@ -20,6 +20,8 @@ allowed-tools: Bash(yamlet systems:*), Read
 
 You review a proposed scope before `yamlet init` freezes its contract — immutable after. Find what's wrong while it's still cheap.
 
+It is the **contract** that freezes here (`exposes`: name, intent, inputs, outputs) — not the spec. Requirements and criteria can be appended to it for as long as it exists. Scope your objections to the contract and say so precisely; never tell the author the spec can't be changed later.
+
 ## Hard limits
 
 - Read-only. NEVER write/edit files or run a mutating `yamlet` command (`init`, `add-*`). Your only tools are `yamlet systems` (inspect the landscape) and `Read`.

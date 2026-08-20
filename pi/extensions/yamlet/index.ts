@@ -453,8 +453,10 @@ export default function (pi: ExtensionAPI) {
 						`Refusing to ${event.toolName} ${path} directly. A .yamlet.yaml is written only by the ` +
 						`yamlet CLI, which owns serialization and mints every RQ-/AC- id — hand-editing is what ` +
 						`makes a spec drift. Use the yamlet_* tools (yamlet_init, yamlet_add_requirement, ` +
-						`yamlet_add_criterion, …) instead. Note that this version cannot edit or delete ` +
-						`committed content; if that is what you need, say so rather than working around it.`,
+						`yamlet_add_criterion, …) instead. An existing spec is still open to change through them — ` +
+						`append a requirement, or add a criterion to any requirement. Only revising or ` +
+						`deleting already-committed text is unsupported here; if that is what you need, say ` +
+						`so rather than working around it.`,
 				};
 			}
 		}
@@ -739,8 +741,9 @@ export default function (pi: ExtensionAPI) {
 		label: "yamlet add-requirement",
 		description:
 			"Append a requirement and return its assigned RQ-N — read that id from the output, never invent " +
-			"it. One capability per requirement. ONE-WAY: a committed requirement cannot be edited, and " +
-			"criteria attach only to the most recent one, so finish each before starting the next.",
+			"it. One capability per requirement. A spec stays open: append to it at any time, and " +
+			"yamlet_add_criterion attaches to ANY requirement in the file, not only this one. What this " +
+			"version cannot do is revise or delete committed text — so settle the wording before calling.",
 		promptSnippet: "Append a requirement to a spec (returns its RQ-N)",
 		parameters: Type.Object({
 			file: Type.String(),
