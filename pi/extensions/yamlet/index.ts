@@ -479,18 +479,13 @@ export default function (pi: ExtensionAPI) {
 		name: "yamlet_systems",
 		label: "yamlet systems",
 		description:
-			"List the systems already defined across a directory of specs, grouped by their scope files. " +
-			"Run this BEFORE creating any new spec: reusing an existing system's exact slug is what keeps a " +
-			"service from fragmenting into near-duplicates. Pass details=true to read each scope's summary " +
-			"and description — a slug and a topic say what a service is CALLED, only the prose says what it " +
-			"COVERS, and nothing downstream ever flags a fragmented service. Pass contracts=true to also " +
-			"print each scope's exposed input/output signature, which is what you wire a composite against.",
+			"List the systems defined across a directory of specs, grouped by their scope files.",
 		promptSnippet: "Discover existing yamlet systems, their summaries and their contracts",
 		parameters: Type.Object({
 			dir: Type.Optional(Type.String({ description: "Directory to scan for *.yamlet.yaml (default: .)" })),
 			system: Type.Optional(Type.String({ description: "Show only the system with this exact slug" })),
 			details: Type.Optional(Type.Boolean({
-				description: "Include each scope's summary and description — required before recommending a system",
+				description: "Include each scope's summary and description",
 			})),
 			contracts: Type.Optional(Type.Boolean({ description: "Include each scope's exposed contract signature" })),
 			format: Type.Optional(StringEnum(["human", "json"] as const)),
@@ -510,12 +505,7 @@ export default function (pi: ExtensionAPI) {
 		name: "yamlet_guide",
 		label: "yamlet guide",
 		description:
-			"Read one of the yamlet-author procedures. The author skill is a router: it asks whether this is a " +
-			"new spec or a change to an existing one, then reads the matching procedure from here rather than " +
-			"carrying all of them at once. Load 'creating' or 'editing' at the start of the work, 'composites' " +
-			"when the scope wires existing services together, and 'patterns' when you reach acceptance-criteria. " +
-			"Read only the one in play. The two '*-challenge' topics are the challenger checklists, needed only " +
-			"when the Agent tool is unavailable and the gate has to be run inline.",
+			"Read one of the yamlet-author procedures. Load only the one in play.",
 		promptSnippet: "Read a yamlet-author procedure or challenger checklist",
 		parameters: Type.Object({
 			topic: StringEnum(Object.keys(GUIDE_FILES) as [GuideTopic, ...GuideTopic[]], {
@@ -544,11 +534,7 @@ export default function (pi: ExtensionAPI) {
 		label: "yamlet impact",
 		description:
 			"The reverse dependency index: which composites declare this spec as a member, under which alias, " +
-			"and which of its sockets each one binds, consumes or names in prose. Every exposes contract is " +
-			"TOTAL — a composite must bind every input of every member — so adding an input reaches every file " +
-			"listed here, and removing an input or output breaks each consumer that uses it. Run this before " +
-			"proposing any change to an exposes block, and before removing a spec. Read the scanned count: a " +
-			"consumer outside the scanned tree is one this cannot see.",
+			"and which of its sockets each one binds or consumes.",
 		promptSnippet: "List the composites that consume a spec (blast radius of a contract change)",
 		parameters: Type.Object({
 			file: Type.String({ description: "The spec whose consumers you want" }),
@@ -567,11 +553,8 @@ export default function (pi: ExtensionAPI) {
 		name: "yamlet_verify",
 		label: "yamlet verify",
 		description:
-			"Check a spec against the rule catalog — the mechanical source of truth for validity. " +
-			"Exit 0 prints `OK: …`; otherwise it prints E### errors (invalid) and W### warnings (non-fatal). " +
-			"Set list_rules=true (with no file) to print the catalog and resolve what a rule ID means. " +
-			"Verify at the END of authoring: a declared input/output that nothing references yet is an error, " +
-			"so an early run reports failures that are not real.",
+			"Check a spec against the rule catalog, the mechanical source of truth for validity. E### is " +
+			"invalid; W### is a non-fatal warning.",
 		promptSnippet: "Verify a .yamlet.yaml against the rule catalog",
 		parameters: Type.Object({
 			file: Type.Optional(Type.String({ description: "Path to the .yamlet.yaml to verify" })),
@@ -594,13 +577,9 @@ export default function (pi: ExtensionAPI) {
 		name: "yamlet_graph",
 		label: "yamlet graph",
 		description:
-			"WRITE a graph model of one spec or a whole directory TO A FILE — dot (one spec, one level), " +
-			"json (the yamlet.graph/v1 model), or html (a self-contained interactive viewer). The graph is " +
-			"never returned to you: `out` is required, the payload goes there, and this tool returns one " +
-			"summary line (path, format, size, roots/members/wires). Report that path to the user and stop " +
-			"— do NOT read the file back. format=html inlines the elk layout engine and is ~1.6 MB whatever " +
-			"the spec count; reading it would end the session's context in a single call. Use recursive=true " +
-			"to expand composite members deeply; a directory or recursive requires json or html, not dot.",
+			"Write a graph of one spec or a directory to `out` — dot, json, or html. Returns only a summary " +
+			"line: hand the user that path and never read the file back. dot is one spec, one level; a " +
+			"directory or recursive needs json or html.",
 		promptSnippet: "Write a spec graph (dot/json/html) to a file",
 		promptGuidelines: [
 			"yamlet_graph writes to `out` and returns only a summary — hand the user the path, never read the graph file back into context.",
@@ -608,8 +587,7 @@ export default function (pi: ExtensionAPI) {
 		parameters: Type.Object({
 			target: Type.Optional(Type.String({ description: "A spec file or a directory of specs (default: .)" })),
 			out: Type.String({
-				description:
-					"REQUIRED. Path to write the graph to (e.g. graph.html). Must not be a *.yamlet.yaml path.",
+				description: "Where to write the graph (e.g. graph.html); must not be a *.yamlet.yaml path.",
 			}),
 			format: Type.Optional(StringEnum(["dot", "json", "html"] as const)),
 			libs: Type.Optional(StringEnum(["embed", "cdn"] as const)),
@@ -631,12 +609,8 @@ export default function (pi: ExtensionAPI) {
 		name: "yamlet_tests",
 		label: "yamlet tests",
 		description:
-			"Project every acceptance criterion in SRC into a Gherkin .feature tree in TARGET, plus a " +
-			"manifest.json of the contract tokens each scenario leaves for a consumer to bind. " +
-			"TARGET is yamlet-owned: every run WIPES AND REBUILDS it, so the tests can never drift from the " +
-			"specs — never keep step definitions, fixtures or runner config there, they belong in the " +
-			"consumer's own directory and are erased on the next run. Run once, at the very end, after " +
-			"verification passes.",
+			"Project every acceptance criterion in `src` into a Gherkin .feature tree in `target`, plus a " +
+			"manifest.json of the contract tokens each scenario leaves for a consumer to bind.",
 		promptSnippet: "Regenerate the Gherkin feature tree from a specs directory",
 		promptGuidelines: [
 			"yamlet_tests wipes and rebuilds its TARGET directory on every run — confirm the target before calling it, and never point it at a directory holding step definitions.",
@@ -666,9 +640,8 @@ export default function (pi: ExtensionAPI) {
 		name: "yamlet_init",
 		label: "yamlet init",
 		description:
-			"Create a new spec, correct by construction. The exposed contract (expose_name, expose_intent, " +
-			"inputs, outputs) is IMMUTABLE after this call — settle it with the user first. Naming rules and " +
-			"what must reference each input/output: see the yamlet-author skill.",
+			"Create a new spec. The exposed contract (expose_name, expose_intent, inputs, outputs) is " +
+			"immutable after this call.",
 		promptSnippet: "Create a new .yamlet.yaml spec (freezes its contract)",
 		parameters: Type.Object({
 			file: Type.String({ description: "Path of the .yamlet.yaml to create" }),
@@ -707,9 +680,8 @@ export default function (pi: ExtensionAPI) {
 		name: "yamlet_add_component",
 		label: "yamlet add-component",
 		description:
-			"Declare one member of a composite. Echoes the member's contract: every listed input MUST be " +
-			"wired or verify fails; outputs are consumed as needed. All components before any connection, " +
-			"and all wiring before the first requirement — the CLI refuses components once one exists.",
+			"Declare one member of a composite. Echoes the member's contract: every input listed must be " +
+			"wired, outputs are consumed as needed.",
 		parameters: Type.Object({
 			file: Type.String({ description: "The composite .yamlet.yaml" }),
 			alias: Type.String({ description: "Local handle for this member (^[a-z][a-z0-9_]*$)" }),
@@ -726,10 +698,9 @@ export default function (pi: ExtensionAPI) {
 		name: "yamlet_add_connection",
 		label: "yamlet add-connection",
 		description:
-			"Wire one group of a composite atomically — group is a member alias, or 'output' for the " +
-			"composite's own outputs. Must bind ALL of that group's sinks in one call; partial wiring is " +
-			"rejected. A source is 'input.NAME' or 'alias.SOCKET' (a member OUTPUT); member inputs and " +
-			"'output.NAME' are sinks, never sources. Cycles are allowed.",
+			"Wire one group of a composite atomically — `group` is a member alias, or 'output' for the " +
+			"composite's own outputs. Bind all of that group's sinks in one call. A source is 'input.NAME' or " +
+			"'alias.SOCKET' (a member output); member inputs and 'output.NAME' are sinks, never sources.",
 		parameters: Type.Object({
 			file: Type.String({ description: "The composite .yamlet.yaml" }),
 			group: Type.String({ description: "A member alias, or the reserved 'output'" }),
@@ -753,9 +724,7 @@ export default function (pi: ExtensionAPI) {
 		name: "yamlet_add_requirement",
 		label: "yamlet add-requirement",
 		description:
-			"Append a requirement and return its assigned RQ-N — read that id from the output, never invent " +
-			"it. One capability per requirement. yamlet_add_criterion attaches to ANY requirement, not just " +
-			"this one. Committed wording is final — settle it first.",
+			"Append a requirement and return its assigned RQ-N.",
 		promptSnippet: "Append a requirement to a spec (returns its RQ-N)",
 		parameters: Type.Object({
 			file: Type.String(),
@@ -772,20 +741,18 @@ export default function (pi: ExtensionAPI) {
 		name: "yamlet_add_criterion",
 		label: "yamlet add-criterion",
 		description:
-			"Add one EARS acceptance criterion and return its AC-N. The pattern picks the clauses: " +
-			"ubiquitous (none), state (while), event (when), optional (where), unwanted (if), complex " +
-			"(while + exactly one of when/if). Each shall is one atomic, observable obligation. " +
-			"{input.X}/{output.X} need no examples; any other {placeholder} requires examples, with every " +
-			"row binding every placeholder. rq may name ANY requirement in the file, not only the newest; " +
-			"pass after=AC-N to insert directly behind a named sibling instead of appending.",
+			"Add one EARS acceptance criterion and return its AC-N. The pattern picks the clauses: ubiquitous " +
+			"(none), state (while), event (when), optional (where), unwanted (if), complex (while + exactly " +
+			"one of when/if). {input.X}/{output.X} need no examples; any other {placeholder} does, with every " +
+			"row binding every placeholder.",
 		promptSnippet: "Add an EARS acceptance criterion (returns its AC-N)",
 		parameters: Type.Object({
 			file: Type.String(),
 			rq: Type.String({ description: "The requirement id, e.g. RQ-1 — any requirement, not only the newest" }),
 			after: Type.Optional(Type.String({
 				description:
-					"Insert directly after this criterion (must belong to rq). The new id takes a letter " +
-					"suffix on it — after AC-3 comes AC-3a — so nothing is renumbered. Omit to append.",
+					"Insert after this criterion (must belong to rq); the new id takes a letter suffix, " +
+					"AC-3 -> AC-3a. Omit to append.",
 			})),
 			pattern: StringEnum(["ubiquitous", "state", "event", "optional", "unwanted", "complex"] as const),
 			when: Type.Optional(Type.String({ description: "event / complex: the discrete trigger" })),
