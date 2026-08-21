@@ -1,0 +1,44 @@
+name: Skills
+
+# Guards the context budget of the skills product. A skill's `description` is
+# always in context in every session, and both harnesses cap it silently — pi
+# warns past 1024 chars, Claude Code truncates the listing mid-sentence at 1536.
+# Nothing in either harness fails loudly, so the only way to notice is to check.
+#
+# No `paths:` filter on purpose: the job is seconds long, and a check that skips
+# itself on most PRs cannot be made a required status without leaving every other
+# PR waiting on a run that never happens.
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: skills-lint-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  budget:
+    name: Skill context budget
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: "2.9.2"
+
+      # The linter is the thing standing between the skills and silent
+      # truncation, so it is held to the same bar as the CLI it sits beside.
+      - name: Check the linter itself
+        run: |
+          deno check scripts/lint-skills.ts
+          deno lint scripts/lint-skills.ts
+          deno fmt --check scripts/lint-skills.ts
+
+      # Violations are emitted as workflow annotations, so an over-budget
+      # description lands on the offending line in the PR diff.
+      - name: Check skill budgets
+        run: deno run --allow-read --allow-env scripts/lint-skills.ts

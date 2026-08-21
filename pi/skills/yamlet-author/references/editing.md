@@ -100,10 +100,6 @@ When you hit one of these, say which change is blocked, why, and what you did in
 
 ## 6. Then rejoin the shared flow
 
-Once the change is committed, return to the skill body:
-
-- read the file back to the user and confirm it captures the source of truth,
-- **verify** with the `yamlet-verifier` skill — not done until it reports no errors,
-- **project the tests** with the `yamlet-tester` skill.
+Once the change is committed, return to the skill body and run its closing steps: read the file back to the user, **verify**, then **project the tests**.
 
 The test projection matters more after an edit than after a creation: it regenerates the whole tree, so a changed scenario's step definitions may now be orphaned or unbound. Bring the tester's report back to the user and say which scenarios changed.

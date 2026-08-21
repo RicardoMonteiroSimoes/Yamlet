@@ -52,3 +52,19 @@ When code and docs disagree, the verifier wins. Update the docs.
 ## Conventions
 
 Boy-scout rule: leave touched code better.
+
+**Skill budgets are checked, not judged.** A skill's `description` is always in
+context in every session, and both harnesses cap it silently — pi warns past
+1024 chars, Claude Code truncates `description` + `when_to_use` at 1536 with no
+warning at all, mid-sentence. `scripts/lint-skills.ts` holds every skill in
+`plugins/` and `pi/` to the tighter cap plus a body-length budget, and
+`.github/workflows/skills-lint.yml` runs it on every PR. Run it before you
+commit a skill change:
+
+```sh
+deno run --allow-read --allow-env scripts/lint-skills.ts
+```
+
+A description exists to decide *whether to load the skill*; the procedure
+belongs in the body, and detail belongs in `references/`, which costs nothing
+until it is read.
