@@ -2,14 +2,9 @@
 name: yamlet-author
 description: >-
   Creates and changes EARS spec files (.yamlet.yaml) by interviewing the user and driving the
-  `yamlet` CLI — the agent NEVER writes YAML and never invents an id. Use when the user wants to
-  write a new spec, add a requirement or acceptance-criterion to an existing one, change a spec
-  that already exists, or wire existing services together as a composite. It routes on one
-  question — new spec, or changing an existing one? — then follows the matching procedure from its
-  `references/` directory. It interrogates rather than transcribes: it drills for precise,
-  testable detail and refuses vague requirements. Each contract and each requirement is challenged
-  by an independent adversary before it is committed, and the work is not done until the spec
-  verifies and its Gherkin feature tree has been regenerated.
+  `yamlet` CLI — never by hand-writing YAML. Use when the user wants a new spec, a requirement or
+  acceptance-criterion added to an existing one, an existing spec changed, or existing services
+  wired together as a composite.
 allowed-tools: Bash(yamlet:*), Read, Skill(yamlet-verifier *), Skill(yamlet-skills:yamlet-verifier *), Skill(yamlet-contract-challenger *), Skill(yamlet-skills:yamlet-contract-challenger *), Skill(yamlet-criteria-challenger *), Skill(yamlet-skills:yamlet-criteria-challenger *), Skill(yamlet-tester *), Skill(yamlet-skills:yamlet-tester *)
 ---
 
