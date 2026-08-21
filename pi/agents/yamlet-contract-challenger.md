@@ -1,10 +1,8 @@
 ---
 description: >-
   Adversarial gate used INSIDE the yamlet-author flow, immediately before `yamlet init` freezes a
-  scope's contract. Given a proposed scope (system, topic, front, blast-radius, summary) and its
-  input/output contract, it pokes holes: scope too broad to summarize in one sentence, duplicated
-  or fragmented system, wrong trust boundary, missing or unused inputs/outputs, leaf-vs-composite
-  misclassification. Invoked by yamlet-author at the pre-init gate; not a standalone tool.
+  scope's contract. Given the proposed scope and its input/output contract, it pokes holes in them.
+  Invoked by yamlet-author at the pre-init gate; not a standalone tool.
 display_name: Yamlet Contract Challenger
 color: orange
 model: opus

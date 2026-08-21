@@ -1,6 +1,6 @@
 {
   "name": "yamlet-skills",
-  "description": "Spec-driven development with yamlet: an interviewing author drills you down to minimal, testable `.yamlet.yaml` specs with EARS acceptance criteria, appending through the `yamlet` CLI so the file is correct by construction (the CLI owns all serialization and IDs). Two adversarial challengers guard the one-way init and commit gates, and a verifier closes the loop. Requires the `yamlet` CLI on PATH.",
+  "description": "Spec-driven development with yamlet: an interviewing author drills you down to minimal, testable `.yamlet.yaml` specs with EARS acceptance criteria, appending through the `yamlet` CLI so the file is correct by construction (the CLI owns all serialization and IDs). Two adversarial challengers guard the one-way init and commit gates, a verifier closes the loop, and a tester projects the specs into a Gherkin feature tree. Requires the `yamlet` CLI on PATH.",
   "version": "0.2.1",
   "author": {
     "name": "Ricardo Monteiro Simoes"
