@@ -80,7 +80,7 @@ The `yamlet-skills` Claude Code plugin ([`plugins/yamlet-skills/`](plugins/yamle
 is **served live from this repo's git tree**, not built or published by the release
 workflow. Its marketplace catalog is [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json).
 Merging a skill change to the branch users track is the "release" — there is nothing to
-tag or upload. The four skills have a single source of truth under
+tag or upload. The five skills have a single source of truth under
 `plugins/yamlet-skills/skills/`; the repo's `.claude/skills/` entries are symlinks into it
 (dereferenced to real files when Claude Code installs the plugin from the marketplace).
 
@@ -88,6 +88,12 @@ Users install with `/plugin marketplace add RicardoMonteiroSimoes/Yamlet` then
 `/plugin install yamlet-skills@yamlet`. Bump `version` in
 [`plugins/yamlet-skills/.claude-plugin/plugin.json`](plugins/yamlet-skills/.claude-plugin/plugin.json)
 when you want to signal a meaningful skill change; it is independent of the CLI version.
+
+**Bump [`pi/package.json`](pi/package.json) to the same number in the same commit.**
+The two ports ship the same flow and a behavioural change lands in both, so a single
+version across them is the only way to say which build a user is on. They drifted once
+already — the plugin reached 0.2.0 while pi sat at 0.1.0 — because nothing said this out
+loud.
 
 ## Versioning
 
