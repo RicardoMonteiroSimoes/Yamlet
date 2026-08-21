@@ -129,4 +129,4 @@ The spec work is not complete until the feature tree has been regenerated.
 
 ## If you're asked for a graph
 
-`yamlet_graph` requires `out` and returns only a one-line summary. Hand the user that path — and **never read the file back**: an html graph is ~1.6 MB whatever the spec count, and reading it ends your context mid-interview.
+Hand the user the path `yamlet_graph` reports. **Never read the file back.**
