@@ -67,6 +67,17 @@ yamlet add-criterion specs/email.yamlet.yaml \
 
 Pass literal text plainly; do **not** add quotes around `{...}` yourself — the tool quotes when needed.
 
+## What a test must not have to invent
+
+Every clause and `shall` becomes a Gherkin step, and a step definition can bind only what the line names. Before committing a criterion, read each line on its own and ask what a test would have to guess. Nothing may be left to guess:
+
+- **Contract data is a token, never prose.** "The identity's email" is a field of an input, and the field should have been the input. If the contract already froze a bag input, anchor every field mention to it — `the email carried by {input.user_identity}` — and use one field name throughout.
+- **Every value is bound.** A limit, timeout, size or format is a `{placeholder}` with examples, a literal (`10 MiB`), or an input. "The store's maximum length" and "the accepted format" bind nothing.
+- **Enumerated results are stated, not described.** `set {output.outcome} to created`, not "indicate the record was created". The literal is what the test asserts, and it makes the file's enum grep-able.
+- **A `shall` is a positive observable.** "Not fail provisioning for that reason alone" hides a precondition (everything else is valid) inside an obligation. The precondition goes in the clause; the `shall` says what *is* returned. A named absence — `return no {output.error}` — is fine.
+- **No open lists.** "Such as", "including", "etc." leave the list to the test author. Name it.
+- **Each line stands alone.** "That maximum length" points back into the clause; a `Then` step is read without it.
+
 ## A note on `front`
 
-An `external` scope owes `unwanted`/`if` criteria for malformed or hostile input — validation, authorisation, abusive input, rate limits. An `internal` scope should **not** re-litigate those: the validation lives once, at the boundary that owns the trust decision. If you find yourself writing input-validation criteria on an `internal` scope, question whether the scope's `front` is right, or whether that behaviour belongs upstream.
+An `external` scope owes `unwanted`/`if` criteria for malformed or hostile input — validation, authorisation, abusive input, rate limits. An `internal` scope should **not** re-litigate those: the validation lives once, at the boundary that owns the trust decision. If you find yourself writing input-validation criteria on an `internal` scope, question whether the scope's `front` is right, or whether that behaviour belongs upstream. Checking that a field the scope needs is *present* is not validation; checking its format, length or allowed values is.

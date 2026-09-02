@@ -39,13 +39,14 @@ Your prompt holds: the six header fields (system, topic, front, blast-radius, su
 3. **Trust boundary (`front`).** `external` = untrusted caller (end user or foreign system); `internal` = a component we control. Right? If `external`, the requirements will owe `unwanted`/`if` criteria for hostile input — flag it, and check inputs are shaped to be validated.
 4. **Blast-radius.** Does `[low|medium|high]` match the impact of failure? Auth-like or platform-wide dependencies aren't `low`.
 5. **Inputs used?** (leaf) every input must be referenced by a criterion as `{input.NAME}` or verify fails — flag any the behaviour won't consume. (composite) an input is used by being wired as a connection **source** after init, not by a criterion — flag only those the wiring won't plausibly consume. Inverse either way: an input the summary implies but doesn't declare.
-6. **Outputs.** Missing an obvious one (classic: a validator with no `error`/`problem` output a downstream composite needs)? Outputs can't be added later — an omission is permanent. Flag outputs nothing produces too.
-7. **Leaf vs composite.** Does it do the work itself (leaf) or only wire existing scopes (composite)? "Run inputs through X and Y and hand back results" declared **leaf** is misclassified.
-8. **Naming.** `expose-name` is a slug (`^[a-z0-9]+(-[a-z0-9]+)*$`, dashes); each input/output is a token (`^[a-z][a-z0-9_]*$`, underscores). Flag dashes in a token, underscores in a slug, or an `expose-name` that collides with the `system` slug.
+6. **Bag inputs.** An input the behaviour will reach *into* — the summary says "the identity's subject, email and display name" and the contract says `identity` — is a schema hiding in a signature. Frozen, it forces every criterion to describe the fields in prose, and the binding checks see only the bag. The fields are the inputs (`subject`, `email`, `display_name`); the producer exposes them as separate outputs to match, since a socket never destructures. Names like `identity`, `request`, `payload`, `context`, `data`, `record` are the usual suspects. BLOCKER.
+7. **Outputs.** Missing an obvious one (classic: a validator with no `error`/`problem` output a downstream composite needs)? Outputs can't be added later — an omission is permanent. Flag outputs nothing produces too.
+8. **Leaf vs composite.** Does it do the work itself (leaf) or only wire existing scopes (composite)? "Run inputs through X and Y and hand back results" declared **leaf** is misclassified.
+9. **Naming.** `expose-name` is a slug (`^[a-z0-9]+(-[a-z0-9]+)*$`, dashes); each input/output is a token (`^[a-z][a-z0-9_]*$`, underscores). Flag dashes in a token, underscores in a slug, or an `expose-name` that collides with the `system` slug.
 
 ## Report — terse and ordered
 
-- **BLOCKERS** — will fail verify or freeze a permanent mistake; must be resolved with the user before init.
+- **BLOCKERS** — will fail verify or freeze a permanent mistake (unused input, bag input, missing output, misclassified leaf/composite, fragmented system); must be resolved with the user before init.
 - **QUESTIONS** — genuine ambiguities for the user.
 - **SUGGESTIONS** — non-blocking improvements.
 - **BOTTOM LINE** — one line: `proceed to init` or `revise before init`, with the single most important reason.

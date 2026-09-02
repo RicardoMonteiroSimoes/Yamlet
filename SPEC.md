@@ -97,6 +97,14 @@ exposes:
 
 `name`, `intent`, `inputs`, `outputs` are the only permitted keys (`E507`).
 
+**Granularity: an input is the smallest thing a criterion acts on.** "No schema" cuts
+both ways. Declaring one `identity` input and then writing "the identity's email" in
+every criterion is a schema hiding inside a signature: the binding checks see one
+token, the fields live in prose, and nothing can check prose. If the criteria act on
+the subject, the email and the display name, those three are the inputs, and the
+producer exposes them as three outputs. A socket is atomic and never destructures, so
+this is also the only way a composite can wire the fields.
+
 **Referencing an input: `{input.NAME}`.** Criteria refer to a contract input with
 the prefixed token `{input.channel}` — a *reference*, distinct from a bare
 `{placeholder}`. The prefix is load-bearing: it makes a token's role self-evident,
