@@ -44,3 +44,6 @@ valid-state-pattern.yamlet.yaml	0
 valid-ubiquitous-pattern.yamlet.yaml	0
 valid-unwanted-pattern.yamlet.yaml	0
 valid-with-placeholders-and-examples.yamlet.yaml	0
+warn-described-result.yamlet.yaml	0
+warn-open-list.yamlet.yaml	0
+warn-unbound-quantity.yamlet.yaml	0

@@ -1,0 +1,28 @@
+system: intake
+topic: Request intake
+summary: Accepts a request and reports an outcome
+description: >-
+  Receives a request and returns an outcome naming what happened to it.
+blast_radius: low
+front: internal
+exposes:
+  name: request-intake
+  intent: accept a request and report an outcome
+  inputs:
+  - request
+  outputs:
+  - outcome
+requirements:
+- id: RQ-1
+  description: Every request yields an outcome
+  acceptance-criteria:
+  - id: AC-1
+    pattern: event
+    when: "{input.request} is received"
+    shall:
+    - set {output.outcome} to indicate the request was accepted
+  - id: AC-2
+    pattern: event
+    when: "{input.request} is received a second time"
+    shall:
+    - set {output.outcome} to duplicate

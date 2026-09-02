@@ -22,6 +22,16 @@ const BLAST_OK = new Set(["low", "medium", "high"]);
 const FRONT_OK = new Set(["internal", "external"]);
 const PATTERN_OK = new Set(["ubiquitous", "state", "event", "optional", "unwanted", "complex"]);
 
+// Word-lists behind the lexical warnings (W003–W005). Kept short on purpose:
+// every entry has to be right far more often than wrong, or the warning trains
+// authors to argue with the verifier. "timeout"/"within" are absent from
+// QUANTITY_WORD because "an SMTP timeout occurs" is an event, not a bound.
+const QUANTITY_WORD =
+  /\b(exceed(?:s|ed|ing)?|maximum|minimum|limit|at (?:most|least)|(?:more|less|fewer|longer|shorter|larger|smaller|greater) than)\b/i;
+const DESCRIBED_RESULT = /\bindicat(?:e|es|ed|ing)\b/i;
+const OUTPUT_REF = /\{output\.[a-z][a-z0-9_]*\}/;
+const OPEN_LIST = /\b(?:such as|e\.g\.|etc\.?|including|and so on)(?=\s|$|[,.;:])/i;
+
 const PAT_REQ: Record<string, string> = {
   ubiquitous: "",
   state: "while",
@@ -858,6 +868,68 @@ export function validate(
           acidLn,
           ab + ".examples",
           acid + ": examples present but no placeholders or input references found in clauses",
+        );
+      }
+    }
+
+    // ── W003/W004/W005: lexical bindability heuristics ──
+    // Deliberately narrow word-lists, each defended in SPEC.md ("Lexical
+    // warnings"). They never affect validity; a false positive costs a warning,
+    // a miss costs nothing that wasn't already missed.
+    const proseLines: { path: string; line: number; text: string }[] = [];
+    for (const p of whileItems.sort(byBracketIdx)) {
+      proseLines.push({ path: p, line: byLine.get(p)!, text: byPath.get(p)! });
+    }
+    if (hasWhen) {
+      proseLines.push({ path: ab + ".when", line: wnLn, text: byPath.get(ab + ".when")! });
+    }
+    if (hasIf) proseLines.push({ path: ab + ".if", line: ifLn, text: byPath.get(ab + ".if")! });
+    if (hasWhere) {
+      proseLines.push({ path: ab + ".where", line: wrLn, text: byPath.get(ab + ".where")! });
+    }
+    for (const p of shallItems.sort(byBracketIdx)) {
+      proseLines.push({ path: p, line: byLine.get(p)!, text: byPath.get(p)! });
+    }
+
+    // W003: a quantity word with nothing binding it — no digit and no bare
+    // {placeholder} anywhere in the criterion. An {input.X} does not count: it
+    // names the thing measured, not the bound.
+    const boundByDigit = proseLines.some((l) => /[0-9]/.test(l.text));
+    if (!boundByDigit && phCount === 0) {
+      for (const l of proseLines) {
+        if (QUANTITY_WORD.test(l.text)) {
+          finding(
+            "W003",
+            l.line,
+            l.path,
+            acid + ": quantity word with no bound value (no digit or {placeholder}): " + l.text,
+          );
+        }
+      }
+    }
+
+    // W004: an output whose value is described rather than stated.
+    for (const l of proseLines) {
+      if (OUTPUT_REF.test(l.text) && DESCRIBED_RESULT.test(l.text)) {
+        finding(
+          "W004",
+          l.line,
+          l.path,
+          acid + ": output value described, not stated (say the literal the test asserts): " +
+            l.text,
+        );
+      }
+    }
+
+    // W005: an open list — the test author would have to close it.
+    for (const l of proseLines) {
+      const m = l.text.match(OPEN_LIST);
+      if (m) {
+        finding(
+          "W005",
+          l.line,
+          l.path,
+          acid + ': open list ("' + m[0] + '") leaves the set to the test: ' + l.text,
         );
       }
     }

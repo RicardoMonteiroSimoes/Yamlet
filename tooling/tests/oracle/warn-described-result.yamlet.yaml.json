@@ -1,0 +1,4 @@
+{"file":"warn-described-result.yamlet.yaml","valid":true,"errors":[
+],"warnings":[
+  {"rule":"W004","severity":"warning","line":23,"path":"requirements[0].acceptance-criteria[0].shall[0]","message":"AC-1: output value described, not stated (say the literal the test asserts): set {output.outcome} to indicate the request was accepted"}
+],"summary":{"requirements":1,"acceptanceCriteria":2}}

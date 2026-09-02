@@ -41,7 +41,7 @@ Committed wording is final (criteria bind step definitions at once), but appendi
    - `complex` — a state **and** a trigger (`while` + one of `when`/`if`).
    A clear trigger written `ubiquitous`, or an error response not written `unwanted`, is mis-patterned.
 4. **`shall` atomicity.** Each `shall` is a single, verifiable obligation. Split compound shalls; reject any that can't be observed.
-5. **Bindability.** Every line becomes a Gherkin step, and a step definition can bind only what the line names. Read each clause and `shall` alone and ask: what would a test have to *invent*? The tells:
+5. **Bindability.** Every line becomes a Gherkin step, and a step definition can bind only what the line names. Read each clause and `shall` alone and ask: what would a test have to *invent*? The verifier backs three of these tells lexically (`W003` unbound quantity, `W004` described result, `W005` open list); the rest are yours alone. The tells:
    - a **field of an input named in prose** ("the identity's email", "the request's subject"). The field should have been an input; the contract is frozen now, so at least anchor it to the bag it rides in (`the email carried by {input.user_identity}`), with one field name used consistently.
    - an **unbound value or rule** held by something else — "the store's maximum length", "the accepted email format", "the configured timeout". It must be a `{placeholder}` with examples, a literal, or an input.
    - an **enumerated result described, not stated** — "indicates the record was created", "whose reason indicates a conflict". State the literal the test asserts.

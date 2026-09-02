@@ -1,0 +1,4 @@
+{"file":"warn-open-list.yamlet.yaml","valid":true,"errors":[
+],"warnings":[
+  {"rule":"W005","severity":"warning","line":16,"path":"requirements[0].acceptance-criteria[0].shall[0]","message":"AC-1: open list (\"such as\") leaves the set to the test: preserve stored attributes not carried by the fresh profile, such as roles"}
+],"summary":{"requirements":1,"acceptanceCriteria":2}}
