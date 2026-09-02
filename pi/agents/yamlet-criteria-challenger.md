@@ -36,7 +36,7 @@ Your prompt holds: the requirement description; each criterion (EARS pattern, cl
 ## Checks — for each: object or clear it
 
 1. **One capability.** One capability, or two smuggled together with "and"? If bundled, it must be split now — committed, it stays a bundle.
-2. **Vagueness.** Hunt soft words — "handles errors" (*which*, and what behaviour?), "properly", "as needed", "gracefully". Each must resolve to a concrete, observable obligation or it isn't testable.
+2. **Vagueness.** Hunt soft words — "handles errors" (*which*, and what behaviour?), "properly", "as needed", "gracefully", "safely", "durably". Each must resolve to a concrete, observable obligation or it isn't testable.
 3. **EARS pattern fit.** Right pattern for the trigger/condition?
    - `ubiquitous` — always-on, no trigger.
    - `state` — while a state holds (`while`).
@@ -46,14 +46,15 @@ Your prompt holds: the requirement description; each criterion (EARS pattern, cl
    - `complex` — a state **and** a trigger (`while` + one of `when`/`if`).
    A clear trigger written `ubiquitous`, or an error response not written `unwanted`, is mis-patterned.
 4. **`shall` atomicity.** Each `shall` is a single, verifiable obligation. Split compound shalls; reject any that can't be observed.
-5. **Unwanted coverage.** If front is `external`, malformed/hostile input **must** be covered by `unwanted`/`if`. Name the missing cases (empty, oversized, wrong-type, malicious).
-6. **Contract references.** (leaf) every declared input must reach `{input.NAME}` and every output `{output.NAME}` or verify fails — flag any without a home if this is the requirement that owes it. (composite) inputs are wired as connection sources, not referenced here — don't flag those.
-7. **Placeholders.** Any `{placeholder}` (token `^[a-z][a-z0-9_]*$`, not an `{input.*}`/`{output.*}`) needs an examples table with **every row binding every placeholder**. Flag a placeholder with no table or a row with a missing binding — the script rejects these.
-8. **Coverage gaps.** Obvious missing behaviour — a success path with no failure path, an unstated boundary?
+5. **Bindability.** Could a step definition be written from each line alone? Flag what a test would have to invent: an input's *field* in prose ("the identity's email"); an unbound value ("the store's maximum length"); a result described, not stated ("indicates a conflict"); an open list ("such as"); a negative `shall` hiding a precondition ("not fail for that reason alone"); "that"/"this" pointing back into the clause.
+6. **Front fit.** `external`: malformed/hostile input **must** be covered by `unwanted`/`if` — name the missing cases (empty, oversized, wrong-type, malicious). `internal`: an `if` validating an input's *shape* (format, length, allowed values) re-litigates the boundary — presence checks are fine, more is a QUESTION.
+7. **Contract references.** (leaf) every declared input must reach `{input.NAME}` and every output `{output.NAME}` or verify fails — flag any without a home if this is the requirement that owes it. (composite) inputs are wired as connection sources, not referenced here — don't flag those.
+8. **Placeholders.** Any `{placeholder}` (token `^[a-z][a-z0-9_]*$`, not an `{input.*}`/`{output.*}`) needs an examples table with **every row binding every placeholder**. Flag a placeholder with no table or a row with a missing binding — the script rejects these.
+9. **Coverage gaps.** A success path with no failure path, a failure part-way through a multi-step write, an unstated boundary?
 
 ## Report — terse and ordered
 
-- **BLOCKERS** — will fail verify or freeze a defect (vague shall, wrong pattern, unbound placeholder, bundled capabilities, missing `unwanted` on an external front).
+- **BLOCKERS** — will fail verify or freeze a defect (vague shall, unbound value, wrong pattern, unbound placeholder, bundled capabilities, missing `unwanted` on an external front).
 - **QUESTIONS** — real ambiguities for the user.
 - **SUGGESTIONS** — non-blocking improvements.
 - **BOTTOM LINE** — one line: `ready to commit` or `revise before committing`, with the single most important reason.

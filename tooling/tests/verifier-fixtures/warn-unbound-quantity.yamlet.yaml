@@ -1,0 +1,28 @@
+system: profile-store
+topic: Profile store
+summary: Stores a profile, bounding the fields it keeps
+description: >-
+  Persists a profile record and enforces its own field bounds.
+blast_radius: low
+front: internal
+requirements:
+- id: RQ-1
+  description: Over-long fields are bounded rather than rejected
+  acceptance-criteria:
+  - id: AC-1
+    pattern: unwanted
+    if: the display name exceeds the store's maximum length
+    shall:
+    - store the display name truncated to that maximum length
+  - id: AC-2
+    pattern: unwanted
+    if: the display name is longer than {max_length} characters
+    shall:
+    - store the first {max_length} characters of the display name
+    examples:
+    - max_length: 64
+  - id: AC-3
+    pattern: unwanted
+    if: the biography exceeds 4096 characters
+    shall:
+    - reject the profile

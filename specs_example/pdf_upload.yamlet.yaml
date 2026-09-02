@@ -24,7 +24,7 @@ requirements:
     pattern: event
     when: "{input.file} named {input.filename} is uploaded"
     shall:
-    - verify {input.file} is a well-formed PDF within the size limit
+    - verify {input.file} is a well-formed PDF of at most 10 MiB
     - return {output.pdf_file} to the caller
     - preserve {input.filename} as the name of the returned PDF
 - id: RQ-2

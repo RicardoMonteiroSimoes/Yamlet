@@ -1,0 +1,5 @@
+{"file":"warn-unbound-quantity.yamlet.yaml","valid":true,"errors":[
+],"warnings":[
+  {"rule":"W003","severity":"warning","line":14,"path":"requirements[0].acceptance-criteria[0].if","message":"AC-1: quantity word with no bound value (no digit or {placeholder}): the display name exceeds the store's maximum length"},
+  {"rule":"W003","severity":"warning","line":16,"path":"requirements[0].acceptance-criteria[0].shall[0]","message":"AC-1: quantity word with no bound value (no digit or {placeholder}): store the display name truncated to that maximum length"}
+],"summary":{"requirements":1,"acceptanceCriteria":3}}

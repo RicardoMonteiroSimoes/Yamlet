@@ -71,6 +71,17 @@ yamlet_add_criterion({
 
 Pass literal text plainly; do **not** add quotes around `{...}` yourself — the tool handles serialization.
 
+## What a test must not have to invent
+
+Each clause and `shall` becomes a Gherkin step, and a step definition binds only what the line names. Read each line alone before committing:
+
+- **Contract data is a token, never prose.** "The identity's email" should have been `{input.email}`. Behind a frozen bag input, anchor the field to it (`the email carried by {input.user_identity}`), one name throughout.
+- **Every value is bound.** A limit, size or format is a `{placeholder}` with examples, a literal (`10 MiB`), or an input. "The store's maximum length" binds nothing.
+- **Results are stated, not described.** `set {output.outcome} to created`, not "indicate the record was created".
+- **A `shall` is a positive observable.** "Not fail provisioning for that reason alone" hides a precondition; that goes in the clause. A named absence (`return no {output.error}`) is fine.
+- **No open lists.** "Such as", "including", "etc." — name the set.
+- **Each line stands alone.** "That maximum length" points back into the clause.
+
 ## A note on `front`
 
-An `external` scope owes `unwanted`/`if` criteria for malformed or hostile input — validation, authorisation, abusive input, rate limits. An `internal` scope should **not** re-litigate those: the validation lives once, at the boundary that owns the trust decision. If you find yourself writing input-validation criteria on an `internal` scope, question whether the scope's `front` is right, or whether that behaviour belongs upstream.
+An `external` scope owes `unwanted`/`if` criteria for malformed or hostile input — validation, authorisation, abusive input, rate limits. An `internal` scope should **not** re-litigate those: the validation lives once, at the boundary that owns the trust decision. If you find yourself writing input-validation criteria on an `internal` scope, question whether the scope's `front` is right, or whether that behaviour belongs upstream. Checking that a field the scope needs is *present* is not validation; checking its format, length or allowed values is.

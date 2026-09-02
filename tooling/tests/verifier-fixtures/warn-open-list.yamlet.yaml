@@ -1,0 +1,21 @@
+system: profile-store
+topic: Profile reconciliation
+summary: Reconciles a stored profile with a fresh one
+description: >-
+  Updates the fields a fresh profile carries and keeps the rest.
+blast_radius: low
+front: internal
+requirements:
+- id: RQ-1
+  description: Reconciliation keeps what the fresh profile does not carry
+  acceptance-criteria:
+  - id: AC-1
+    pattern: event
+    when: a fresh profile arrives for a stored subject
+    shall:
+    - preserve stored attributes not carried by the fresh profile, such as roles
+  - id: AC-2
+    pattern: event
+    when: a fresh profile arrives for a stored subject a second time
+    shall:
+    - preserve the stored roles

@@ -168,6 +168,22 @@ export const CATALOG: Rule[] = [
     severity: "warning",
     description: "examples present but no placeholders found in clauses",
   },
+  {
+    id: "W003",
+    severity: "warning",
+    description:
+      "quantity word (exceeds, maximum, limit, at most, …) with no digit or {placeholder} binding it",
+  },
+  {
+    id: "W004",
+    severity: "warning",
+    description: "an {output.NAME} whose value is described ('indicates …') rather than stated",
+  },
+  {
+    id: "W005",
+    severity: "warning",
+    description: "open list ('such as', 'including', 'etc.') in a clause or shall",
+  },
 ];
 
 /** Severity lookup by rule id, mirroring the sh verifier's `catalog_sev`. */
