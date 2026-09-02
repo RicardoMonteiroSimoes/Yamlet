@@ -1,0 +1,65 @@
+name: pi port
+
+# Proves the pi port still installs and loads as a pi package. Two things can
+# break silently: the extension (the only node code in a Deno repo, exercised by
+# a mock-pi smoke test) and the package manifests (a wrong path in a `pi:` block
+# installs fine and simply loads nothing). Both are checked against the latest
+# published pi, which is what a user gets.
+#
+# No `paths:` filter, for the same reason skills-lint has none: a check that
+# skips itself cannot be made a required status.
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pi-port-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  package:
+    name: Extension smoke test + package install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # The extension imports pi's packages bare and resolves them by walking
+      # up from its own file, so they are installed at the repo root. --no-save
+      # keeps the root package.json (pi's manifest for the git source) untouched.
+      - name: Install pi and the peer packages
+        run: |
+          npm install --no-save --no-package-lock --no-audit --no-fund \
+            @earendil-works/pi-coding-agent @earendil-works/pi-ai typebox tsx
+          npx pi --version
+
+      - name: Extension smoke test
+        run: npx tsx pi/extensions/yamlet/smoke.test.mjs
+
+      # Both install routes a user has: the package itself (what npm ships) and
+      # the repo root (what `pi install git:…` clones, resolved through the
+      # private root manifest). Each gets a fresh pi home and must resolve the
+      # extension and all three skills through pi's own loader.
+      - name: Install as the pi package (pi/)
+        env:
+          PI_CODING_AGENT_DIR: ${{ runner.temp }}/pihome-package
+        run: |
+          npx pi install ./pi
+          node pi/scripts/check-install.mjs
+
+      - name: Install as the git source (repo root manifest)
+        env:
+          PI_CODING_AGENT_DIR: ${{ runner.temp }}/pihome-root
+        run: |
+          npx pi install .
+          node pi/scripts/check-install.mjs
+
+      - name: Tarball contents
+        working-directory: pi
+        run: npm pack --dry-run

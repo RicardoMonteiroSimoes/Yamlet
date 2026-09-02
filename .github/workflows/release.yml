@@ -11,6 +11,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write # npm provenance for the pi package
 
 concurrency:
   group: release
@@ -48,6 +49,20 @@ jobs:
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "Releasing $TAG (version $v)"
 
+      - name: Check the ports carry the release version
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        # One number across the CLI, the Claude Code plugin and the pi package.
+        # The pi package is published to npm under this same version below, so
+        # a mismatch here is a release with the wrong contents, not a nit.
+        run: |
+          pi=$(jq -r .version ../pi/package.json)
+          plugin=$(jq -r .version ../plugins/yamlet-skills/.claude-plugin/plugin.json)
+          if [ "$pi" != "$VERSION" ] || [ "$plugin" != "$VERSION" ]; then
+            echo "::error::release is $VERSION but pi/package.json is $pi and plugin.json is $plugin — bump both to $VERSION first"
+            exit 1
+          fi
+
       - name: Build all targets
         env:
           VERSION: ${{ steps.version.outputs.version }}
@@ -73,3 +88,26 @@ jobs:
           TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           VERSION: ${{ steps.version.outputs.version }}
         run: sh scripts/update-tap.sh "$VERSION"
+
+  # The pi port ships to npm as `yamlet-pi` at the release version, so
+  # `pi install npm:yamlet-pi@<version>` and the git tag carry the same port.
+  # Runs after the binaries are up: a user who pins the npm package expects the
+  # CLI of the same number to be installable.
+  publish-pi:
+    needs: release
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: pi
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: https://registry.npmjs.org
+
+      - name: Publish yamlet-pi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --provenance --access public

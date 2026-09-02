@@ -18,3 +18,7 @@ dist/
 # `./pi/install.sh --project` creates to dogfood the pi port from this repo.
 # The source of truth is pi/ — .pi/ is only ever a generated view of it.
 .pi/
+
+# The pi-port workflow installs pi's packages at the repo root (--no-save) so the
+# extension's bare imports resolve. Nothing here depends on them being present.
+node_modules/

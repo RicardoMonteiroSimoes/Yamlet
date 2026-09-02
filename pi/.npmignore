@@ -1,0 +1,4 @@
+# The tarball is what `pi install npm:yamlet-pi` loads. Tests and the CI check
+# script are for this repo, not for a user's pi home.
+scripts/
+**/*.test.mjs

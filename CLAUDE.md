@@ -36,7 +36,7 @@ Two separate products, one repo:
 
   The repo root carries a small **private** `package.json` — not cruft, don't
   delete it. Its only job is to point `pi install git:…` at `pi/extensions` and
-  `pi/skills`, which is how the pi port is distributed (no npm publish). It has
+  `pi/skills`; the same port ships to npm as `yamlet-pi` on each release. It has
   no dependencies and no scripts, and `tooling/` imports nothing bare, so the
   Deno build never consults it.
 
