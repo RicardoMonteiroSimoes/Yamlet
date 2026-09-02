@@ -14,26 +14,30 @@ Users then get it with `brew tap RicardoMonteiroSimoes/yamlet && brew install ya
 (and `brew upgrade yamlet` after each release). Pushing a `v*` tag by hand runs
 the same pipeline.
 
-## What a release does *not* cover
+## What else a release ships
 
-The release flow ships the **CLI only**. The Claude Code plugin
-(`plugins/yamlet-skills/`) and the pi port (`pi/`) both carry *no binary* — they
-call bare `yamlet` on PATH — and neither is versioned or published by this
-pipeline:
+The binaries are the CLI. The Claude Code plugin (`plugins/yamlet-skills/`) and
+the pi port (`pi/`) carry *no binary* — they call bare `yamlet` on PATH — and are
+distributed two ways:
 
 - the plugin is consumed straight from the repo via `/plugin marketplace add`;
-- the pi port is consumed straight from the repo via
-  `pi install git:github.com/RicardoMonteiroSimoes/Yamlet`.
+- the pi port is consumed from the repo via
+  `pi install git:github.com/RicardoMonteiroSimoes/Yamlet@v<version>`, **and**
+  published to npm as `yamlet-pi` by the same release workflow, so
+  `pi install npm:yamlet-pi@<version>` is the same port.
 
-Both therefore track the default branch, and both are usable the moment a change
-merges — no tag required. They float against the CLI on purpose: `pi/`'s extension
-checks the CLI by *command name* rather than a version floor, so it keeps working
-across releases and names the missing subcommands if it ever meets a CLI too old
-to serve it.
+**One version number across all three.** The workflow fails before building if
+`pi/package.json` or `plugins/yamlet-skills/.claude-plugin/plugin.json` does not
+carry the release version, because the npm publish would otherwise ship a port
+under the wrong number. An earlier draft had the ports float independently and
+argued npm should get its own trigger; a shared number won because it is the only
+way a user can say which build they are on, and the extension still checks the
+CLI by *command name* rather than a version floor, so an older port keeps working
+against a newer CLI.
 
-If the pi package is ever published to npm (for gallery discoverability at
-pi.dev/packages — the only thing npm adds), give it its own trigger rather than
-bolting it onto this one, precisely because the two version independently.
+The npm publish authenticates with the `NPM_TOKEN` repository secret (an npm
+automation token with publish rights on `yamlet-pi`) and attaches provenance,
+which is why the workflow holds `id-token: write`.
 
 The pipeline is defined in [`.github/workflows/release.yml`](.github/workflows/release.yml)
 and driven by two checked-in scripts you can also run locally:
@@ -87,7 +91,8 @@ tag or upload. The five skills have a single source of truth under
 Users install with `/plugin marketplace add RicardoMonteiroSimoes/Yamlet` then
 `/plugin install yamlet-skills@yamlet`. Bump `version` in
 [`plugins/yamlet-skills/.claude-plugin/plugin.json`](plugins/yamlet-skills/.claude-plugin/plugin.json)
-when you want to signal a meaningful skill change; it is independent of the CLI version.
+**when you cut a release — it must equal the CLI version, and the release workflow
+checks that before it builds.**
 
 **Bump [`pi/package.json`](pi/package.json) to the same number in the same commit.**
 The two ports ship the same flow and a behavioural change lands in both, so a single

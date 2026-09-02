@@ -21,20 +21,27 @@ release flow (GitHub Releases + the Homebrew tap) the single distribution channe
 
 ## Install
 
+The port and the CLI share one version number, so pin the port to the release
+whose CLI you run:
+
 ```sh
-pi install git:github.com/RicardoMonteiroSimoes/Yamlet
+pi install npm:yamlet-pi@0.2.3
+# or straight from the repo, at the same tag
+pi install git:github.com/RicardoMonteiroSimoes/Yamlet@v0.2.3
 ```
 
-That is the whole install. No clone, no npm publish, no build step — pi loads the
-extension's TypeScript through `jiti` at runtime, and the package pulls no
-dependencies of its own.
+Unpinned — `pi install git:github.com/RicardoMonteiroSimoes/Yamlet` — tracks
+`main`, so every merge reaches you on the next `pi update`. Either way there is no
+clone to manage and no build step: pi loads the extension's TypeScript through
+`jiti` at runtime and aliases its `@earendil-works/*` and `typebox` imports to its
+own bundled copies, so the package pulls no dependencies.
 
-It works because of the small **private** `package.json` at the repo root, whose
-only job is to point pi at `pi/extensions` and `pi/skills`. It declares no
-dependencies and no scripts, and `tooling/` imports nothing bare (every import
-there is relative, and `tooling/deno.json` is a complete config), so it does not
+The git source works because of the small **private** `package.json` at the repo
+root, whose only job is to point pi at `pi/extensions` and `pi/skills`. It declares
+no dependencies and no scripts, and `tooling/` imports nothing bare, so it does not
 participate in the Deno build. It is `"private": true`, so it can never be
-published by accident — the publishable manifest is `pi/package.json`.
+published by accident — the publishable manifest is `pi/package.json`, and the
+release workflow publishes it.
 
 Working on the port itself, or want it to track a clone? Use the script instead —
 it symlinks rather than copies, so `git pull` updates what pi loads:
@@ -174,6 +181,7 @@ pi/
 ├── LICENSE                             # MIT, so the published tarball carries it
 ├── package.json                        # pi package manifest (extension + skills)
 ├── install.sh                          # links all three into a pi-discoverable dir
+├── scripts/check-install.mjs           # CI: the manifests resolve through pi's loader
 ├── extensions/yamlet/
 │   ├── index.ts                        # the yamlet_* tools + the write/edit gate
 │   └── smoke.test.mjs                  # mock-pi harness: argv construction + gate
@@ -199,11 +207,10 @@ is **gitignored**, not tracked: pi writes its own machine-local state there
 which is the source of truth. This is the one place the pi port deliberately
 differs from `.claude/skills/*`, which *is* tracked as symlinks into the plugin.
 
-> Why `.pi/` and not the cross-tool `.agents/` workspace: pi-subagents reads
-> agents from `.agents/agents/`, but pi 0.84.2 does **not** read skills from
-> `.agents/skills/` — `loadSkills` only looks at `<agentDir>/skills` and
-> `<cwd>/.pi/skills`, whatever [the docs](https://pi.dev/docs/latest/skills) list.
-> `.pi/` is the only directory where all three are discovered.
+> Why `.pi/` and not the cross-tool `.agents/` workspace: pi 0.84.4 reads skills
+> from `.agents/skills/` and pi-subagents reads agents from `.agents/agents/`, but
+> extensions load only from `.pi/extensions/`. `.pi/` is the only directory where
+> all three are discovered.
 
 ## What maps to what
 
@@ -243,8 +250,14 @@ npx tsx pi/extensions/yamlet/smoke.test.mjs
 Run it from somewhere the pi peer deps resolve (`@earendil-works/pi-coding-agent`,
 `@earendil-works/pi-ai`, `typebox`). It drives the extension with a mock `pi`
 handle and asserts the two places a silent bug would live: the argv each tool
-builds, and the gate's block/allow decisions. **There is no CI for it** — this is
-the only node code in a Deno repo — so run it by hand when you touch the extension.
+builds, and the gate's block/allow decisions.
+
+[`.github/workflows/pi-port.yml`](../.github/workflows/pi-port.yml) runs it on
+every PR against the latest published pi, then installs the package both ways a
+user can — `pi install ./pi` and the repo root, which is what `git:` clones — and
+asks pi's own resource loader whether the extension and all three skills resolved
+([`scripts/check-install.mjs`](scripts/check-install.mjs)). A manifest path typo
+installs fine and loads nothing; that check is the only thing that notices.
 
 ## Usage
 
