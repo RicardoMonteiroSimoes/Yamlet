@@ -73,14 +73,14 @@ Pass literal text plainly; do **not** add quotes around `{...}` yourself — the
 
 ## What a test must not have to invent
 
-Every clause and `shall` becomes a Gherkin step, and a step definition can bind only what the line names. Before committing a criterion, read each line on its own and ask what a test would have to guess. Nothing may be left to guess:
+Each clause and `shall` becomes a Gherkin step, and a step definition binds only what the line names. Read each line alone before committing:
 
-- **Contract data is a token, never prose.** "The identity's email" is a field of an input, and the field should have been the input. If the contract already froze a bag input, anchor every field mention to it — `the email carried by {input.user_identity}` — and use one field name throughout.
-- **Every value is bound.** A limit, timeout, size or format is a `{placeholder}` with examples, a literal (`10 MiB`), or an input. "The store's maximum length" and "the accepted format" bind nothing.
-- **Enumerated results are stated, not described.** `set {output.outcome} to created`, not "indicate the record was created". The literal is what the test asserts, and it makes the file's enum grep-able.
-- **A `shall` is a positive observable.** "Not fail provisioning for that reason alone" hides a precondition (everything else is valid) inside an obligation. The precondition goes in the clause; the `shall` says what *is* returned. A named absence — `return no {output.error}` — is fine.
-- **No open lists.** "Such as", "including", "etc." leave the list to the test author. Name it.
-- **Each line stands alone.** "That maximum length" points back into the clause; a `Then` step is read without it.
+- **Contract data is a token, never prose.** "The identity's email" should have been `{input.email}`. Behind a frozen bag input, anchor the field to it (`the email carried by {input.user_identity}`), one name throughout.
+- **Every value is bound.** A limit, size or format is a `{placeholder}` with examples, a literal (`10 MiB`), or an input. "The store's maximum length" binds nothing.
+- **Results are stated, not described.** `set {output.outcome} to created`, not "indicate the record was created".
+- **A `shall` is a positive observable.** "Not fail provisioning for that reason alone" hides a precondition; that goes in the clause. A named absence (`return no {output.error}`) is fine.
+- **No open lists.** "Such as", "including", "etc." — name the set.
+- **Each line stands alone.** "That maximum length" points back into the clause.
 
 ## A note on `front`
 

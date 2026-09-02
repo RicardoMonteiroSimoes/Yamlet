@@ -22,10 +22,8 @@ const BLAST_OK = new Set(["low", "medium", "high"]);
 const FRONT_OK = new Set(["internal", "external"]);
 const PATTERN_OK = new Set(["ubiquitous", "state", "event", "optional", "unwanted", "complex"]);
 
-// Word-lists behind the lexical warnings (W003–W005). Kept short on purpose:
-// every entry has to be right far more often than wrong, or the warning trains
-// authors to argue with the verifier. "timeout"/"within" are absent from
-// QUANTITY_WORD because "an SMTP timeout occurs" is an event, not a bound.
+// Word-lists behind W003–W005. Short on purpose: an entry must be right far more
+// often than wrong. SPEC.md ("Lexical warnings") says why each word is in or out.
 const QUANTITY_WORD =
   /\b(exceed(?:s|ed|ing)?|maximum|minimum|limit|at (?:most|least)|(?:more|less|fewer|longer|shorter|larger|smaller|greater) than)\b/i;
 const DESCRIBED_RESULT = /\bindicat(?:e|es|ed|ing)\b/i;
@@ -872,10 +870,7 @@ export function validate(
       }
     }
 
-    // ── W003/W004/W005: lexical bindability heuristics ──
-    // Deliberately narrow word-lists, each defended in SPEC.md ("Lexical
-    // warnings"). They never affect validity; a false positive costs a warning,
-    // a miss costs nothing that wasn't already missed.
+    // ── W003/W004/W005: lexical bindability heuristics (SPEC.md, "Lexical warnings") ──
     const proseLines: { path: string; line: number; text: string }[] = [];
     for (const p of whileItems.sort(byBracketIdx)) {
       proseLines.push({ path: p, line: byLine.get(p)!, text: byPath.get(p)! });

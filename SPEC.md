@@ -97,13 +97,12 @@ exposes:
 
 `name`, `intent`, `inputs`, `outputs` are the only permitted keys (`E507`).
 
-**Granularity: an input is the smallest thing a criterion acts on.** "No schema" cuts
-both ways. Declaring one `identity` input and then writing "the identity's email" in
-every criterion is a schema hiding inside a signature: the binding checks see one
-token, the fields live in prose, and nothing can check prose. If the criteria act on
-the subject, the email and the display name, those three are the inputs, and the
-producer exposes them as three outputs. A socket is atomic and never destructures, so
-this is also the only way a composite can wire the fields.
+**Granularity: an input is the smallest thing a criterion acts on.** One `identity`
+input with "the identity's email" in every criterion is a schema hiding inside a
+signature: the binding checks see one token and the fields live in prose. If criteria
+act on the subject, the email and the display name, those are the inputs, and the
+producer exposes three outputs — a socket never destructures, so this is also the only
+way a composite can wire them.
 
 **Referencing an input: `{input.NAME}`.** Criteria refer to a contract input with
 the prefixed token `{input.channel}` — a *reference*, distinct from a bare
@@ -225,30 +224,23 @@ anything else `{x}` → placeholder.
 
 ### Lexical warnings — `W003`–`W005`
 
-Every rule above is syntactic and exact. These three are different in kind: they
-are **word-list heuristics over clause and `shall` prose**, and they exist because
-the verifier cannot see prose and prose is where testability dies. Each names one
-way a criterion leaves a value for the test author to invent:
+Every rule above is exact. These three are word-list heuristics over clause and
+`shall` prose, each naming one way a criterion leaves a value for the test to invent:
 
 | rule | fires on | satisfy it by |
 |---|---|---|
-| `W003` | a quantity word — *exceeds, maximum, minimum, limit, at most/least, more/less/longer/… than* — in a criterion with **no digit and no `{placeholder}`** anywhere in it | bind the value: a `{placeholder}` with examples, or a literal (`10 MiB`) |
-| `W004` | a line with an `{output.NAME}` whose value is *described* — "set `{output.outcome}` to **indicate** the record was created" | state the literal the test asserts: "set `{output.outcome}` to `created`" |
-| `W005` | an open list — *such as, e.g., etc., including, and so on* | name the closed set |
+| `W003` | a quantity word — *exceeds, maximum, minimum, limit, at most/least, more/less/longer/… than* — in a criterion with **no digit and no `{placeholder}`** | a `{placeholder}` with examples, or a literal (`10 MiB`) |
+| `W004` | an `{output.NAME}` whose value is *described* — "set `{output.outcome}` to **indicate** the record was created" | the literal: "set `{output.outcome}` to `created`" |
+| `W005` | an open list — *such as, e.g., etc., including, and so on* | the closed set |
 
-They are warnings, never errors, and that is deliberate: a heuristic that blocks
-teaches authors to write around the word-list ("the store's cap") instead of
-binding the value. A `W` here is a prompt to look, and `verify` stays exact about
-validity. The lists are short on purpose — `timeout` and `within` are absent from
-`W003` because "an SMTP timeout occurs" is an event, not a bound — and an entry
-earns its place only by being right far more often than wrong on real specs. An
-`{input.NAME}` does **not** satisfy `W003`: it names the thing measured, not the
-bound.
+Warnings, never errors: a heuristic that blocks teaches authors to write around the
+list ("the store's cap"). The lists are short on purpose — `timeout` and `within` are
+absent because "an SMTP timeout occurs" is an event, not a bound — and an
+`{input.NAME}` does not satisfy `W003`: it names the thing measured, not the bound.
 
-What they cannot see, and the [challenger skills](plugins/yamlet-skills/) must: a
-bag input whose fields live in prose, validation on the wrong side of `front`, a
-negative `shall` hiding a precondition, or "that maximum length" pointing back into
-its clause. The warnings are a floor under the skills, not a replacement for them.
+They cannot see a bag input, validation on the wrong side of `front`, a negative
+`shall`, or "that maximum length" pointing back into its clause. Those stay with the
+challenger skills; the warnings are a floor under them.
 
 ---
 

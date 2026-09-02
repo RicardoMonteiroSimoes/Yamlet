@@ -80,7 +80,7 @@ A scope may expose a contract: named `input` and `output` attributes. These expo
 
 **This is optional, and not required.** The contract is a *signature, not a schema*: a name, an intent, named inputs, and optional named outputs (the return half — `inputs → outputs`, like a function's parameters and its return value). No types.
 
-**No bag inputs.** If the behaviour will reach into an input's *fields* — "the identity's subject, email and display name" — those fields are the inputs (`subject`, `email`, `display_name`), not one `identity`. A bag is a schema hiding in a signature: the binding checks see only the bag, every criterion has to describe the fields in prose, and nothing can check prose. The producer exposes the fields as separate outputs to match — a socket never destructures.
+**No bag inputs.** If criteria will reach into an input's *fields* — "the identity's subject, email and display name" — the fields are the inputs (`subject`, `email`, `display_name`), not one `identity`; prose fields are invisible to the binding checks. The producer exposes them as separate outputs to match — a socket never destructures.
 
 The contract needs its own slug, `expose_name`, which is **different from `system`** and unique per scope. The system `email-service` might have two topics whose contract names are `e-mail-plain-sending` and `e-mail-attachment-sending`, so a system referencing both can tell them apart.
 
