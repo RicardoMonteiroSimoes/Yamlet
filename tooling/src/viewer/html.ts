@@ -1,17 +1,18 @@
-// Assemble the interactive graph viewer as a single, self-contained HTML document
-// from a `yamlet.graph/v1` model — the renderer behind `yamlet graph --format=html`.
+// Assemble the interactive graph viewer as a single HTML document from a
+// `yamlet.graph/v1` model — the renderer behind `yamlet graph --format=html`.
 //
 // The viewer's own CSS/JS are ALWAYS inlined; only the layout engine (elkjs) varies:
 //
+//   --libs=cdn    (default) reference a pinned, SRI-guarded elk from jsDelivr — a
+//                 small file that fetches the engine at load time (needs network +
+//                 that origin allowed; e.g. blocked inside a strict artifact/CSP
+//                 sandbox).
 //   --libs=embed  inline elk.bundled.js — one offline file, no network (~1.6 MB).
-//   --libs=cdn    reference a pinned, SRI-guarded elk from jsDelivr — a small file
-//                 that fetches the engine at load time (needs network + that origin
-//                 allowed; e.g. blocked inside a strict artifact/CSP sandbox).
 //
 // Assets are read relative to this module so it works both from source and from the
 // compiled binary — `deno compile` must `--include` them (see deno.json).
 
-export type Libs = "embed" | "cdn";
+export type Libs = "cdn" | "embed";
 
 // Pin the engine. The SRI is of elkjs@0.12.0/lib/elk.bundled.js, which is byte-identical
 // to the vendored copy served verbatim by jsDelivr. If the vendored elk is ever bumped,

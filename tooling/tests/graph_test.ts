@@ -341,36 +341,40 @@ Deno.test("graph fails cleanly on a missing file and on a parse error", () => {
 // tell embed (present) from cdn (absent) apart without pinning the whole payload.
 const ELK_INLINE_MARK = "function(f){if(typeof exports";
 
-Deno.test("graph --format=html embeds the viewer and inlines elk by default", () => {
+Deno.test("graph --format=html embeds the viewer and references a pinned, SRI-guarded elk by default", () => {
   const dir = Deno.makeTempDirSync();
   const f = `${dir}/leaf.yamlet.yaml`;
   seedLeaf(f, "svc", "Svc", ["a"], []);
 
-  const r = graph([f, "--format=html"]);
-  assertEquals(r.exitCode, 0);
-  assertStringIncludes(r.payload, "<!DOCTYPE html>"); // a full standalone document
-  assertStringIncludes(r.payload, "window.__YAMLET_GRAPH__ = {"); // the model, inlined
-  assertStringIncludes(r.payload, "yamlet.graph/v1");
-  // embed mode inlines the layout engine and references no external origin.
-  assertStringIncludes(r.payload, ELK_INLINE_MARK);
-  assert(!r.payload.includes("cdn.jsdelivr.net"));
+  // No --libs: cdn is the default, and `--libs=cdn` must mean exactly the same thing.
+  for (const args of [[f, "--format=html"], [f, "--format=html", "--libs=cdn"]]) {
+    const r = graph(args);
+    assertEquals(r.exitCode, 0);
+    assertStringIncludes(r.payload, "<!DOCTYPE html>"); // a full document
+    assertStringIncludes(r.payload, "window.__YAMLET_GRAPH__ = {"); // the model, inlined
+    assertStringIncludes(r.payload, "yamlet.graph/v1");
+    assertStringIncludes(
+      r.payload,
+      'src="https://cdn.jsdelivr.net/npm/elkjs@0.12.0/lib/elk.bundled.js"',
+    );
+    assertStringIncludes(r.payload, 'integrity="sha384-');
+    assertStringIncludes(r.payload, 'crossorigin="anonymous"');
+    assert(!r.payload.includes(ELK_INLINE_MARK)); // engine is NOT inlined
+    assert(r.payload.length < 200_000, `cdn page should be small, got ${r.payload.length} B`);
+  }
 });
 
-Deno.test("graph --format=html --libs=cdn references a pinned, SRI-guarded elk instead of inlining it", () => {
+Deno.test("graph --format=html --libs=embed inlines elk and references no external origin", () => {
   const dir = Deno.makeTempDirSync();
   const f = `${dir}/leaf.yamlet.yaml`;
   seedLeaf(f, "svc", "Svc", ["a"], []);
 
-  const r = graph([f, "--format=html", "--libs=cdn"]);
+  const r = graph([f, "--format=html", "--libs=embed"]);
   assertEquals(r.exitCode, 0);
-  assertStringIncludes(
-    r.payload,
-    'src="https://cdn.jsdelivr.net/npm/elkjs@0.12.0/lib/elk.bundled.js"',
-  );
-  assertStringIncludes(r.payload, 'integrity="sha384-');
-  assertStringIncludes(r.payload, 'crossorigin="anonymous"');
+  assertStringIncludes(r.payload, "<!DOCTYPE html>");
   assertStringIncludes(r.payload, "window.__YAMLET_GRAPH__ = {"); // model still inlined
-  assert(!r.payload.includes(ELK_INLINE_MARK)); // engine is NOT inlined
+  assertStringIncludes(r.payload, ELK_INLINE_MARK);
+  assert(!r.payload.includes("cdn.jsdelivr.net"));
 });
 
 Deno.test("graph --libs is rejected without --format=html", () => {
@@ -393,10 +397,10 @@ Deno.test("graph rejects an unsupported --libs value", () => {
 
 // ── --out: the payload has no path to stdout ──────────────────────────────
 //
-// The reason this flag is required rather than optional: `--format=html` inlines
-// the elk layout engine, so it is ~1.6 MB whatever the spec count. Returned as an
-// agent tool result that exhausts a context window in a single call. These tests
-// pin the guarantee that no format can print its payload.
+// The reason this flag is required rather than optional: `--format=html` is a
+// whole viewer (tens of KB before the first spec, ~1.6 MB with `--libs=embed`).
+// Returned as an agent tool result, that burns a context window for nothing.
+// These tests pin the guarantee that no format can print its payload.
 
 Deno.test("graph requires --out and refuses to run without it", () => {
   const dir = Deno.makeTempDirSync();
@@ -437,7 +441,7 @@ Deno.test("the summary stays tiny even for the ~1.6 MB embedded-elk viewer", () 
   const f = `${dir}/leaf.yamlet.yaml`;
   seedLeaf(f, "svc", "Svc", ["a"], []);
 
-  const r = graph([f, "--format=html"]); // --libs=embed is the default
+  const r = graph([f, "--format=html", "--libs=embed"]); // the big one, on purpose
   assertEquals(r.exitCode, 0);
   assert(r.payload.length > 1_000_000, `expected the embedded viewer, got ${r.payload.length} B`);
   assert(

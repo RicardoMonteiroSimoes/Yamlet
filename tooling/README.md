@@ -63,14 +63,15 @@ yamlet impact FILE [DIR] [--format=human|json]
                                                       widening one reaches every file listed; read this before changing
                                                       an `exposes` block. Reports the scanned count, so a search that
                                                       was too narrow is visible rather than a false all-clear
-yamlet graph FILE|DIR --out=FILE [--format=dot|json|html] [--libs=embed|cdn] [--recursive]
+yamlet graph FILE|DIR --out=FILE [--format=dot|json|html] [--libs=cdn|embed] [--recursive]
                                                    -> Graphviz DOT of one spec (render the written file with
-                                                      `dot -Tsvg`), the JSON graph model, or a self-contained
-                                                      interactive HTML viewer of that model; a DIR or --recursive imply
-                                                      a model format and expand the whole tree. --out is REQUIRED and
-                                                      takes every format: stdout gets a one-line summary, never the
-                                                      payload (--format=html is ~1.6 MB, which would swamp an agent's
-                                                      context). A *.yamlet.yaml --out is refused
+                                                      `dot -Tsvg`), the JSON graph model, or an interactive HTML
+                                                      viewer of that model; a DIR or --recursive imply a model format
+                                                      and expand the whole tree. --out is REQUIRED and takes every
+                                                      format: stdout gets a one-line summary, never the payload
+                                                      (--format=html is a whole viewer — tens of KB, ~1.6 MB with
+                                                      --libs=embed — which would swamp an agent's context). A
+                                                      *.yamlet.yaml --out is refused
 yamlet tests SRC TARGET                            -> project every scope's acceptance criteria into Gherkin: one
                                                       TARGET/<system>/<scope>.feature per scope (Feature=scope,
                                                       Rule=RQ-N, Scenario=AC-N; criteria with examples become Scenario
@@ -190,11 +191,11 @@ whole application from its roots down.
 
 ### The HTML viewer (`yamlet graph --format=html`)
 
-`--format=html` wraps the same `yamlet.graph/v1` model in a **single self-contained page**: a prose
-service map, a live SVG composition (laid out by [elkjs](https://github.com/kieler/elkjs) in the
-browser, with pan/zoom), and a completeness checklist — all derived from the model. Like `json`, it
-is a model format: a directory yields the whole forest — a service switcher jumps to any system
-(leaf or composite) as the entry point — and `--recursive` expands deeply.
+`--format=html` wraps the same `yamlet.graph/v1` model in a **single page**: a prose service map, a
+live SVG composition (laid out by [elkjs](https://github.com/kieler/elkjs) in the browser, with
+pan/zoom), and a completeness checklist — all derived from the model. Like `json`, it is a model
+format: a directory yields the whole forest — a service switcher jumps to any system (leaf or
+composite) as the entry point — and `--recursive` expands deeply.
 
 The composition navigates **by system**, one level at a time. A level shows _every_ scope that
 shares a `system:` slug — the one actually wired here (marked) plus its sibling variants — so
@@ -206,22 +207,24 @@ internals.
 
 The viewer's own CSS/JS are always inlined; only the layout engine is delivered two ways:
 
-- **`--libs=embed`** (default) inlines elkjs — one offline file, ~1.6 MB, no network. Use this for
-  anything that must work offline or inside a strict-CSP sandbox (e.g. a hosted artifact, which
-  blocks every external origin — the embedded build is the only one that renders there).
-- **`--libs=cdn`** references a **version-pinned, SRI-guarded** elkjs from jsDelivr — a ~45 KB page
-  that fetches the ~1.6 MB engine at load time. Smaller to store/serve, but needs network and that
-  the `cdn.jsdelivr.net` origin is allowed. `--libs` applies only to `--format=html`.
+- **`--libs=cdn`** (default) references a **version-pinned, SRI-guarded** elkjs from jsDelivr — a
+  ~55 KB page that fetches the ~1.6 MB engine at load time. Small to store, diff and serve, but
+  needs network and that the `cdn.jsdelivr.net` origin is allowed.
+- **`--libs=embed`** inlines elkjs — one offline file, ~1.6 MB, no network. Use this for anything
+  that must work offline or inside a strict-CSP sandbox (e.g. a hosted artifact, which blocks every
+  external origin — the embedded build is the only one that renders there).
+
+`--libs` applies only to `--format=html`.
 
 ```sh
-yamlet graph specs_example --format=html --out=graph.html            # offline, self-contained
-yamlet graph specs_example --format=html --libs=cdn --out=graph.html # small, fetches elk at load time
+yamlet graph specs_example --format=html --out=graph.html              # small, fetches elk at load time
+yamlet graph specs_example --format=html --libs=embed --out=graph.html # offline, self-contained
 ```
 
 The payload is written to `--out`, never printed; stdout carries one summary line:
 
 ```
-wrote graph.html — html, 1.6 MB, 2 roots, 7 members, 23 wires
+wrote graph.html — html, 56 KB, 2 roots, 7 members, 23 wires
 ```
 
 ### The Gherkin projection (`yamlet tests`)

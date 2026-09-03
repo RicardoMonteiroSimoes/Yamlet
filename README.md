@@ -187,20 +187,21 @@ composite's boundary-and-wiring block diagram — to the file named by **`--out`
 With no path argument it graphs the current directory.
 
 `--out` is **required, in every format**, and the graph never reaches stdout;
-stdout gets one summary line instead (`wrote graph.html — html, 1.6 MB, 2 roots,
-7 members, 23 wires`). That is not tidiness: `--format=html` inlines the elk
-layout engine, so it is ~1.6 MB *whatever the spec count*, and an agent that
-runs `graph` and receives the payload as a tool result loses its whole context
-window in one call. An `--out` naming a `*.yamlet.yaml` file is refused, so a
-graph can never overwrite a spec.
+stdout gets one summary line instead (`wrote graph.html — html, 56 KB, 2 roots,
+7 members, 23 wires`). That is not tidiness: `--format=html` is a whole viewer
+before the first spec — tens of KB, and ~1.6 MB with `--libs=embed` — and an
+agent that runs `graph` and receives the payload as a tool result burns its
+context window for nothing. An `--out` naming a `*.yamlet.yaml` file is
+refused, so a graph can never overwrite a spec.
 
-- **`--format=html`** is a self-contained interactive viewer: one file, no build
-  step, no server. It navigates **by system** — each level shows every scope that
-  shares a `system:` slug (the wired one marked, plus its sibling variants); click
-  a member to drill into its system, the breadcrumb to climb back.
-  `--libs=embed` (the default) inlines the layout engine so the file works
-  offline; `--libs=cdn` references a pinned, SRI-guarded copy instead, for a far
-  smaller file that needs network and an origin the page is allowed to reach.
+- **`--format=html`** is an interactive viewer: one file, no build step, no
+  server. It navigates **by system** — each level shows every scope that shares
+  a `system:` slug (the wired one marked, plus its sibling variants); click a
+  member to drill into its system, the breadcrumb to climb back.
+  `--libs=cdn` (the default) references a pinned, SRI-guarded copy of the layout
+  engine, for a small file that needs network and an origin the page is allowed
+  to reach; `--libs=embed` inlines the engine instead (~1.6 MB) so the file
+  works offline.
 - **`--format=json`** emits a stable, renderer-agnostic graph model
   (`yamlet.graph/v1`) so a custom engine or interactive viewer can display it
   without re-parsing yamlet. The HTML viewer is one such renderer over exactly
