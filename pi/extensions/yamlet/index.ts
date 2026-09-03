@@ -590,7 +590,7 @@ export default function (pi: ExtensionAPI) {
 				description: "Where to write the graph (e.g. graph.html); must not be a *.yamlet.yaml path.",
 			}),
 			format: Type.Optional(StringEnum(["dot", "json", "html"] as const)),
-			libs: Type.Optional(StringEnum(["embed", "cdn"] as const)),
+			libs: Type.Optional(StringEnum(["cdn", "embed"] as const)),
 			recursive: Type.Optional(Type.Boolean({ description: "Expand composite members deeply" })),
 		}),
 		async execute(_id, params, signal, _onUpdate, ctx) {

@@ -88,9 +88,9 @@ read/mutate split is expressible in a `tools:` line instead of hoped for in pros
 The **project** column writes yamlet-owned artifacts — a Gherkin tree, a graph —
 and never a spec. Both take their destination as a required argument and return
 only a summary of what they wrote. For `yamlet_graph` that is the whole point:
-`--format=html` inlines the elk layout engine and is ~1.6 MB whatever the spec
-count, so returning the payload as a tool result would exhaust the session's
-context in one call. Hand the user the path; never read the file back.
+`--format=html` is a whole viewer before the first spec (tens of KB, ~1.6 MB
+with `--libs=embed`), so returning the payload as a tool result would burn the
+session's context for nothing. Hand the user the path; never read the file back.
 
 Arguments go across as an argv array, never a shell string, so there is no quoting
 or injection surface. Exit codes keep yamlet's own meaning: `verify` exiting 1 is a
