@@ -93,6 +93,10 @@ Be straight with the user about these. Do not attempt a workaround, and never ha
 
 When you hit one of these, say which change is blocked, why, and what you did instead. A clear "this needs a later editing pass, here is exactly what it is" is a good outcome; a silent workaround is not.
 
+## 5a. Decided requirements
+
+A requirement or criterion may carry `adrs:` — decision records linked while the work was planned. Adding a criterion under a linked requirement prints a `WARNING:` naming the records; it still applies. Relay it, and say that the next tech spec (`/yamlet-techspec`) is where the decision is met or revisited. Do not read the records to second-guess the change here, and never remove or rewrite a link.
+
 ## 6. Then rejoin the shared flow
 
 Once the change is committed, return to `SKILL.md` and run its closing steps: read the file back to the user, **verify**, then **project the tests**.

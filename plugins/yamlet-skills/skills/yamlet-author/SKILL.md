@@ -4,7 +4,8 @@ description: >-
   Creates and changes EARS spec files (.yamlet.yaml) by interviewing the user and driving the
   `yamlet` CLI — never by hand-writing YAML. Use when the user wants a new spec, a requirement or
   acceptance-criterion added to an existing one, an existing spec changed, or existing services
-  wired together as a composite.
+  wired together as a composite. Not for planning the work on a finished spec — that is
+  yamlet-techspec.
 allowed-tools: Bash(yamlet:*), Read, Skill(yamlet-verifier *), Skill(yamlet-skills:yamlet-verifier *), Skill(yamlet-contract-challenger *), Skill(yamlet-skills:yamlet-contract-challenger *), Skill(yamlet-criteria-challenger *), Skill(yamlet-skills:yamlet-criteria-challenger *), Skill(yamlet-tester *), Skill(yamlet-skills:yamlet-tester *)
 ---
 
@@ -45,6 +46,7 @@ Push back on vagueness. "Handles errors" → *which* errors, and *what* behaviou
 - **exit 0** — `add-*` prints the assigned id (`RQ-1`, `AC-3`).
 - **exit 2** — `error:`, and nothing was written. Fix the input and retry.
 - **exit 3** — the change tripped a validation finding and the file was rolled back. Tell the user: the change is not expressible as asked.
+- **a `WARNING:` on stderr with exit 0** — the change landed under a requirement an ADR decides. Relay it verbatim: the decision is not revisited here; the tech spec that plans this change (`yamlet-techspec`) reads the record and accounts for it.
 
 **Never invent an id** — use the one the tool printed. Ids are permanent, never reused and never renumbered; a deleted criterion leaves a gap, and the gap is correct.
 
