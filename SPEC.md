@@ -247,10 +247,12 @@ block that already exists. On a requirement the list sits before
 `acceptance-criteria`, which stays the requirement's last key.
 
 The link is load-bearing on every later change: a mutation that touches decided
-behaviour prints a warning naming the records to read (today, adding a criterion
-under a linked requirement; an `edit`/`rm` of a linked block, once they exist).
-yamlet cannot judge whether the decision still holds — that is the reader's — it
-only makes sure nobody changes the behaviour without meeting the decision.
+behaviour prints a warning naming the records (today, adding a criterion under a
+linked requirement; an `edit`/`rm` of a linked block, once they exist). The spec
+is not where the decision is revisited — that happens when the change is planned:
+the [tech spec](#tech-specs--planning-the-work) covering the changed behaviour
+must read the decision and account for it. yamlet only makes sure the change
+cannot happen without the decision being named.
 
 ### Placeholders and examples
 

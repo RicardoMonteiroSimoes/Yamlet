@@ -1018,19 +1018,20 @@ function adrsOf(text: string, path: string): string[] {
 }
 
 /**
- * The notice a mutation prints when it touches behaviour an ADR decides. A
- * decision record is linked to a block precisely so that changing the block
- * cannot happen without meeting the decision; the tool cannot judge whether
- * the decision still holds, so it says loudly that there is one to read. On
- * stderr, exit 0: the change is applied, the reader is warned. Any future
- * `edit`/`rm` of a linked block prints the same notice.
+ * The notice a mutation prints when it touches behaviour an ADR decides. The
+ * tool cannot judge whether the decision still holds, and the spec is not the
+ * place to settle it: that happens when the work is planned — the tech spec
+ * that covers the changed behaviour is where the decision is met, kept, or
+ * revisited. So the notice names the records and points there. On stderr,
+ * exit 0: the change is applied, the reader is told what it touched. Any
+ * future `edit`/`rm` of a linked block prints the same notice.
  */
 export function decidedNotice(id: string, change: string, adrs: string[]): string {
   if (adrs.length === 0) return "";
   let s = `WARNING: ${id} is decided by an ADR — ${change}.\n`;
   for (const a of adrs) s += `  ${a}\n`;
-  s += "Read the decision before relying on this change. If it no longer holds, supersede the\n" +
-    "ADR and relink it (add-adr) rather than leaving the spec pointing at a stale decision.\n";
+  s += "The decision is not revisited here. The tech spec that plans this change must\n" +
+    "read it and account for it (yamlet techspec).\n";
   return s;
 }
 

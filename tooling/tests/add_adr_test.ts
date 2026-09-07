@@ -167,7 +167,7 @@ Deno.test("adding a criterion under a decided requirement warns loudly, and stil
   assertStringIncludes(r.stderr, "WARNING: RQ-1 is decided by an ADR");
   assertStringIncludes(r.stderr, "AC-4 falls under its decision");
   assertStringIncludes(r.stderr, "  adr/ADR-0001.md\n  adr/ADR-0002.md\n");
-  assertStringIncludes(r.stderr, "supersede");
+  assertStringIncludes(r.stderr, "The tech spec that plans this change must");
   assertStringIncludes(read(), "    - z\n");
 
   // A criterion-level link on a sibling does not decide a new criterion of the requirement.

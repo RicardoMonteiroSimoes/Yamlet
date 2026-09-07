@@ -99,7 +99,8 @@ yamlet add-adr         FILE PATH (--rq RQ-N | --ac AC-N)
                                                       existing requirement or criterion; the first mutation of an existing
                                                       block, gated by the stricter (rule, message)-keyed guard. Any later
                                                       mutation touching decided behaviour (add-criterion under a linked
-                                                      requirement) warns on stderr, naming the records to read
+                                                      requirement) warns on stderr, naming the records; the tech spec
+                                                      that plans the change is where the decision is accounted for
 yamlet techspec init      SPEC [--out FILE]        -> a disposable <spec>.techspec.yaml from a spec that verifies clean;
                                                       prints its path
 yamlet techspec analysis  FILE --commit SHA [--deep DIR ...] [--skimmed DIR ...]
