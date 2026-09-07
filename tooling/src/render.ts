@@ -62,9 +62,13 @@ export function renderJson(result: Result, kind: RenderKind): string {
     if (i > 0) out += ",";
     out += "\n  " + entry(f);
   });
-  const tasks = result.summary.tasks === undefined ? "" : `,"tasks":${result.summary.tasks}`;
+  const s = result.summary;
+  let extra = s.tasks === undefined ? "" : `,"tasks":${s.tasks}`;
+  if (s.options !== undefined) {
+    extra += `,"options":${s.options},"obligations":${s.obligations ?? 0}`;
+  }
   out +=
-    `\n],"summary":{"requirements":${result.summary.requirements},"acceptanceCriteria":${result.summary.acceptanceCriteria}${tasks}}}\n`;
+    `\n],"summary":{"requirements":${s.requirements},"acceptanceCriteria":${s.acceptanceCriteria}${extra}}}\n`;
   return out;
 }
 
@@ -98,9 +102,14 @@ export function renderHuman(result: Result, kind: RenderKind): { stderr: string;
   }
   let stdout = "";
   if (result.valid) {
-    const tasks = result.summary.tasks === undefined ? "" : `, ${result.summary.tasks} tasks`;
-    stdout =
-      `OK: ${result.file} (${result.summary.requirements} requirements, ${result.summary.acceptanceCriteria} acceptance-criteria${tasks})\n`;
+    const s = result.summary;
+    if (s.options !== undefined) {
+      stdout = `OK: ${result.file} (${s.options} options, ${s.obligations ?? 0} obligations)\n`;
+    } else {
+      const tasks = s.tasks === undefined ? "" : `, ${s.tasks} tasks`;
+      stdout =
+        `OK: ${result.file} (${s.requirements} requirements, ${s.acceptanceCriteria} acceptance-criteria${tasks})\n`;
+    }
   }
   return { stderr, stdout };
 }

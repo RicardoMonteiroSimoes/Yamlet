@@ -1,0 +1,83 @@
+spec: pdf-verify.yamlet.yaml
+system: pdf-service
+
+analysis:
+  commit: 9f3c1ab
+
+requirements:
+- id: RQ-1
+  acceptance-criteria:
+  - id: AC-1
+    met: true
+    evidence:
+    - src/Verify.java:10
+- id: RQ-2
+  acceptance-criteria:
+  - id: AC-2
+    met: true
+    evidence:
+    - src/Filename.java:5
+  - id: AC-3
+    met: true
+    evidence:
+    - src/Filename.java:9
+- id: RQ-3
+  acceptance-criteria:
+  - id: AC-4
+    met: true
+    evidence:
+    - src/Size.java:19
+  - id: AC-5
+    met: true
+    evidence:
+    - src/Size.java:22
+- id: RQ-4
+  acceptance-criteria:
+  - id: AC-6
+    met: true
+    evidence:
+    - src/Header.java:17
+  - id: AC-7
+    met: true
+    evidence:
+    - src/Header.java:31
+- id: RQ-5
+  acceptance-criteria:
+  - id: AC-8
+    met: false
+  - id: AC-9
+    met: false
+- id: RQ-6
+  acceptance-criteria:
+  - id: AC-10
+    met: false
+    evidence:
+    - src/Verify.java:41
+
+tasks:
+- id: T-1
+  title: Assemble a corpus of malformed PDFs
+  why: The xref and object checks cannot be exercised without known-bad input.
+- id: T-2
+  title: Scan startxref and the trailer without recursion, bounds-checking every offset
+  covers:
+  - AC-8
+  - ADR-0001#R-1
+  - ADR-0001#R-2
+  depends_on:
+  - T-1
+- id: T-3
+  title: Check obj/endobj balance and unclosed tokens
+  covers:
+  - AC-9
+  depends_on:
+  - T-1
+- id: T-4
+  title: Evaluate all seven checks independently, off the request thread
+  covers:
+  - AC-10
+  - ADR-0001#R-3
+  - ADR-0077#R-1
+  depends_on:
+  - T-2
+  - T-3

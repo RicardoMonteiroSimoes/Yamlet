@@ -1,0 +1,106 @@
+system: pdf-service
+topic: PDF verification
+summary: Verifies an uploaded file is a structurally sound PDF and reports the first failing check by a stable identifier
+description: >-
+  Reads the bytes of an untrusted upload and applies seven structural checks in a fixed precedence order. It returns the validated PDF or the identifier of the earliest failing check; it stores nothing.
+blast_radius: medium
+front: external
+exposes:
+  name: pdf-verify
+  intent: check an upload is a well-formed PDF and return it or the earliest failing check
+  inputs:
+  - file
+  - filename
+  outputs:
+  - pdf_file
+  - error
+
+requirements:
+- id: RQ-1
+  description: >-
+    The service accepts a well-formed upload and returns it
+  acceptance-criteria:
+  - id: AC-1
+    pattern: event
+    when: "{input.file} named {input.filename} passes every structural check"
+    shall:
+    - return {output.pdf_file} to the caller
+    - preserve {input.filename} as the name of the returned PDF
+- id: RQ-2
+  description: >-
+    The service rejects an unsafe filename
+  acceptance-criteria:
+  - id: AC-2
+    pattern: unwanted
+    if: "{input.filename} contains a path separator, a parent-directory traversal component or a control character"
+    shall:
+    - set {output.error} to unsafe_filename
+    - return no {output.pdf_file}
+  - id: AC-3
+    pattern: unwanted
+    if: "{input.filename} is empty"
+    shall:
+    - set {output.error} to unsafe_filename
+    - return no {output.pdf_file}
+- id: RQ-3
+  description: >-
+    The service bounds the upload size
+  acceptance-criteria:
+  - id: AC-4
+    pattern: unwanted
+    if: "{input.file} is larger than {max_size_bytes} bytes"
+    shall:
+    - set {output.error} to too_large
+    - return no {output.pdf_file}
+    examples:
+    - max_size_bytes: 10485760
+  - id: AC-5
+    pattern: event
+    when: "{input.file} is exactly {max_size_bytes} bytes"
+    shall:
+    - set {output.error} to an empty value
+    examples:
+    - max_size_bytes: 10485760
+- id: RQ-4
+  description: >-
+    The service checks the header and trailer markers
+  acceptance-criteria:
+  - id: AC-6
+    pattern: unwanted
+    if: "{input.file} does not begin with the bytes %PDF-1."
+    shall:
+    - set {output.error} to invalid_header
+  - id: AC-7
+    pattern: unwanted
+    if: the last 1024 bytes of {input.file} contain no %%EOF marker
+    shall:
+    - set {output.error} to missing_eof
+- id: RQ-5
+  description: >-
+    The service checks the cross-reference table and object structure
+  adrs:
+  - ADR-0001-structural-pdf-parsing.adr.yaml
+  acceptance-criteria:
+  - id: AC-8
+    pattern: unwanted
+    if: no startxref offset in {input.file} resolves to a cross-reference table or stream followed by a trailer dictionary containing /Root
+    shall:
+    - set {output.error} to invalid_xref_trailer
+    adrs:
+    - ADR-0002-isolation-of-structural-parsing.adr.yaml
+  - id: AC-9
+    pattern: unwanted
+    if: "{input.file} contains unbalanced obj and endobj delimiters or an unclosed dictionary or stream token"
+    shall:
+    - set {output.error} to invalid_object_structure
+- id: RQ-6
+  description: >-
+    The service reports only the earliest failing check
+  acceptance-criteria:
+  - id: AC-10
+    pattern: unwanted
+    if: 2 or more structural checks fail for {input.file}
+    shall:
+    - evaluate all seven checks independently of each other
+    - set {output.error} to the identifier of the earliest failing check in the order unsafe_filename, too_large, invalid_header, missing_eof, invalid_xref_trailer, invalid_object_structure
+    - return no {output.pdf_file}

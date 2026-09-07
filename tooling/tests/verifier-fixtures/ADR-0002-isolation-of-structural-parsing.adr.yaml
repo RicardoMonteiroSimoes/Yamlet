@@ -1,0 +1,95 @@
+adr: ADR-0002
+title: Isolation of structural parsing
+status: proposed
+date: 2026-09-07
+kind: mechanism
+assumes:
+- ADR-0001
+
+question: >-
+  Where does the byte scanner run, given that it must not be able to exhaust the service on a
+  malformed upload?
+
+forces:
+- >-
+  ADR-0001#R-4 places structural parsing off the request thread under default JVM limits.
+- >-
+  A malformed cross-reference chain is unbounded work until a limit stops it.
+- >-
+  blast_radius is medium: the verification scope is called by other scopes in this system.
+
+basis:
+- id: B-1
+  quantity: 40000 uploads / month
+  source: >-
+    ingest telemetry, 2026-08 monthly mean
+
+dimensions:
+- id: D-1
+  matters: >-
+    A hostile upload must be able to exhaust its own budget only, never the service's.
+- id: D-2
+  matters: >-
+    Operational surface: a mechanism nobody can observe or tune is a mechanism nobody will maintain.
+- id: D-3
+  matters: >-
+    Decisive here: the option that costs materially more per upload has to earn it on D-1.
+  unit: EUR/month of compute
+  basis:
+  - B-1
+  source: >-
+    platform chargeback 2026-H2
+
+options:
+- id: OPT-1
+  summary: >-
+    Bounded work in-process — an instruction and allocation budget the scanner checks itself
+  refs:
+    metrics: src/main/java/ch/adnovum/pdfservice/VerificationMetrics.java
+  reversibility: reversible
+  against:
+    D-1: >-
+      Bounds the malformed-input case, but shares a heap with the request path, so an allocation
+      spike is still felt service-wide.
+    D-2: >-
+      One counter and one timeout, both already exposed by the existing metrics.
+    D-3: >-
+      0 — the budget is checked inside the existing request path.
+- id: OPT-2
+  summary: >-
+    A separate process per upload, with rlimits
+  refs:
+    mechanism: https://man7.org/linux/man-pages/man2/setrlimit.2.html
+  reversibility: costly
+  against:
+    D-1: >-
+      A hard boundary; the kernel enforces it rather than the code being trusted to.
+    D-2: >-
+      Adds process lifecycle, a byte channel and a second failure mode (spawn failure) that AC-10's
+      identifier list has no room for.
+    D-3: >-
+      Roughly 900/month: one process spawn per upload, plus the memory floor of a second JVM for
+      every concurrent upload. The largest single line in the option.
+
+decision: OPT-1
+
+requires:
+- id: R-1
+  must: >-
+    Fix the budget as policy, not caller-supplied, on the same grounds the spec states for
+    max_size_bytes.
+- id: R-2
+  must: >-
+    Map budget exhaustion to invalid_xref_trailer, not to a new identifier. AC-10's list is closed.
+
+accepts:
+- >-
+  A malformed upload can still cause an allocation spike visible to concurrent requests.
+
+revisit:
+- >-
+  p99 verification latency under malformed input exceeds 200 ms, against the 34 ms measured on
+  well-formed input in 2026-08. The shared-heap argument no longer holds and OPT-2 returns.
+- >-
+  A second scope in this system begins parsing untrusted bytes, so the budget is no longer the only
+  thing standing between an upload and the request path.

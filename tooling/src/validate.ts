@@ -24,7 +24,7 @@ const PATTERN_OK = new Set(["ubiquitous", "state", "event", "optional", "unwante
 
 // Word-lists behind W003–W005. Short on purpose: an entry must be right far more
 // often than wrong. SPEC.md ("Lexical warnings") says why each word is in or out.
-const QUANTITY_WORD =
+export const QUANTITY_WORD =
   /\b(exceed(?:s|ed|ing)?|maximum|minimum|limit|at (?:most|least)|(?:more|less|fewer|longer|shorter|larger|smaller|greater) than)\b/i;
 const DESCRIBED_RESULT = /\bindicat(?:e|es|ed|ing)\b/i;
 const OUTPUT_REF = /\{output\.[a-z][a-z0-9_]*\}/;
@@ -256,7 +256,8 @@ export function validate(
   // ── E109: ADR links on a requirement or criterion ──
   // `adrs:` is an optional list of paths (relative to the spec's directory) on
   // either block. The link is the spec's, so the spec is where it is checked:
-  // an entry must be non-empty, unique within its block, and resolve to a file.
+  // an entry must be non-empty, unique within its block, name a `.adr.yaml`
+  // record, and resolve to a file.
   const adrSeen = new Map<string, Set<string>>(); // block prefix → entries
   const adrPaths = [...byPath.keys()]
     .filter((p) =>
@@ -278,6 +279,10 @@ export function validate(
       continue;
     }
     seen.add(v);
+    if (!v.endsWith(".adr.yaml")) {
+      finding("E109", ln, p, block + ": adrs entry must name a .adr.yaml record: " + v);
+      continue;
+    }
     const resolved = v.startsWith("/") ? v : fileDir === "" ? v : fileDir + "/" + v;
     let ok = false;
     try {

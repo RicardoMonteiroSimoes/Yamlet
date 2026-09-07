@@ -9,6 +9,7 @@ import { flatten } from "./flatten.ts";
 import { resolveComposite } from "./composite.ts";
 import { validate } from "./validate.ts";
 import { TECHSPEC_EXT, validateTechspec } from "./techspec.ts";
+import { ADR_EXT, validateAdr } from "./adr.ts";
 
 export interface VerifyOutput {
   result: Result;
@@ -48,6 +49,19 @@ function parseFailure(file: string, parseErrors: ParseError[]): VerifyOutput {
   };
 }
 
+/** An ADR: flatten, then the E8xx rules, resolving references in its directory. */
+function verifyAdrText(file: string, text: string): VerifyOutput {
+  const { records, parseErrors } = flatten(text);
+  if (parseErrors.length > 0) return parseFailure(file, parseErrors);
+  const { findings, summary } = validateAdr(file, records);
+  const errors = [...findings].sort(compareFindings);
+  return {
+    kind: "normal",
+    exitCode: errors.length > 0 ? 1 : 0,
+    result: { file, valid: errors.length === 0, errors, warnings: [], summary },
+  };
+}
+
 /** A tech spec: flatten, then the E7xx rules against the spec it names. */
 function verifyTechspecText(file: string, text: string): VerifyOutput {
   const { records, parseErrors } = flatten(text);
@@ -67,6 +81,7 @@ export function verifyText(file: string, text: string): VerifyOutput {
 
   // The extension picks the format: a tech spec has its own rules (E7xx).
   if (base.endsWith(TECHSPEC_EXT)) return verifyTechspecText(file, text);
+  if (base.endsWith(ADR_EXT)) return verifyAdrText(file, text);
 
   // E001: extension check.
   if (!base.endsWith(".yamlet.yaml")) {
@@ -75,7 +90,8 @@ export function verifyText(file: string, text: string): VerifyOutput {
       severity: "error",
       line: 0,
       path: file,
-      message: "file must use the .yamlet.yaml or " + TECHSPEC_EXT + " extension, got: " + base,
+      message: "file must use the .yamlet.yaml, " + TECHSPEC_EXT + " or " + ADR_EXT +
+        " extension, got: " + base,
     };
     return {
       kind: "extension",

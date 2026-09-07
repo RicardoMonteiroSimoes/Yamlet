@@ -1,0 +1,33 @@
+adr: ADR-0095
+title: An accepted record resting on a proposed one
+status: accepted
+date: 2026-09-07
+kind: boundary
+assumes:
+- ADR-0002
+
+question: >-
+  Where does verification end?
+
+dimensions:
+- id: D-1
+  matters: >-
+    Clarity
+
+options:
+- id: OPT-1
+  summary: >-
+    At the trailer
+  reversibility: reversible
+  against:
+    D-1: >-
+      Clear
+- id: OPT-2
+  summary: >-
+    At the page tree
+  reversibility: costly
+  against:
+    D-1: >-
+      Less clear
+
+decision: OPT-1

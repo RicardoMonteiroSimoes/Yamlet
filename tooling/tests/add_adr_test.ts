@@ -37,61 +37,65 @@ function seed(): { dir: string; file: string; read: () => string } {
   runAddCriterion([file, "--rq", "RQ-1", "--pattern", "ubiquitous", "--shall", "b"]);
   runAddRequirement([file, "--description", "second"]);
   runAddCriterion([file, "--rq", "RQ-2", "--pattern", "ubiquitous", "--shall", "c"]);
+  // E109 requires a `.adr.yaml` record to exist; its content is the ADR verifier's business.
   Deno.mkdirSync(`${dir}/adr`);
-  Deno.writeTextFileSync(`${dir}/adr/ADR-0001.md`, "# 1\n");
-  Deno.writeTextFileSync(`${dir}/adr/ADR-0002.md`, "# 2\n");
+  Deno.writeTextFileSync(`${dir}/adr/ADR-0001.adr.yaml`, "adr: ADR-0001\n");
+  Deno.writeTextFileSync(`${dir}/adr/ADR-0002.adr.yaml`, "adr: ADR-0002\n");
   return { dir, file, read: () => Deno.readTextFileSync(file) };
 }
 
 Deno.test("a requirement's link lands before its criteria; a criterion's at its end", () => {
   const { file, read } = seed();
-  assertEquals(runAddAdr([file, "adr/ADR-0001.md", "--rq", "RQ-1"]).exitCode, 0);
-  assertEquals(runAddAdr([file, "adr/ADR-0002.md", "--ac", "AC-1"]).exitCode, 0);
+  assertEquals(runAddAdr([file, "adr/ADR-0001.adr.yaml", "--rq", "RQ-1"]).exitCode, 0);
+  assertEquals(runAddAdr([file, "adr/ADR-0002.adr.yaml", "--ac", "AC-1"]).exitCode, 0);
 
   const text = read();
   assertStringIncludes(
     text,
-    "  description: >-\n    first\n  adrs:\n  - adr/ADR-0001.md\n  acceptance-criteria:\n",
+    "  description: >-\n    first\n  adrs:\n  - adr/ADR-0001.adr.yaml\n  acceptance-criteria:\n",
   );
   assertStringIncludes(
     text,
-    "  - id: AC-1\n    pattern: ubiquitous\n    shall:\n    - a\n    adrs:\n    - adr/ADR-0002.md\n  - id: AC-2\n",
+    "  - id: AC-1\n    pattern: ubiquitous\n    shall:\n    - a\n    adrs:\n    - adr/ADR-0002.adr.yaml\n  - id: AC-2\n",
   );
   assertEquals(verifyText(file, text).result.valid, true);
 });
 
 Deno.test("a second link appends to the existing list; the same path twice is refused", () => {
   const { file, read } = seed();
-  runAddAdr([file, "adr/ADR-0001.md", "--rq", "RQ-2"]);
-  runAddAdr([file, "adr/ADR-0001.md", "--ac", "AC-3"]);
-  assertEquals(runAddAdr([file, "adr/ADR-0002.md", "--rq", "RQ-2"]).exitCode, 0);
-  assertEquals(runAddAdr([file, "adr/ADR-0002.md", "--ac", "AC-3"]).exitCode, 0);
+  runAddAdr([file, "adr/ADR-0001.adr.yaml", "--rq", "RQ-2"]);
+  runAddAdr([file, "adr/ADR-0001.adr.yaml", "--ac", "AC-3"]);
+  assertEquals(runAddAdr([file, "adr/ADR-0002.adr.yaml", "--rq", "RQ-2"]).exitCode, 0);
+  assertEquals(runAddAdr([file, "adr/ADR-0002.adr.yaml", "--ac", "AC-3"]).exitCode, 0);
 
   const text = read();
   assertStringIncludes(
     text,
-    "  adrs:\n  - adr/ADR-0001.md\n  - adr/ADR-0002.md\n  acceptance-criteria:\n",
+    "  adrs:\n  - adr/ADR-0001.adr.yaml\n  - adr/ADR-0002.adr.yaml\n  acceptance-criteria:\n",
   );
-  assertStringIncludes(text, "    adrs:\n    - adr/ADR-0001.md\n    - adr/ADR-0002.md\n");
+  assertStringIncludes(
+    text,
+    "    adrs:\n    - adr/ADR-0001.adr.yaml\n    - adr/ADR-0002.adr.yaml\n",
+  );
 
-  const dup = runAddAdr([file, "adr/ADR-0002.md", "--rq", "RQ-2"]);
+  const dup = runAddAdr([file, "adr/ADR-0002.adr.yaml", "--rq", "RQ-2"]);
   assertEquals(dup.exitCode, 2);
-  assertStringIncludes(dup.stderr, "RQ-2 already links adr/ADR-0002.md");
+  assertStringIncludes(dup.stderr, "RQ-2 already links adr/ADR-0002.adr.yaml");
   assertEquals(read(), text, "nothing written");
   assertEquals(verifyText(file, text).result.valid, true);
 });
 
 Deno.test("the same ADR may be linked on several requirements", () => {
   const { file, read } = seed();
-  assertEquals(runAddAdr([file, "adr/ADR-0001.md", "--rq", "RQ-1"]).exitCode, 0);
-  assertEquals(runAddAdr([file, "adr/ADR-0001.md", "--rq", "RQ-2"]).exitCode, 0);
+  assertEquals(runAddAdr([file, "adr/ADR-0001.adr.yaml", "--rq", "RQ-1"]).exitCode, 0);
+  assertEquals(runAddAdr([file, "adr/ADR-0001.adr.yaml", "--rq", "RQ-2"]).exitCode, 0);
   assertEquals(verifyText(file, read()).result.valid, true);
 });
 
 Deno.test("block extents stay true: criteria can still be appended and inserted around links", () => {
   const { file, read } = seed();
-  runAddAdr([file, "adr/ADR-0001.md", "--rq", "RQ-1"]);
-  runAddAdr([file, "adr/ADR-0001.md", "--ac", "AC-1"]);
+  runAddAdr([file, "adr/ADR-0001.adr.yaml", "--rq", "RQ-1"]);
+  runAddAdr([file, "adr/ADR-0001.adr.yaml", "--ac", "AC-1"]);
 
   // Insert after the linked criterion: lands after its adrs list, not inside it.
   assertEquals(
@@ -116,7 +120,7 @@ Deno.test("block extents stay true: criteria can still be appended and inserted 
   );
   const ids = blocksOf(read()).map((b) => b.id);
   assertEquals(ids, ["RQ-1", "AC-1", "AC-1a", "AC-2", "AC-4", "RQ-2", "AC-3"]);
-  assertStringIncludes(read(), "    - a\n    adrs:\n    - adr/ADR-0001.md\n  - id: AC-1a\n");
+  assertStringIncludes(read(), "    - a\n    adrs:\n    - adr/ADR-0001.adr.yaml\n  - id: AC-1a\n");
   assertEquals(verifyText(file, read()).result.valid, true);
 });
 
@@ -124,19 +128,20 @@ Deno.test("refusals: missing file, unknown id, wrong kind, neither/both selector
   const { file, read } = seed();
   const before = read();
   const cases: [string[], string][] = [
-    [[file, "adr/ADR-0009.md", "--rq", "RQ-1"], "does not resolve to a file"],
+    [[file, "adr/ADR-0009.adr.yaml", "--rq", "RQ-1"], "does not resolve to a file"],
+    [[file, "adr/ADR-0001.md", "--rq", "RQ-1"], "PATH must name a .adr.yaml record"],
     [
-      [file, "adr/ADR-0001.md", "--rq", "RQ-9"],
+      [file, "adr/ADR-0001.adr.yaml", "--rq", "RQ-9"],
       "no such requirement: RQ-9 (this spec has RQ-1, RQ-2)",
     ],
-    [[file, "adr/ADR-0001.md", "--ac", "RQ-1"], "no such criterion: RQ-1"],
-    [[file, "adr/ADR-0001.md", "--rq", "AC-1"], "no such requirement: AC-1"],
-    [[file, "adr/ADR-0001.md"], "exactly one of --rq RQ-N or --ac AC-N"],
-    [[file, "adr/ADR-0001.md", "--rq", "RQ-1", "--ac", "AC-1"], "exactly one of"],
+    [[file, "adr/ADR-0001.adr.yaml", "--ac", "RQ-1"], "no such criterion: RQ-1"],
+    [[file, "adr/ADR-0001.adr.yaml", "--rq", "AC-1"], "no such requirement: AC-1"],
+    [[file, "adr/ADR-0001.adr.yaml"], "exactly one of --rq RQ-N or --ac AC-N"],
+    [[file, "adr/ADR-0001.adr.yaml", "--rq", "RQ-1", "--ac", "AC-1"], "exactly one of"],
     [[file, "--rq", "RQ-1"], "requires PATH"],
-    [[file, "adr/ADR-0001.md", "extra", "--rq", "RQ-1"], "too many arguments"],
-    [[file, "adr/ADR-0001.md", "--rq", "RQ-1", "--bogus"], "unknown flag"],
-    [[`${file}.nope`, "adr/ADR-0001.md", "--rq", "RQ-1"], "file not found"],
+    [[file, "adr/ADR-0001.adr.yaml", "extra", "--rq", "RQ-1"], "too many arguments"],
+    [[file, "adr/ADR-0001.adr.yaml", "--rq", "RQ-1", "--bogus"], "unknown flag"],
+    [[`${file}.nope`, "adr/ADR-0001.adr.yaml", "--rq", "RQ-1"], "file not found"],
   ];
   for (const [args, needle] of cases) {
     const r = runAddAdr(args);
@@ -148,25 +153,25 @@ Deno.test("refusals: missing file, unknown id, wrong kind, neither/both selector
 
 Deno.test("E109: a link whose file disappears is reported on the spec", () => {
   const { dir, file, read } = seed();
-  runAddAdr([file, "adr/ADR-0001.md", "--ac", "AC-2"]);
-  Deno.removeSync(`${dir}/adr/ADR-0001.md`);
+  runAddAdr([file, "adr/ADR-0001.adr.yaml", "--ac", "AC-2"]);
+  Deno.removeSync(`${dir}/adr/ADR-0001.adr.yaml`);
   const { result } = verifyText(file, read());
   assertEquals(result.errors.map((e) => e.rule), ["E109"]);
-  assertStringIncludes(result.errors[0]!.message, "adr/ADR-0001.md");
+  assertStringIncludes(result.errors[0]!.message, "adr/ADR-0001.adr.yaml");
 });
 
 Deno.test("adding a criterion under a decided requirement warns loudly, and still applies", () => {
   const { file, read } = seed();
-  runAddAdr([file, "adr/ADR-0001.md", "--rq", "RQ-1"]);
-  runAddAdr([file, "adr/ADR-0002.md", "--rq", "RQ-1"]);
-  runAddAdr([file, "adr/ADR-0002.md", "--ac", "AC-3"]); // a criterion-level link on RQ-2
+  runAddAdr([file, "adr/ADR-0001.adr.yaml", "--rq", "RQ-1"]);
+  runAddAdr([file, "adr/ADR-0002.adr.yaml", "--rq", "RQ-1"]);
+  runAddAdr([file, "adr/ADR-0002.adr.yaml", "--ac", "AC-3"]); // a criterion-level link on RQ-2
 
   const r = runAddCriterion([file, "--rq", "RQ-1", "--pattern", "ubiquitous", "--shall", "z"]);
   assertEquals(r.exitCode, 0);
   assertEquals(r.stdout, "AC-4\n");
   assertStringIncludes(r.stderr, "WARNING: RQ-1 is decided by an ADR");
   assertStringIncludes(r.stderr, "AC-4 falls under its decision");
-  assertStringIncludes(r.stderr, "  adr/ADR-0001.md\n  adr/ADR-0002.md\n");
+  assertStringIncludes(r.stderr, "  adr/ADR-0001.adr.yaml\n  adr/ADR-0002.adr.yaml\n");
   assertStringIncludes(r.stderr, "The tech spec that plans this change must");
   assertStringIncludes(read(), "    - z\n");
 

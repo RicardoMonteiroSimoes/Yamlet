@@ -50,8 +50,9 @@ yamlet <command> --help | -h                       -> the same per-command synop
 yamlet version | --version | -V                    -> print the yamlet version
 yamlet verify [--format=human|json] <file.yamlet.yaml>
 yamlet verify [--format=human|json] <file.techspec.yaml>
+yamlet verify [--format=human|json] <file.adr.yaml>
                                                    -> the extension picks the rules: E0xx–E6xx/W00x for a spec,
-                                                      E7xx for a tech spec
+                                                      E7xx for a tech spec, E8xx for a decision record
 yamlet verify --list-rules [--format=human|json]
 yamlet systems [DIR] [--system=SLUG] [--details] [--contracts] [--format=human|json]
                                                    -> existing systems grouped by their scope files; --contracts adds each
@@ -105,15 +106,36 @@ yamlet techspec init      SPEC [--out FILE]        -> a disposable <spec>.techsp
                                                       prints its path
 yamlet techspec analysis  FILE --commit SHA [--deep DIR ...] [--skimmed DIR ...]
 yamlet techspec criterion FILE --ac AC-N --met true|false [--evidence PATH:LINE ...] [--note "..."]
-yamlet techspec task      FILE --title "..." [--covers AC-N ...] [--depends-on T-N ...] [--why "..."]
+yamlet techspec task      FILE --title "..." [--covers AC-N|ADR-nnnn#R-n ...] [--depends-on T-N ...] [--why "..."]
                                                                     -> prints T-N
                                                    -> the gap analysis and task list for one spec: a verdict per
                                                       criterion (the owning RQ is looked up in the spec), then tasks
                                                       covering the unmet ones. Every RQ-N/AC-N is checked against the
                                                       spec; only T-N is minted here. The file is rewritten canonically
-                                                      on every call and `verify` checks coverage (E701–E715). Where the
-                                                      spec links an ADR on a criterion or its requirement, criterion and
-                                                      task print a DECIDED notice on stderr naming the records
+                                                      on every call and `verify` checks coverage (E701–E716). Where the
+                                                      spec links a record on a criterion or its requirement, criterion and
+                                                      task print a DECIDED notice on stderr naming the records; a task
+                                                      covers a record's obligation (ADR-nnnn#R-n) exactly as it covers
+                                                      a criterion, and an accepted record's uncovered one is E716
+yamlet adr init DIR --title T --kind K --question Q [--arises-from SPEC#AC-n ...] [--assumes ADR-nnnn ...]
+                                                   -> a new decision record DIR/ADR-nnnn-<slug>.adr.yaml (next id in DIR),
+                                                      proposed; prints its path
+yamlet adr add-force      FILE TEXT
+yamlet adr add-basis      FILE --quantity Q --source S                      -> prints B-n
+yamlet adr add-dimension  FILE --matters M [--unit U --source S [--basis B-n ...]]   -> prints D-n
+yamlet adr add-option     FILE --summary S --reversibility R [--ref LABEL=LOCATOR ...] --against D-n=TEXT ...
+                                                                            -> prints OPT-n
+yamlet adr decide         FILE OPT-n
+yamlet adr add-obligation FILE TEXT                                         -> prints R-n
+yamlet adr add-accept     FILE TEXT
+yamlet adr add-revisit    FILE TEXT
+yamlet adr accept | reject FILE [--date D]
+yamlet adr supersede      FILE --by ADR-nnnn [--date D]
+                                                   -> the decision record author (SPEC.md, "Decision records"): every id
+                                                      minted, the file rewritten canonically per call, phase order
+                                                      enforced (basis → dimensions → options; an option is judged
+                                                      against every dimension in one call), and frozen after accept —
+                                                      only reject, supersede and their dates change a record afterwards
 ```
 
 Exit codes: `0` success · `1` verify found errors · `2` usage/validation error (nothing written) ·
@@ -328,7 +350,7 @@ src/graph.ts           `yamlet graph` — write DOT, the JSON graph model, or th
 src/tests.ts           `yamlet tests` — project criteria into Gherkin `.feature` files + a binding manifest (wipes + rebuilds TARGET)
 src/viewer/            the `--format=html` viewer: template + CSS + JS + `html.ts` assembler; elk vendored
 src/types.ts           shared shapes (Finding, FlatRecord, Result, Command, CmdResult, …)
-src/catalog.ts         the rule catalog — source of truth for rule ids and severities (E0xx–E7xx, W00x)
+src/catalog.ts         the rule catalog — source of truth for rule ids and severities (E0xx–E8xx, W00x)
 src/flatten.ts         Phase 1: constrained-YAML → tab-free leaf records
 src/composite.ts       cross-file member/socket tables (directional: inputs vs outputs)
 src/validate.ts        Phase 2: structural + semantic rules over records
@@ -339,6 +361,8 @@ src/cmd.ts             the command helpers (usage error, flag values, path predi
 src/records.ts         readers over flattened records by prefix, shared by `tests` and the tech spec
 src/techspec.ts        the tech spec format: model, reader, canonical serializer, E701–E715
 src/techspec_author.ts `yamlet techspec` — init/analysis/criterion/task, full rewrite per call, verify as gate
+src/adr.ts             the decision record format: model, reader, canonical serializer, resolution, E801–E815
+src/adr_author.ts      `yamlet adr` — init and the phase-ordered add-*/decide/accept/reject/supersede commands
 ```
 
 **Commands** are a data-driven registry. Each command module exports a `Command` descriptor

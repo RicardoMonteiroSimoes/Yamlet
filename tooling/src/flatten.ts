@@ -245,6 +245,18 @@ export function flatten(text: string): FlattenResult {
           emit(buildPath(), v, lineno);
           sp--; // pop mapping key; bracket stays for sibling keys
         }
+      } else if (BLOCK_FOLD.test(afterDash) || BLOCK_LIT.test(afterDash)) {
+        // "- >-" / "- |": a block scalar as the sequence item itself. The
+        // bracket frame is the block's path; finaliseBlock pops it.
+        pushFrame(seqBracket, thisIndent);
+        inBlock = true;
+        blockPath = buildPath();
+        blockLine = lineno;
+        blockType = afterDash[0] === ">" ? "fold" : "lit";
+        const lc = afterDash[afterDash.length - 1];
+        blockChomp = lc === "-" || lc === "+" ? lc! : "";
+        blockIndent = -1;
+        blockVal = "";
       } else {
         // "- scalar text"
         pushFrame(seqBracket, thisIndent);

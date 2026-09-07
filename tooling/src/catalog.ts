@@ -14,7 +14,8 @@ export const CATALOG: Rule[] = [
   {
     id: "E001",
     severity: "error",
-    description: "file must use the .yamlet.yaml (spec) or .techspec.yaml (tech spec) extension",
+    description:
+      "file must use the .yamlet.yaml (spec), .techspec.yaml (tech spec) or .adr.yaml (decision record) extension",
   },
   { id: "E002", severity: "error", description: "tabs are not allowed; use spaces only" },
   { id: "E003", severity: "error", description: "indentation must be a multiple of 2 spaces" },
@@ -51,7 +52,7 @@ export const CATALOG: Rule[] = [
     id: "E109",
     severity: "error",
     description:
-      "adrs entry is empty, duplicated in its block, or does not resolve to an existing file",
+      "adrs entry is empty, duplicated in its block, not a .adr.yaml record, or does not resolve to a file",
   },
   { id: "E201", severity: "error", description: "requirement id must match ^RQ-[0-9]+$" },
   { id: "E202", severity: "error", description: "duplicate requirement id in file" },
@@ -238,6 +239,89 @@ export const CATALOG: Rule[] = [
     description: "depends_on names an unknown task, the task itself, a duplicate, or forms a cycle",
   },
   { id: "E715", severity: "error", description: "an unmet criterion is covered by no task" },
+  {
+    id: "E716",
+    severity: "error",
+    description:
+      "an obligation (ADR-nnnn#R-n) of an accepted record linked from the spec is covered by no task",
+  },
+  // ── decision records (.adr.yaml, format adr/v1) ──
+  {
+    id: "E801",
+    severity: "error",
+    description:
+      "ADR is missing a required top-level key (adr, title, status, date, kind, question, dimensions, options) or it is empty",
+  },
+  { id: "E802", severity: "error", description: "unknown top-level key in an ADR" },
+  {
+    id: "E803",
+    severity: "error",
+    description: "adr id must match ^ADR-[0-9]{4}$ and be unique within its directory",
+  },
+  {
+    id: "E804",
+    severity: "error",
+    description:
+      "status must be proposed|accepted|rejected|superseded; superseded_by present iff superseded, a later record that resolves",
+  },
+  { id: "E805", severity: "error", description: "date must be YYYY-MM-DD" },
+  {
+    id: "E806",
+    severity: "error",
+    description: "kind must be selection|mechanism|policy|boundary|sequencing",
+  },
+  {
+    id: "E807",
+    severity: "error",
+    description:
+      "origin: arises_from (<spec>.yamlet.yaml#RQ-n|AC-n, resolving) or assumes (a lower-numbered record; accepted only when accepted) must be non-empty",
+  },
+  {
+    id: "E808",
+    severity: "error",
+    description:
+      "forces entry is not a plain string, is empty, or cites an ADR-nnnn#R-n that does not resolve",
+  },
+  {
+    id: "E809",
+    severity: "error",
+    description:
+      "basis entry is malformed (id B-n unique, quantity with a numeral, source) or referenced by no dimension",
+  },
+  {
+    id: "E810",
+    severity: "error",
+    description:
+      "dimension is malformed (id D-n unique, matters; a unit needs a source and, when basis is declared, basis refs)",
+  },
+  {
+    id: "E811",
+    severity: "error",
+    description:
+      "options: fewer than two, or an option is malformed (id OPT-n unique, summary, reversibility; refs under selection; refs are locators)",
+  },
+  {
+    id: "E812",
+    severity: "error",
+    description:
+      "against must cover exactly the declared dimensions; n/a needs a reason, a cited excluding D-n must be substantive, a measured cell needs a numeral",
+  },
+  {
+    id: "E813",
+    severity: "error",
+    description: "decision must be a declared option, and is required once accepted",
+  },
+  {
+    id: "E814",
+    severity: "error",
+    description:
+      "requires entry is malformed (id R-n unique, must), or an accepts entry is not a plain string",
+  },
+  {
+    id: "E815",
+    severity: "error",
+    description: "revisit entry is not a plain string, or names a threshold without quantifying it",
+  },
   {
     id: "W001",
     severity: "warning",

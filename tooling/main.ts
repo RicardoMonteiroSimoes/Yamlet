@@ -13,6 +13,7 @@
 //   yamlet add-criterion FILE --rq RQ-N --pattern P ...
 //   yamlet add-adr FILE PATH (--rq RQ-N | --ac AC-N)
 //   yamlet techspec init|analysis|criterion|task ...
+//   yamlet adr init|add-force|add-basis|add-dimension|add-option|decide|... ...
 //
 // Exit codes: 0 success · 1 verify found errors · 2 usage/validation · 3 mutation
 // rolled back by the commit gate.
@@ -33,6 +34,7 @@ import {
   initCommand,
 } from "./src/author.ts";
 import { techspecCommand } from "./src/techspec_author.ts";
+import { adrCommand } from "./src/adr_author.ts";
 import { systemsCommand } from "./src/systems.ts";
 import { impactCommand } from "./src/impact.ts";
 import { graphCommand } from "./src/graph.ts";
@@ -112,10 +114,12 @@ const verifyCommand: Command = {
 Usage:
   yamlet verify [--format=human|json] <file.yamlet.yaml>
   yamlet verify [--format=human|json] <file.techspec.yaml>
+  yamlet verify [--format=human|json] <file.adr.yaml>
   yamlet verify --list-rules [--format=human|json]
 
 The extension picks the rules: a .yamlet.yaml spec gets E0xx–E6xx and W00x, a
-.techspec.yaml tech spec gets E7xx (see \`yamlet techspec --help\`).
+.techspec.yaml tech spec gets E7xx (see \`yamlet techspec --help\`), a .adr.yaml
+decision record gets E8xx (see \`yamlet adr --help\`).
 
 Options:
   --format=human|json   output shape (default: human)
@@ -155,6 +159,7 @@ export const COMMANDS: Command[] = [
   addCriterionCommand,
   addAdrCommand,
   techspecCommand,
+  adrCommand,
 ];
 
 /**

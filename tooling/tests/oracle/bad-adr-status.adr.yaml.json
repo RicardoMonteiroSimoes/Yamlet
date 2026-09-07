@@ -1,0 +1,6 @@
+{"file":"bad-adr-status.adr.yaml","valid":false,"errors":[
+  {"rule":"E804","severity":"error","line":3,"path":"status","message":"status is superseded but superseded_by is missing"},
+  {"rule":"E813","severity":"error","line":3,"path":"decision","message":"an superseded record must name its decision"},
+  {"rule":"E807","severity":"error","line":7,"path":"assumes[0]","message":"an accepted record may not assume ADR-0002, which is proposed"}
+],"warnings":[
+],"summary":{"requirements":0,"acceptanceCriteria":0,"options":2,"obligations":0}}

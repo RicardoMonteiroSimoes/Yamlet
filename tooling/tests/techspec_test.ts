@@ -343,11 +343,14 @@ Deno.test("decided behaviour: verdict and task print the linked ADRs; unlinked s
   const dir = Deno.makeTempDirSync();
   const spec = seedSpec(dir);
   Deno.mkdirSync(`${dir}/adr`);
-  Deno.writeTextFileSync(`${dir}/adr/ADR-0001.md`, "# 1\n");
-  Deno.writeTextFileSync(`${dir}/adr/ADR-0002.md`, "# 2\n");
-  ok(runAddAdr([spec, "adr/ADR-0001.md", "--rq", "RQ-1"]), "link RQ-1");
-  ok(runAddAdr([spec, "adr/ADR-0002.md", "--ac", "AC-2"]), "link AC-2");
-  ok(runAddAdr([spec, "adr/ADR-0001.md", "--ac", "AC-2"]), "link AC-2 again (dedupes in notice)");
+  Deno.writeTextFileSync(`${dir}/adr/ADR-0001.adr.yaml`, "adr: ADR-0001\nstatus: proposed\n");
+  Deno.writeTextFileSync(`${dir}/adr/ADR-0002.adr.yaml`, "adr: ADR-0002\nstatus: proposed\n");
+  ok(runAddAdr([spec, "adr/ADR-0001.adr.yaml", "--rq", "RQ-1"]), "link RQ-1");
+  ok(runAddAdr([spec, "adr/ADR-0002.adr.yaml", "--ac", "AC-2"]), "link AC-2");
+  ok(
+    runAddAdr([spec, "adr/ADR-0001.adr.yaml", "--ac", "AC-2"]),
+    "link AC-2 again (dedupes in notice)",
+  );
   const ts = `${dir}/svc.techspec.yaml`;
   ok(runTechspecInit([spec]), "init");
   ok(runTechspecAnalysis([ts, "--commit", "9f3c1ab"]), "analysis");
@@ -357,7 +360,7 @@ Deno.test("decided behaviour: verdict and task print the linked ADRs; unlinked s
   ok(a1, "AC-1");
   assertEquals(
     a1.stderr,
-    "DECIDED: AC-1 is decided by an ADR (via RQ-1).\n  adr/ADR-0001.md\n" +
+    "DECIDED: AC-1 is decided by an ADR (via RQ-1).\n  adr/ADR-0001.adr.yaml\n" +
       "The evidence for AC-1 must fit these decisions.\n",
   );
   // AC-2: via the requirement and itself; the shared record appears once.
@@ -365,7 +368,7 @@ Deno.test("decided behaviour: verdict and task print the linked ADRs; unlinked s
   ok(a2, "AC-2");
   assertEquals(
     a2.stderr,
-    "DECIDED: AC-2 is decided by an ADR (via RQ-1 and itself).\n  adr/ADR-0001.md\n  adr/ADR-0002.md\n" +
+    "DECIDED: AC-2 is decided by an ADR (via RQ-1 and itself).\n  adr/ADR-0001.adr.yaml\n  adr/ADR-0002.adr.yaml\n" +
       "The task covering AC-2 must fit these decisions, or state that one no longer holds.\n",
   );
   // AC-3: nothing linked.
@@ -380,7 +383,7 @@ Deno.test("decided behaviour: verdict and task print the linked ADRs; unlinked s
   assertEquals(t2.stdout, "T-2\n");
   assertEquals(
     t2.stderr,
-    "DECIDED: T-2 covers behaviour an ADR decides.\n  AC-2: adr/ADR-0001.md, adr/ADR-0002.md\n",
+    "DECIDED: T-2 covers behaviour an ADR decides.\n  AC-2: adr/ADR-0001.adr.yaml, adr/ADR-0002.adr.yaml\n",
   );
   assertEquals(verifyFile(ts).exitCode, 0);
 });

@@ -1,0 +1,4 @@
+{"file":"bad-adr-accepted-assumes-proposed.adr.yaml","valid":false,"errors":[
+  {"rule":"E807","severity":"error","line":7,"path":"assumes[0]","message":"an accepted record may not assume ADR-0002, which is proposed"}
+],"warnings":[
+],"summary":{"requirements":0,"acceptanceCriteria":0,"options":2,"obligations":0}}

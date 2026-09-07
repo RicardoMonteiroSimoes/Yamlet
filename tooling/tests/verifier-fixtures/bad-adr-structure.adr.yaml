@@ -1,0 +1,62 @@
+adr: ADR-90
+title: ""
+status: pending
+date: 7 Sep 2026
+kind: choice
+extra: nope
+
+question: >-
+  Which?
+
+forces:
+- Doing nothing: not available
+- ""
+
+basis:
+- id: B-1
+  quantity: many
+- id: B-1
+  quantity: 3 things
+  source: somewhere
+
+dimensions:
+- id: D-1
+  matters: >-
+    A measured axis without a yardstick
+  unit: EUR
+- id: D-2
+  basis:
+  - B-1
+  - B-7
+  matters: >-
+    Basis without a unit
+- id: D-2
+  matters: >-
+    Duplicate id
+  colour: red
+
+options:
+- id: OPT-1
+  summary: >-
+    Only one option, unknown reversibility, missing a cell, extra cell
+  reversibility: maybe
+  against:
+    D-1: >-
+      no numeral here
+    D-9: >-
+      not a dimension
+
+decision: OPT-4
+
+requires:
+- id: R-1
+- id: R-1
+  must: >-
+    duplicate
+
+accepts:
+- Costs: prose with a colon-space
+
+revisit:
+- >-
+  Ownership exceeds the assumption the cost rests on.

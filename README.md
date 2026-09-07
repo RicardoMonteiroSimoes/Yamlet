@@ -105,11 +105,12 @@ querying commands first, then the authoring primitives the skills orchestrate
 | `yamlet init FILE ...` | create a spec, contract and all, correct by construction |
 | `yamlet add-component` · `add-connection` | declare a composite's members, and wire them a group at a time |
 | `yamlet add-requirement` · `add-criterion` | append a requirement, or a criterion under any requirement — `--after AC-N` inserts behind a named sibling instead of appending |
-| `yamlet add-adr FILE PATH --rq\|--ac` | link an architecture decision record to an existing requirement or criterion; verify checks the file exists |
-| `yamlet techspec init\|analysis\|criterion\|task` | build a disposable `.techspec.yaml`: a verdict per criterion against the code, then tasks covering every unmet one. `verify` checks coverage |
+| `yamlet add-adr FILE PATH --rq\|--ac` | link a decision record (`.adr.yaml`) to an existing requirement or criterion; verify checks it exists |
+| `yamlet techspec init\|analysis\|criterion\|task` | build a disposable `.techspec.yaml`: a verdict per criterion against the code, then tasks covering every unmet one and every obligation of the records the spec links. `verify` checks coverage |
+| `yamlet adr init\|add-force\|add-basis\|add-dimension\|add-option\|decide\|add-obligation\|add-accept\|add-revisit\|accept\|reject\|supersede` | write a decision record correct by construction: forces, a basis, the dimensions, then every option judged against all of them; a decision; the obligations it places on the work. Frozen after `accept`; revised only by superseding |
 
 Every mutating command allocates the IDs itself and echoes them on stdout —
-`RQ-1`, `AC-3`, `T-2` — and never takes one as input. IDs are never reused and never
+`RQ-1`, `AC-3`, `T-2`, `ADR-0004`, `OPT-2`, `R-1` — and never takes one as input. IDs are never reused and never
 renumbered: an inserted criterion gets a letter-suffixed id on its anchor (after
 `AC-3` comes `AC-3a`) so it sorts into place while the projected Gherkin manifest,
 which keys on those ids, stays valid. `edit` and `rm` are deliberately not
