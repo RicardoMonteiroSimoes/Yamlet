@@ -19,6 +19,7 @@ import { verifyText } from "./verify.ts";
 import { type Contract, contractOf } from "./systems.ts";
 import { type CompositeInfo, resolveComposite, socketKey } from "./composite.ts";
 import { type Block, blocksOf, criteriaKeyLine, findBlock, spliceAfter } from "./blocks.ts";
+import { listUnder } from "./records.ts";
 import {
   argVal,
   basename,
@@ -996,11 +997,41 @@ export function runAddCriterion(args: string[]): CmdResult {
         }\n`,
       };
     }
-    return { exitCode: 0, stdout: `${acid}\n`, stderr: "" };
+    // A requirement-level link decides every criterion under it — this one too.
+    const notice = decidedNotice(
+      rq,
+      `the new criterion ${acid} falls under its decision`,
+      adrsOf(next, target.path),
+    );
+    return { exitCode: 0, stdout: `${acid}\n`, stderr: notice };
   } catch (e) {
     if (e instanceof CmdError) return e.result;
     throw e;
   }
+}
+
+// ── decided blocks ──
+
+/** The `adrs:` entries of the block at `path` (`requirements[i]` or a criterion under it). */
+function adrsOf(text: string, path: string): string[] {
+  return listUnder(flatten(text).records, `${path}.adrs`);
+}
+
+/**
+ * The notice a mutation prints when it touches behaviour an ADR decides. A
+ * decision record is linked to a block precisely so that changing the block
+ * cannot happen without meeting the decision; the tool cannot judge whether
+ * the decision still holds, so it says loudly that there is one to read. On
+ * stderr, exit 0: the change is applied, the reader is warned. Any future
+ * `edit`/`rm` of a linked block prints the same notice.
+ */
+export function decidedNotice(id: string, change: string, adrs: string[]): string {
+  if (adrs.length === 0) return "";
+  let s = `WARNING: ${id} is decided by an ADR — ${change}.\n`;
+  for (const a of adrs) s += `  ${a}\n`;
+  s += "Read the decision before relying on this change. If it no longer holds, supersede the\n" +
+    "ADR and relink it (add-adr) rather than leaving the spec pointing at a stale decision.\n";
+  return s;
 }
 
 // ── add-adr ──

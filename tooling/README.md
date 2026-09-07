@@ -97,7 +97,9 @@ yamlet add-criterion   FILE --rq RQ-N [--after AC-N] --pattern P \
 yamlet add-adr         FILE PATH (--rq RQ-N | --ac AC-N)
                                                    -> link a decision record (a path relative to FILE, must exist) to an
                                                       existing requirement or criterion; the first mutation of an existing
-                                                      block, gated by the stricter (rule, message)-keyed guard
+                                                      block, gated by the stricter (rule, message)-keyed guard. Any later
+                                                      mutation touching decided behaviour (add-criterion under a linked
+                                                      requirement) warns on stderr, naming the records to read
 yamlet techspec init      SPEC [--out FILE]        -> a disposable <spec>.techspec.yaml from a spec that verifies clean;
                                                       prints its path
 yamlet techspec analysis  FILE --commit SHA [--deep DIR ...] [--skimmed DIR ...]

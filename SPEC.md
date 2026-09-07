@@ -246,6 +246,12 @@ existing block by `yamlet add-adr` — the one mutation the author performs on a
 block that already exists. On a requirement the list sits before
 `acceptance-criteria`, which stays the requirement's last key.
 
+The link is load-bearing on every later change: a mutation that touches decided
+behaviour prints a warning naming the records to read (today, adding a criterion
+under a linked requirement; an `edit`/`rm` of a linked block, once they exist).
+yamlet cannot judge whether the decision still holds — that is the reader's — it
+only makes sure nobody changes the behaviour without meeting the decision.
+
 ### Placeholders and examples
 
 When a value varies across concrete cases, use a `{placeholder}` in clause or

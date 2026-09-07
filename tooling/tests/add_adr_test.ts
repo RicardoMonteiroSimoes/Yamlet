@@ -3,7 +3,13 @@
 // one, and the first through the stricter (rule, message)-keyed commit gate.
 
 import { assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
-import { runAddAdr, runAddCriterion, runAddRequirement, runInit } from "../src/author.ts";
+import {
+  decidedNotice,
+  runAddAdr,
+  runAddCriterion,
+  runAddRequirement,
+  runInit,
+} from "../src/author.ts";
 import { blocksOf } from "../src/blocks.ts";
 import { verifyText } from "../src/verify.ts";
 
@@ -147,4 +153,49 @@ Deno.test("E109: a link whose file disappears is reported on the spec", () => {
   const { result } = verifyText(file, read());
   assertEquals(result.errors.map((e) => e.rule), ["E109"]);
   assertStringIncludes(result.errors[0]!.message, "adr/ADR-0001.md");
+});
+
+Deno.test("adding a criterion under a decided requirement warns loudly, and still applies", () => {
+  const { file, read } = seed();
+  runAddAdr([file, "adr/ADR-0001.md", "--rq", "RQ-1"]);
+  runAddAdr([file, "adr/ADR-0002.md", "--rq", "RQ-1"]);
+  runAddAdr([file, "adr/ADR-0002.md", "--ac", "AC-3"]); // a criterion-level link on RQ-2
+
+  const r = runAddCriterion([file, "--rq", "RQ-1", "--pattern", "ubiquitous", "--shall", "z"]);
+  assertEquals(r.exitCode, 0);
+  assertEquals(r.stdout, "AC-4\n");
+  assertStringIncludes(r.stderr, "WARNING: RQ-1 is decided by an ADR");
+  assertStringIncludes(r.stderr, "AC-4 falls under its decision");
+  assertStringIncludes(r.stderr, "  adr/ADR-0001.md\n  adr/ADR-0002.md\n");
+  assertStringIncludes(r.stderr, "supersede");
+  assertStringIncludes(read(), "    - z\n");
+
+  // A criterion-level link on a sibling does not decide a new criterion of the requirement.
+  const quiet = runAddCriterion([file, "--rq", "RQ-2", "--pattern", "ubiquitous", "--shall", "w"]);
+  assertEquals(quiet.exitCode, 0);
+  assertEquals(quiet.stderr, "");
+
+  // And with --after, the owning requirement's decision still applies.
+  const ins = runAddCriterion([
+    file,
+    "--rq",
+    "RQ-1",
+    "--after",
+    "AC-1",
+    "--pattern",
+    "ubiquitous",
+    "--shall",
+    "v",
+  ]);
+  assertEquals(ins.stdout, "AC-1a\n");
+  assertStringIncludes(ins.stderr, "AC-1a falls under its decision");
+});
+
+Deno.test("decidedNotice is empty without links and names every link with one", () => {
+  assertEquals(decidedNotice("AC-1", "x", []), "");
+  const n = decidedNotice("AC-1", "its shall changed", ["a.md", "b.md"]);
+  assertStringIncludes(
+    n,
+    "WARNING: AC-1 is decided by an ADR — its shall changed.\n  a.md\n  b.md\n",
+  );
 });
