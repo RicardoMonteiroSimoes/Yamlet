@@ -111,7 +111,9 @@ yamlet techspec task      FILE --title "..." [--covers AC-N ...] [--depends-on T
                                                       criterion (the owning RQ is looked up in the spec), then tasks
                                                       covering the unmet ones. Every RQ-N/AC-N is checked against the
                                                       spec; only T-N is minted here. The file is rewritten canonically
-                                                      on every call and `verify` checks coverage (E701–E715)
+                                                      on every call and `verify` checks coverage (E701–E715). Where the
+                                                      spec links an ADR on a criterion or its requirement, criterion and
+                                                      task print a DECIDED notice on stderr naming the records
 ```
 
 Exit codes: `0` success · `1` verify found errors · `2` usage/validation error (nothing written) ·

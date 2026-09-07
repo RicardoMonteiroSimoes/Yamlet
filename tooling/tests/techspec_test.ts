@@ -4,7 +4,7 @@
 // `verify` on the result is the closing gate the skill relies on.
 
 import { assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
-import { runAddCriterion, runAddRequirement, runInit } from "../src/author.ts";
+import { runAddAdr, runAddCriterion, runAddRequirement, runInit } from "../src/author.ts";
 import {
   runTechspec,
   runTechspecAnalysis,
@@ -337,4 +337,50 @@ Deno.test("dispatch: no subcommand or an unknown one is a usage error", () => {
   assertEquals(r.exitCode, 2);
   assertStringIncludes(r.stderr, "Unknown techspec subcommand: bogus");
   assertEquals(runTechspec(["init"]).exitCode, 2);
+});
+
+Deno.test("decided behaviour: verdict and task print the linked ADRs; unlinked stays quiet", () => {
+  const dir = Deno.makeTempDirSync();
+  const spec = seedSpec(dir);
+  Deno.mkdirSync(`${dir}/adr`);
+  Deno.writeTextFileSync(`${dir}/adr/ADR-0001.md`, "# 1\n");
+  Deno.writeTextFileSync(`${dir}/adr/ADR-0002.md`, "# 2\n");
+  ok(runAddAdr([spec, "adr/ADR-0001.md", "--rq", "RQ-1"]), "link RQ-1");
+  ok(runAddAdr([spec, "adr/ADR-0002.md", "--ac", "AC-2"]), "link AC-2");
+  ok(runAddAdr([spec, "adr/ADR-0001.md", "--ac", "AC-2"]), "link AC-2 again (dedupes in notice)");
+  const ts = `${dir}/svc.techspec.yaml`;
+  ok(runTechspecInit([spec]), "init");
+  ok(runTechspecAnalysis([ts, "--commit", "9f3c1ab"]), "analysis");
+
+  // AC-1: decided via its requirement only.
+  const a1 = runTechspecCriterion([ts, "--ac", "AC-1", "--met", "true", "--evidence", "a:1"]);
+  ok(a1, "AC-1");
+  assertEquals(
+    a1.stderr,
+    "DECIDED: AC-1 is decided by an ADR (via RQ-1).\n  adr/ADR-0001.md\n" +
+      "The evidence for AC-1 must fit these decisions.\n",
+  );
+  // AC-2: via the requirement and itself; the shared record appears once.
+  const a2 = runTechspecCriterion([ts, "--ac", "AC-2", "--met", "false"]);
+  ok(a2, "AC-2");
+  assertEquals(
+    a2.stderr,
+    "DECIDED: AC-2 is decided by an ADR (via RQ-1 and itself).\n  adr/ADR-0001.md\n  adr/ADR-0002.md\n" +
+      "The task covering AC-2 must fit these decisions, or state that one no longer holds.\n",
+  );
+  // AC-3: nothing linked.
+  const a3 = runTechspecCriterion([ts, "--ac", "AC-3", "--met", "false"]);
+  ok(a3, "AC-3");
+  assertEquals(a3.stderr, "");
+
+  const t1 = runTechspecTask([ts, "--title", "only c", "--covers", "AC-3"]);
+  assertEquals(t1.stdout, "T-1\n");
+  assertEquals(t1.stderr, "");
+  const t2 = runTechspecTask([ts, "--title", "b and c", "--covers", "AC-2", "--covers", "AC-3"]);
+  assertEquals(t2.stdout, "T-2\n");
+  assertEquals(
+    t2.stderr,
+    "DECIDED: T-2 covers behaviour an ADR decides.\n  AC-2: adr/ADR-0001.md, adr/ADR-0002.md\n",
+  );
+  assertEquals(verifyFile(ts).exitCode, 0);
 });

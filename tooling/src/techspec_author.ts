@@ -44,6 +44,7 @@ import {
 } from "./cmd.ts";
 import {
   COMMIT_RE,
+  decidedBy,
   indexSpec,
   parseTechspec,
   serializeTechspec,
@@ -134,6 +135,35 @@ function relativePath(fromDir: string, target: string): string {
   let i = 0;
   while (i < from.length && i < to.length && from[i] === to[i]) i++;
   return [...from.slice(i).map(() => ".."), ...to.slice(i)].join("/");
+}
+
+// ── decided behaviour ──
+// A link in the spec means: this behaviour was decided, read the record before
+// deciding how to meet it. The tech spec cannot hold "I read it" (a flag proves
+// nothing), so the reminder is printed where the how is being written down —
+// on the verdict and on the task — and the skill relays it. stderr, exit 0.
+
+/** The notice printed when a verdict is recorded on decided behaviour. */
+function decidedVerdictNotice(spec: SpecIndex, acId: string, met: string): string {
+  const d = decidedBy(spec, acId);
+  if (d.adrs.length === 0) return "";
+  let s = `DECIDED: ${acId} is decided by an ADR (via ${d.via.join(" and ")}).\n`;
+  for (const a of d.adrs) s += `  ${a}\n`;
+  s += met === "true"
+    ? `The evidence for ${acId} must fit these decisions.\n`
+    : `The task covering ${acId} must fit these decisions, or state that one no longer holds.\n`;
+  return s;
+}
+
+/** The notice printed when a task covers decided behaviour: one line per decided criterion. */
+function decidedTaskNotice(spec: SpecIndex, taskId: string, covers: string[]): string {
+  const lines: string[] = [];
+  for (const acId of covers) {
+    const d = decidedBy(spec, acId);
+    if (d.adrs.length > 0) lines.push(`  ${acId}: ${d.adrs.join(", ")}`);
+  }
+  if (lines.length === 0) return "";
+  return `DECIDED: ${taskId} covers behaviour an ADR decides.\n${lines.join("\n")}\n`;
 }
 
 // ── init ──
@@ -351,7 +381,9 @@ export function runTechspecCriterion(args: string[]): CmdResult {
       group.criteria = [...group.criteria];
     }
     group.criteria.push({ id: ac, met, evidence, note });
-    return commit(file, "techspec criterion", next, spec);
+    const r = commit(file, "techspec criterion", next, spec);
+    if (r.exitCode !== 0) return r;
+    return { exitCode: 0, stdout: "", stderr: decidedVerdictNotice(spec, ac, met) };
   } catch (e) {
     if (e instanceof CmdError) return e.result;
     throw e;
@@ -446,7 +478,7 @@ export function runTechspecTask(args: string[]): CmdResult {
     };
     const r = commit(file, "techspec task", next, spec);
     if (r.exitCode !== 0) return r;
-    return { exitCode: 0, stdout: `${id}\n`, stderr: "" };
+    return { exitCode: 0, stdout: `${id}\n`, stderr: decidedTaskNotice(spec, id, covers) };
   } catch (e) {
     if (e instanceof CmdError) return e.result;
     throw e;
@@ -501,6 +533,10 @@ task       appends a task and prints its T-N. --covers names unmet criteria whos
            verdicts are already recorded; a task covering nothing is an enabler
            and needs --why. --depends-on names tasks that already exist, so the
            graph is acyclic by construction.
+decided    behaviour: where the spec links an ADR on a criterion or its
+           requirement, criterion and task print a DECIDED notice on stderr naming
+           the records. Read them; the tech spec is where a decision is met or
+           declared no longer to hold.
 verify     E701–E715: every criterion has one verdict, met ones cite evidence,
            every unmet one is covered, dependencies resolve. See --list-rules.
 `,

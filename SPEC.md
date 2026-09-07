@@ -460,6 +460,9 @@ revised in place: a tech spec is cheap to rebuild, and a rewrite would be the on
 edit whose history the file cannot show. Where a task needed a decision, the
 decision becomes an ADR and is linked into the spec with `add-adr`; the task
 reaches it through the criteria it covers, so tasks carry no link of their own.
+The reverse direction is printed, not stored: recording a verdict on a decided
+criterion, or a task covering one, prints a `DECIDED` notice naming the records,
+so the how is never written down without the decision being named.
 
 ## Decisions in flight
 

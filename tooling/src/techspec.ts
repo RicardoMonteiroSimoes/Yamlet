@@ -22,7 +22,7 @@
 import type { Finding, FlatRecord, Summary } from "./types.ts";
 import { flatten } from "./flatten.ts";
 import { blocksOf } from "./blocks.ts";
-import { childKeys, indicesUnder, itemsUnder, recordAt } from "./records.ts";
+import { childKeys, indicesUnder, itemsUnder, listUnder, recordAt } from "./records.ts";
 
 export const TECHSPEC_EXT = ".techspec.yaml";
 export const SPEC_EXT = ".yamlet.yaml";
@@ -79,6 +79,35 @@ export interface SpecIndex {
   criteria: string[];
   /** criterion id → owning requirement id. */
   ownerOf: Map<string, string>;
+  /** block id (RQ-N or AC-N) → its own `adrs:` entries, in file order. */
+  adrsOf: Map<string, string[]>;
+}
+
+/** What decides a criterion: the records linked on it and on its requirement. */
+export interface Decided {
+  /** "RQ-N", "itself", or both — where the links sit. */
+  via: string[];
+  /** The linked records, requirement's first, deduplicated. */
+  adrs: string[];
+}
+
+/**
+ * The decisions a criterion falls under. A requirement-level link decides every
+ * criterion beneath it; a criterion-level link decides that one. Empty when
+ * nothing is linked.
+ */
+export function decidedBy(spec: SpecIndex, acId: string): Decided {
+  const via: string[] = [];
+  const adrs: string[] = [];
+  const owner = spec.ownerOf.get(acId) ?? "";
+  const add = (label: string, list: string[]): void => {
+    if (list.length === 0) return;
+    via.push(label);
+    for (const a of list) if (!adrs.includes(a)) adrs.push(a);
+  };
+  if (owner !== "") add(owner, spec.adrsOf.get(owner) ?? []);
+  add("itself", spec.adrsOf.get(acId) ?? []);
+  return { via, adrs };
 }
 
 // ── reading ──
@@ -140,6 +169,7 @@ export function indexSpec(text: string): SpecIndex | null {
     requirements: [],
     criteria: [],
     ownerOf: new Map(),
+    adrsOf: new Map(),
   };
   for (const b of blocksOf(text)) {
     if (b.id === "") continue;
@@ -148,6 +178,8 @@ export function indexSpec(text: string): SpecIndex | null {
       idx.criteria.push(b.id);
       idx.ownerOf.set(b.id, b.parentId);
     }
+    const adrs = listUnder(records, `${b.path}.adrs`);
+    if (adrs.length > 0) idx.adrsOf.set(b.id, adrs);
   }
   return idx;
 }
