@@ -1,0 +1,26 @@
+system: adr-linked
+topic: ADR links
+summary: A spec whose requirement and criterion each link a decision record
+description: >-
+  Exercises the optional adrs list on a requirement (before its criteria) and on a criterion (at its end).
+blast_radius: low
+front: internal
+
+requirements:
+- id: RQ-1
+  description: >-
+    Parses the document with the chosen parser
+  adrs:
+  - adr/ADR-0001-parser.md
+  acceptance-criteria:
+  - id: AC-1
+    pattern: ubiquitous
+    shall:
+    - parse the document
+    adrs:
+    - adr/ADR-0001-parser.md
+    - adr/ADR-0002-isolation.md
+  - id: AC-2
+    pattern: ubiquitous
+    shall:
+    - report a parse failure

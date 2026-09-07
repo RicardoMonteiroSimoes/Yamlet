@@ -178,6 +178,7 @@ knows what "done" means.
 |---|---|---|---|
 | `id` | requirement id | `^RQ-[0-9]+$`, unique, script-generated | `E201`, `E202` |
 | `description` | the capability, precisely | non-empty | `E107` |
+| `adrs` *(optional)* | decision records this capability is decided by | see [`adrs`](#adrs--linking-a-decision) | `E109` |
 | `acceptance-criteria` | testable behaviours proving the capability | non-empty list | `E107`, `E108` |
 
 Ids are **allocated by the `yamlet` author runner, never chosen by hand.** They are append-only
@@ -206,6 +207,44 @@ pattern), `E303` (complex needs exactly one of when/if).
 | `pattern` | one of the six EARS patterns | see table | `E301`–`E303` |
 | clause(s) | `while`/`when`/`if`/`where` per pattern | — | `E301`, `E302` |
 | `shall` | the concrete, verifiable obligations | non-empty list | `E304` |
+| `adrs` *(optional)* | decision records this behaviour is decided by | see [`adrs`](#adrs--linking-a-decision) | `E109` |
+
+### `adrs` — linking a decision
+
+A requirement or a criterion may carry an `adrs:` list: paths, relative to the
+spec's directory, to the architecture decision records that decide *how* it is
+met. The spec stays the *what*; the link is the one thing it holds about the
+*how*, and it holds it so the spec is where a reader finds the decision and where
+a change to the behaviour meets the decision it was made under.
+
+```yaml
+- id: RQ-5
+  description: >-
+    Verifies the cross-reference table and object structure
+  adrs:                              # decides every criterion under RQ-5
+  - adr/ADR-0001-pdf-parsing-library.md
+  acceptance-criteria:
+  - id: AC-8
+    pattern: unwanted
+    if: no startxref offset resolves to a cross-reference table
+    shall:
+    - return invalid_xref_trailer
+    adrs:                            # decides this criterion alone
+    - adr/ADR-0002-parser-isolation.md
+```
+
+A link on a requirement covers all its criteria; a link on a criterion is
+specific to it. The same record may be linked from several requirements — a
+decision that spans a service is repeated where it applies rather than hoisted to
+the file, where it would imply more than it decides. Each entry must be non-empty,
+unique within its block, and resolve to an existing file (`E109`); yamlet reads
+nothing from the record itself.
+
+Decisions are made *after* a spec is finished, while the work is planned (see
+[tech specs](#tech-specs--planning-the-work)), so the link is attached to an
+existing block by `yamlet add-adr` — the one mutation the author performs on a
+block that already exists. On a requirement the list sits before
+`acceptance-criteria`, which stays the requirement's last key.
 
 ### Placeholders and examples
 
@@ -352,6 +391,68 @@ Open sub-decisions (still unsettled):
 
 ---
 
+## Tech specs — planning the work
+
+A spec says what must be true. A **tech spec** (`<scope>.techspec.yaml`) says what
+is true *now* and what to do about it: for a finished spec (one that verifies
+clean) and the code that implements it, one verdict per acceptance criterion and a
+task list covering every unmet one. It is **derived and disposable** — built when
+work is planned, consumed while it is done, discarded after. The spec and its ADRs
+are what persist; keep tech specs out of version control.
+
+```yaml
+spec: pdf_verify.yamlet.yaml         # relative to this file; must parse    (E703)
+system: pdf-service                  # must agree with the spec's           (E704)
+
+analysis:
+  commit: 9f3c1ab                    # the code was read at this commit     (E705)
+  deep:                              # read closely / only glanced at; recorded, not checked
+  - src/main/java/ch/adnovum/pdfservice/
+  skimmed:
+  - src/main/resources/
+
+requirements:                        # the spec's ids, in the spec's order
+- id: RQ-1
+  acceptance-criteria:
+  - id: AC-1
+    met: true                        # true|false                            (E708)
+    evidence:                        # required when met                     (E709)
+    - src/main/java/ch/adnovum/pdfservice/verify/SizeCheck.java:19
+  - id: AC-3
+    met: false
+    evidence:
+    - src/main/java/ch/adnovum/pdfservice/verify/SizeCheck.java:19
+    note: Rejects at exactly max_size_bytes; AC-3 requires an empty error there.
+
+tasks:
+- id: T-6                            # the only ids minted here
+  title: Assemble a corpus of malformed PDFs
+  why: The xref checks cannot be exercised without known-bad input.   # enabler
+- id: T-3
+  title: Return invalid_xref_trailer when no startxref resolves
+  covers:                            # unmet criteria this task satisfies     (E712)
+  - AC-8
+  depends_on:
+  - T-6
+```
+
+**Why it earns a file rather than prose:** the verifier can check it. Every
+criterion of the spec has exactly one verdict (`E706`, `E707`); `met: true` cites
+evidence (`E709`); every unmet criterion is covered by a task (`E715`); a task
+covering nothing is an enabler and says `why` (`E713`); `depends_on` resolves and
+is acyclic (`E714`). The criterion an agent quietly skips is the failure the file
+exists to catch. Nothing else is stored: a requirement's status, and whether an
+unmet criterion has wrong code or no code, are readable from the verdicts and the
+evidence, so they are not fields.
+
+The file is written only by `yamlet techspec` (`init` · `analysis` · `criterion` ·
+`task`), which checks every `RQ-N`/`AC-N` against the spec on the way in and
+rewrites the file canonically on every call. A verdict, once recorded, is not
+revised in place: a tech spec is cheap to rebuild, and a rewrite would be the one
+edit whose history the file cannot show. Where a task needed a decision, the
+decision becomes an ADR and is linked into the spec with `add-adr`; the task
+reaches it through the criteria it covers, so tasks carry no link of their own.
+
 ## Decisions in flight
 
 Design decisions that are **settled in intent but not yet built** — captured here so
@@ -367,7 +468,9 @@ Not yet implemented.
 
 ---
 
-*Shipped since first draft: the [`exposes`](#exposes--the-contract-signature) contract
+*Shipped since first draft: [`adrs`](#adrs--linking-a-decision) links on requirements
+and criteria (`E109`) and the derived [tech spec](#tech-specs--planning-the-work)
+(`E701`–`E715`); the [`exposes`](#exposes--the-contract-signature) contract
 signature with `{input.NAME}`/`{output.NAME}` references and both-direction binding
 (`E501`–`E511`); and full [Composition](#composition--a-level-above-the-component) — a
 `components:` membership list plus an explicit `connections:` block (`sink: source`),

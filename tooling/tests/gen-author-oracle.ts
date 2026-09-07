@@ -8,6 +8,7 @@
 //   deno run --allow-read --allow-write tests/gen-author-oracle.ts
 
 import {
+  runAddAdr,
   runAddComponent,
   runAddConnection,
   runAddCriterion,
@@ -328,6 +329,48 @@ must(runAddConnection([
   "attachment=uploads.pdf_file",
 ]));
 Deno.copyFileSync(composite, `${OUT}composite.yamlet.yaml`);
+
+// ── adrs: decision links on a requirement and on a criterion, appended to over time ──
+const adrs = `${work}/adrs.yamlet.yaml`;
+Deno.mkdirSync(`${work}/adr`);
+Deno.writeTextFileSync(`${work}/adr/ADR-0001-parser.md`, "# ADR-0001\n");
+Deno.writeTextFileSync(`${work}/adr/ADR-0002-isolation.md`, "# ADR-0002\n");
+must(runInit([
+  adrs,
+  "--system",
+  "pdf-service",
+  "--topic",
+  "PDF verification",
+  "--summary",
+  "Verifies a PDF's structure",
+  "--description",
+  "Checks the header, cross-reference table and object structure.",
+  "--blast-radius",
+  "medium",
+  "--front",
+  "internal",
+]));
+rq(adrs, ["--description", "Verifies the header"]);
+ac(adrs, ["--rq", "RQ-1", "--pattern", "ubiquitous", "--shall", "check the header"]);
+rq(adrs, ["--description", "Verifies the cross-reference table and objects"]);
+ac(adrs, ["--rq", "RQ-2", "--pattern", "ubiquitous", "--shall", "resolve startxref"]);
+ac(adrs, ["--rq", "RQ-2", "--pattern", "ubiquitous", "--shall", "balance obj/endobj"]);
+must(runAddAdr([adrs, "adr/ADR-0001-parser.md", "--rq", "RQ-2"]));
+must(runAddAdr([adrs, "adr/ADR-0001-parser.md", "--ac", "AC-2"]));
+must(runAddAdr([adrs, "adr/ADR-0002-isolation.md", "--ac", "AC-2"]));
+must(runAddAdr([adrs, "adr/ADR-0002-isolation.md", "--rq", "RQ-2"]));
+// A criterion inserted behind the linked one lands after its list.
+ac(adrs, [
+  "--rq",
+  "RQ-2",
+  "--after",
+  "AC-2",
+  "--pattern",
+  "ubiquitous",
+  "--shall",
+  "read the trailer",
+]);
+Deno.copyFileSync(adrs, `${OUT}adrs.yamlet.yaml`);
 
 Deno.removeSync(work, { recursive: true });
 console.log(`wrote author goldens to ${OUT}`);

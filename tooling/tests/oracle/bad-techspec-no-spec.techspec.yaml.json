@@ -1,0 +1,5 @@
+{"file":"bad-techspec-no-spec.techspec.yaml","valid":false,"errors":[
+  {"rule":"E701","severity":"error","line":0,"path":"analysis","message":"missing required top-level key: analysis"},
+  {"rule":"E703","severity":"error","line":1,"path":"spec","message":"spec does not resolve to a parseable file: does-not-exist.yamlet.yaml"}
+],"warnings":[
+],"summary":{"requirements":0,"acceptanceCriteria":0,"tasks":0}}

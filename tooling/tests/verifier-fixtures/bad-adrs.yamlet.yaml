@@ -1,0 +1,23 @@
+system: adr-linked
+topic: ADR links
+summary: A spec whose ADR links are broken in each way E109 names
+description: >-
+  A missing file, a duplicate within one block, and an empty entry.
+blast_radius: low
+front: internal
+
+requirements:
+- id: RQ-1
+  description: >-
+    Parses the document with the chosen parser
+  adrs:
+  - adr/ADR-0009-missing.md
+  acceptance-criteria:
+  - id: AC-1
+    pattern: ubiquitous
+    shall:
+    - parse the document
+    adrs:
+    - adr/ADR-0001-parser.md
+    - adr/ADR-0001-parser.md
+    - ""

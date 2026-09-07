@@ -1,0 +1,4 @@
+{"file":"bad-techspec-cycle.techspec.yaml","valid":false,"errors":[
+  {"rule":"E714","severity":"error","line":20,"path":"tasks[0].depends_on","message":"dependency cycle: T-1 -> T-3 -> T-2 -> T-1"}
+],"warnings":[
+],"summary":{"requirements":1,"acceptanceCriteria":3,"tasks":3}}

@@ -11,7 +11,11 @@ export interface Rule {
 }
 
 export const CATALOG: Rule[] = [
-  { id: "E001", severity: "error", description: "file must use the .yamlet.yaml extension" },
+  {
+    id: "E001",
+    severity: "error",
+    description: "file must use the .yamlet.yaml (spec) or .techspec.yaml (tech spec) extension",
+  },
   { id: "E002", severity: "error", description: "tabs are not allowed; use spaces only" },
   { id: "E003", severity: "error", description: "indentation must be a multiple of 2 spaces" },
   {
@@ -43,6 +47,12 @@ export const CATALOG: Rule[] = [
     description: "requirement or criterion missing a required field",
   },
   { id: "E108", severity: "error", description: "acceptance-criteria list is empty" },
+  {
+    id: "E109",
+    severity: "error",
+    description:
+      "adrs entry is empty, duplicated in its block, or does not resolve to an existing file",
+  },
   { id: "E201", severity: "error", description: "requirement id must match ^RQ-[0-9]+$" },
   { id: "E202", severity: "error", description: "duplicate requirement id in file" },
   {
@@ -158,6 +168,76 @@ export const CATALOG: Rule[] = [
     severity: "error",
     description: "a declared composite output is not fed by any connection",
   },
+  // ── tech spec (.techspec.yaml): the gap analysis + task list projected from one spec ──
+  {
+    id: "E701",
+    severity: "error",
+    description: "tech spec is missing a required top-level key (spec, system, analysis)",
+  },
+  {
+    id: "E702",
+    severity: "error",
+    description:
+      "unknown top-level key in a tech spec (allowed: spec, system, analysis, requirements, tasks)",
+  },
+  {
+    id: "E703",
+    severity: "error",
+    description: "tech spec's `spec` does not resolve to a parseable .yamlet.yaml next to it",
+  },
+  { id: "E704", severity: "error", description: "tech spec's system differs from its spec's" },
+  {
+    id: "E705",
+    severity: "error",
+    description:
+      "analysis is malformed (commit must be 7–40 hex chars; deep/skimmed entries non-empty and disjoint; no other keys)",
+  },
+  {
+    id: "E706",
+    severity: "error",
+    description: "a criterion of the spec has no verdict in the tech spec",
+  },
+  {
+    id: "E707",
+    severity: "error",
+    description:
+      "a recorded requirement or criterion is not in the spec, sits under the wrong requirement, or is recorded twice",
+  },
+  {
+    id: "E708",
+    severity: "error",
+    description: "criterion verdict `met` is missing or not true|false",
+  },
+  { id: "E709", severity: "error", description: "a criterion marked met: true cites no evidence" },
+  {
+    id: "E710",
+    severity: "error",
+    description:
+      "requirement or criterion entry is malformed (missing id, unknown key, empty evidence or note)",
+  },
+  {
+    id: "E711",
+    severity: "error",
+    description:
+      "task is malformed (id must match ^T-[0-9]+$ and be unique; title required; no other keys)",
+  },
+  {
+    id: "E712",
+    severity: "error",
+    description:
+      "task covers a criterion that is unknown, has no verdict, is already met, or is listed twice",
+  },
+  {
+    id: "E713",
+    severity: "error",
+    description: "a task covering nothing needs `why`; a task covering criteria must not carry one",
+  },
+  {
+    id: "E714",
+    severity: "error",
+    description: "depends_on names an unknown task, the task itself, a duplicate, or forms a cycle",
+  },
+  { id: "E715", severity: "error", description: "an unmet criterion is covered by no task" },
   {
     id: "W001",
     severity: "warning",

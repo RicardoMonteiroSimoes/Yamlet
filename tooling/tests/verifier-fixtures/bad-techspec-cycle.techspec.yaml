@@ -1,0 +1,36 @@
+spec: valid-example.yamlet.yaml
+system: e-mail-sending-service
+
+analysis:
+  commit: 9f3c1ab
+
+requirements:
+- id: RQ-1
+  acceptance-criteria:
+  - id: AC-1
+    met: false
+  - id: AC-2
+    met: false
+  - id: AC-3
+    met: true
+    evidence:
+    - src/main/Retry.java:3
+
+tasks:
+- id: T-1
+  title: First
+  covers:
+  - AC-1
+  depends_on:
+  - T-3
+- id: T-2
+  title: Second
+  covers:
+  - AC-2
+  depends_on:
+  - T-1
+- id: T-3
+  title: Third
+  why: closes the cycle
+  depends_on:
+  - T-2
