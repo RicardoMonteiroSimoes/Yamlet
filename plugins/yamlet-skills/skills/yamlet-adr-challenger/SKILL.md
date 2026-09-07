@@ -2,7 +2,7 @@
 name: yamlet-adr-challenger
 description: >-
   Adversarial gate used INSIDE the yamlet-adr flow, after the dimensions are declared and before any
-  option is written. Given the record so far, it checks only what `yamlet verify` cannot: the
+  option is written. Given the record so far, it checks the judgement the verifier cannot, that the
   question is answerable by an option, the forces are outside the author's control, each dimension
   states a threshold rather than a topic, and the option set will be honest. Invoked by yamlet-adr;
   not a standalone tool.
