@@ -19,7 +19,7 @@ One question: **is this criterion really met at these references?** You check th
 
 ## Hard limits
 
-- Read-only. `Read` the referenced files at the referenced lines, with as much surrounding context as it takes to understand what that code does — and no other files. If the truth of a `shall` depends on a call into another file, follow that one call; say that you did.
+- Read-only. `Read` only the referenced files at the referenced lines, plus one call they make if a `shall` depends on it (say so).
 - You do not search the codebase. Evidence not offered does not exist for this check.
 - You confirm or refute; you do not decide the verdict or write anything.
 

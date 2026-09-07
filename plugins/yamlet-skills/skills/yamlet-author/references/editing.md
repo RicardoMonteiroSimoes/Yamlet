@@ -95,7 +95,7 @@ When you hit one of these, say which change is blocked, why, and what you did in
 
 ## 5a. Decided requirements
 
-A requirement or criterion may carry `adrs:` — decision records linked while the work was planned. Adding a criterion under a linked requirement prints a `WARNING:` naming the records; it still applies. Relay it, and say that the next tech spec (`/yamlet-techspec`) is where the decision is met or revisited. Do not read the records to second-guess the change here, and never remove or rewrite a link.
+`adrs:` on a requirement or criterion links the decisions behind it; adding a criterion under a linked requirement prints a `WARNING:` naming them. Relay it and point to `/yamlet-techspec`; never remove or rewrite a link.
 
 ## 6. Then rejoin the shared flow
 

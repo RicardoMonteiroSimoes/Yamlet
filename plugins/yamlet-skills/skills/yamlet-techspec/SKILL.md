@@ -13,7 +13,7 @@ allowed-tools: Bash(yamlet:*), Bash(git rev-parse:*), Read, Write, Skill(yamlet-
 
 # Yamlet Tech Spec Skill
 
-Turn a **finished** spec plus the code that should implement it into a **tech spec**: one verdict per acceptance criterion (met or not, with evidence) and a task list that covers every unmet criterion. You investigate; you do not implement, and you do not change the spec's behaviour.
+Turn a **finished** spec and its code into a **tech spec**: a verdict per criterion, then tasks covering every unmet one. You investigate; you do not implement.
 
 ## The hard rules
 
@@ -42,11 +42,11 @@ Turn a **finished** spec plus the code that should implement it into a **tech sp
 
 ## Decided behaviour
 
-A `DECIDED:` notice (from `criterion` or `task`) lists the ADRs that decide that criterion, through its requirement or itself. **`Read` each record before going on.** The verdict's evidence and the covering task must fit the decision. If the code or the plan contradicts it, that is not a task: it is a decision to revisit — put it to the user through the gate in `references/decisions.md`, which supersedes the record with a new one and relinks. Never plan around a decision silently.
+A `DECIDED:` notice lists the ADRs behind a criterion. **`Read` them before going on**; the verdict and the covering task must fit them. If they no longer hold, that is a decision to revisit through `references/decisions.md`, never a task.
 
 ## Report
 
-In prose, in dependency order: each task with its id, what it delivers and which criteria it covers; the enablers and why; the criteria found met and where; every ADR written or read. State the tech spec's path, that it is disposable, and that `*.techspec.yaml` belongs in `.gitignore`. Implementation is the user's next step, not yours.
+In prose, in dependency order: each task, what it delivers, which criteria it covers; the criteria found met; every ADR written or read. Name the file, say it is disposable and belongs in `.gitignore`.
 
 ## When the spec changes later
 

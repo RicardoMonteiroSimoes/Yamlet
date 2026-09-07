@@ -4,8 +4,7 @@ description: >-
   Creates and changes EARS spec files (.yamlet.yaml) by interviewing the user and driving the
   `yamlet` CLI — never by hand-writing YAML. Use when the user wants a new spec, a requirement or
   acceptance-criterion added to an existing one, an existing spec changed, or existing services
-  wired together as a composite. Not for planning the work on a finished spec — that is
-  yamlet-techspec.
+  wired together as a composite. Planning the work on a finished spec is yamlet-techspec.
 allowed-tools: Bash(yamlet:*), Read, Skill(yamlet-verifier *), Skill(yamlet-skills:yamlet-verifier *), Skill(yamlet-contract-challenger *), Skill(yamlet-skills:yamlet-contract-challenger *), Skill(yamlet-criteria-challenger *), Skill(yamlet-skills:yamlet-criteria-challenger *), Skill(yamlet-tester *), Skill(yamlet-skills:yamlet-tester *)
 ---
 

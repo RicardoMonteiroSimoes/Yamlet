@@ -1,10 +1,10 @@
 # The decision gate
 
-Run this when an unmet criterion cannot be broken into tasks without a choice the user owns, or when a `DECIDED:` record no longer fits the code or the plan. It ends with an ADR on disk and a link in the spec. Until yamlet owns an ADR format, the record is plain markdown; the link is what yamlet checks.
+Run this when a task needs a choice the user owns, or a `DECIDED:` record no longer fits. It ends with an ADR (plain markdown) linked into the spec.
 
 ## 1. Put the choice to the user — never decide it
 
-State, in one short block: the criteria that need it (ids and the `shall` lines that force the choice); the options you see, each in one line with its main consequence; and what the code already does, if it leans one way. Recommend one and say why. **Wait for the user.** A choice a person did not make is not a decision, it is an assumption with a file name.
+State the criteria that force the choice, the options with one consequence each, and your recommendation. **Wait for the user.**
 
 ## 2. Write the record
 
