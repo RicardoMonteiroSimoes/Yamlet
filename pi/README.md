@@ -9,8 +9,9 @@ This directory is the pi build. They are separate ports of one idea, not a share
 source: pi's model differs enough that a symlink would lie.
 
 > **Not yet ported:** the tech spec flow (`yamlet techspec`, `yamlet add-adr`, and the
-> `yamlet-techspec` / `yamlet-code-research` / `yamlet-evidence-challenger` skills). The
-> extension neither registers those subcommands nor requires them, so an older CLI still loads.
+> `yamlet-techspec` / `yamlet-code-research` / `yamlet-evidence-challenger` skills) and the
+> decision record flow (`yamlet adr`, `yamlet-adr`, `yamlet-adr-challenger`). The extension
+> neither registers those subcommands nor requires them, so an older CLI still loads.
 
 ## Prerequisites
 
