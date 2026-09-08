@@ -45,6 +45,40 @@ const SPEC_RE = /\.yamlet\.ya?ml\b/i;
  */
 const OWNED_RE = /\.(yamlet|techspec|adr)\.ya?ml\b/i;
 
+/** A shell redirect (`>` or `>>`) whose target is an owned file; derived, so the list lives once. */
+const REDIRECT_INTO_OWNED_RE = new RegExp(`>>?\\s*\\S*${OWNED_RE.source}`, "i");
+
+/**
+ * What the gate says when `write`/`edit` targets an owned file: the reason names
+ * the tools to use instead, per kind, and the one edit each kind never supports.
+ */
+const OWNED_KINDS: ReadonlyArray<{ re: RegExp; kind: string; reason: string }> = [
+	{
+		re: SPEC_RE,
+		kind: ".yamlet.yaml",
+		reason:
+			"which owns serialization and mints every RQ-/AC- id — hand-editing is what makes a spec drift. " +
+			"Use the yamlet_* tools (yamlet_init, yamlet_add_requirement, yamlet_add_criterion, …) instead. " +
+			"They still append to an existing spec; only revising or deleting committed text is unsupported — " +
+			"say so rather than working around it.",
+	},
+	{
+		re: /\.techspec\.ya?ml\b/i,
+		kind: ".techspec.yaml",
+		reason:
+			"which checks every RQ-/AC- id against the spec and mints every T- id. Use the yamlet_techspec_* " +
+			"tools. A verdict is never revised in place: if one was wrong, delete the file and start the tech " +
+			"spec over.",
+	},
+	{
+		re: /\.adr\.ya?ml\b/i,
+		kind: ".adr.yaml",
+		reason:
+			"which mints every B-/D-/OPT-/R- id and freezes the record on accept. Use the yamlet_adr_* tools; " +
+			"a decision that no longer holds is superseded by a new record, never edited.",
+	},
+];
+
 const INSTALL_HINT =
 	"`yamlet` is not on PATH. Install it with:\n" +
 	"    brew tap RicardoMonteiroSimoes/yamlet\n" +
@@ -121,8 +155,11 @@ async function findOnPath(cmd: string): Promise<string | undefined> {
  * it which commands exist stays correct without pinning a version this repo
  * would then have to keep in step.
  *
- * Only successes are cached. A failed probe is retried on the next call, so
- * installing yamlet mid-session starts working without restarting pi.
+ * Only a complete success is cached. A failed probe, or one that found an
+ * older CLI without the planning commands, is retried on the next call, so
+ * installing or upgrading yamlet mid-session — which is exactly what the
+ * startup notice asks for — starts working without restarting pi. The cost is
+ * two short `yamlet` runs per tool call for as long as the CLI stays old.
  *
  * The cache lives per instance rather than at module scope: pi-subagents runs
  * subagents in-process, so a module-level cache would be shared across sessions
@@ -170,7 +207,8 @@ function makeProbe(pi: ExtensionAPI): (cwd: string) => Promise<Probe> {
 			return { ok: true, version, missing: [] };
 		})();
 		cachedProbe = run.then((p) => {
-			if (!p.ok) cachedProbe = undefined; // retry next time; a mid-session install should just work
+			// Retry next time; a mid-session install or upgrade should just work.
+			if (!p.ok || p.missing.length > 0) cachedProbe = undefined;
 			return p;
 		});
 		return cachedProbe;
@@ -426,7 +464,7 @@ function shellWritesSpec(command: string): boolean {
 		// writing the file rather than the CLI's own serializer. (`graph` itself
 		// now refuses a `*.yamlet.yaml` --out, so the two guards agree: a graph
 		// never lands on a spec, by either route.)
-		if (/>>?\s*\S*\.(yamlet|techspec|adr)\.ya?ml\b/i.test(s)) return true;
+		if (REDIRECT_INTO_OWNED_RE.test(s)) return true;
 		// Otherwise the CLI itself is the sanctioned writer and passes.
 		if (/^(?:sudo\s+)?yamlet\b/.test(s)) return false;
 		return /\btee\b/.test(s) || /\bsed\b[^&]*\s-i\b/.test(s);
@@ -502,7 +540,8 @@ export default function (pi: ExtensionAPI) {
 		// rather than lost behind the prompt, and still never overwritten.
 		const staleNote = stale.length > 0
 			? ` (${listOf(stale)} differ${stale.length === 1 ? "s" : ""} from the packaged version and ` +
-				`${stale.length === 1 ? "was" : "were"} left untouched.)`
+				`${stale.length === 1 ? "was" : "were"} left untouched — re-copy from ${src} if you want the ` +
+				`packaged version.)`
 			: "";
 		if (!ctx.hasUI) {
 			ctx.ui.notify(
@@ -553,34 +592,13 @@ export default function (pi: ExtensionAPI) {
 
 		if (event.toolName === "write" || event.toolName === "edit") {
 			const path = typeof input?.path === "string" ? cleanPath(input.path) : "";
-			if (SPEC_RE.test(path)) {
+			const owned = OWNED_KINDS.find((k) => k.re.test(path));
+			if (owned) {
 				return {
 					block: true,
 					reason:
-						`Refusing to ${event.toolName} ${path} directly. A .yamlet.yaml is written only by the ` +
-						`yamlet CLI, which owns serialization and mints every RQ-/AC- id — hand-editing is what ` +
-						`makes a spec drift. Use the yamlet_* tools (yamlet_init, yamlet_add_requirement, ` +
-						`yamlet_add_criterion, …) instead. They still append to an existing spec; only revising or ` +
-						`deleting committed text is unsupported — say so rather than working around it.`,
-				};
-			}
-			if (/\.techspec\.ya?ml\b/i.test(path)) {
-				return {
-					block: true,
-					reason:
-						`Refusing to ${event.toolName} ${path} directly. A .techspec.yaml is written only by the ` +
-						`yamlet CLI, which checks every RQ-/AC- id against the spec and mints every T- id. Use the ` +
-						`yamlet_techspec_* tools. A verdict is never revised in place: if one was wrong, delete the ` +
-						`file and start the tech spec over.`,
-				};
-			}
-			if (/\.adr\.ya?ml\b/i.test(path)) {
-				return {
-					block: true,
-					reason:
-						`Refusing to ${event.toolName} ${path} directly. A .adr.yaml is written only by the yamlet ` +
-						`CLI, which mints every B-/D-/OPT-/R- id and freezes the record on accept. Use the ` +
-						`yamlet_adr_* tools; a decision that no longer holds is superseded by a new record, never edited.`,
+						`Refusing to ${event.toolName} ${path} directly. A ${owned.kind} is written only by the ` +
+						`yamlet CLI, ${owned.reason}`,
 				};
 			}
 		}
@@ -678,17 +696,20 @@ export default function (pi: ExtensionAPI) {
 		name: "yamlet_verify",
 		label: "yamlet verify",
 		description:
-			"Check a spec against the rule catalog, the mechanical source of truth for validity. E### is " +
-			"invalid; W### is a non-fatal warning.",
-		promptSnippet: "Verify a .yamlet.yaml against the rule catalog",
+			"Check a spec (.yamlet.yaml), a tech spec (.techspec.yaml) or a decision record (.adr.yaml) " +
+			"against the rule catalog, the mechanical source of truth for validity; the extension picks the " +
+			"rules. E### is invalid; W### is a non-fatal warning.",
+		promptSnippet: "Verify a .yamlet.yaml, .techspec.yaml or .adr.yaml against the rule catalog",
 		parameters: Type.Object({
-			file: Type.Optional(Type.String({ description: "Path to the .yamlet.yaml to verify" })),
+			file: Type.Optional(Type.String({ description: "Path to the .yamlet.yaml, .techspec.yaml or .adr.yaml to verify" })),
 			list_rules: Type.Optional(Type.Boolean({ description: "Print the rule catalog instead of verifying" })),
 			format: Type.Optional(StringEnum(["human", "json"] as const)),
 		}),
 		async execute(_id, params, signal, _onUpdate, ctx) {
 			if (!params.list_rules && !params.file) {
-				throw new Error("yamlet_verify needs either `file` (a .yamlet.yaml to check) or list_rules=true.");
+				throw new Error(
+					"yamlet_verify needs either `file` (a .yamlet.yaml, .techspec.yaml or .adr.yaml to check) or list_rules=true.",
+				);
 			}
 			const args = ["verify"];
 			if (params.format) args.push(`--format=${params.format}`);

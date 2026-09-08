@@ -88,6 +88,8 @@ function makePi({
 	const calls = [];
 	const handlers = {};
 	const tools = new Map();
+	// Mutable, so a test can "upgrade the CLI" between calls.
+	const cli = { help };
 	const pi = {
 		on: (name, fn) => { handlers[name] = fn; },
 		registerTool: (t) => tools.set(t.name, t),
@@ -102,7 +104,7 @@ function makePi({
 			if (args[0] === "help") {
 				return helpKilled
 					? { stdout: "", stderr: "", code: 0, killed: true }
-					: { stdout: help, stderr: "", code: 0, killed: false };
+					: { stdout: cli.help, stderr: "", code: 0, killed: false };
 			}
 			return killed
 				? { stdout: "", stderr: "", code: 0, killed: true }
@@ -110,7 +112,7 @@ function makePi({
 		},
 	};
 	ext(pi);
-	return { pi, calls, handlers, tools };
+	return { pi, calls, handlers, tools, cli };
 }
 
 const notes = [];
@@ -556,11 +558,29 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 	const before = calls.length;
 	let msg = "";
 	try { await tools.get("yamlet_techspec_init").execute("id", { spec: "a.yamlet.yaml" }, undefined, undefined, ctx); } catch (e) { msg = e.message; }
+	// The probe itself re-runs (a partial result is never cached, see the
+	// upgrade case below); what must not run is the command the CLI lacks.
 	ok("older CLI: a planning tool fails with the upgrade hint, before running",
-		msg.includes("missing the command(s)") && msg.includes("techspec") && msg.includes("brew upgrade yamlet") && calls.length === before,
+		msg.includes("missing the command(s)") && msg.includes("techspec") && msg.includes("brew upgrade yamlet") &&
+		!calls.slice(before).some((c) => c[1] === "techspec"),
 		msg || JSON.stringify(calls.slice(before)));
 	try { await tools.get("yamlet_adr_add_force").execute("id", { file: "a.adr.yaml", text: "t" }, undefined, undefined, ctx); } catch (e) { msg = e.message; }
 	ok("older CLI: an adr tool names `adr` as the missing command", msg.includes("needs: adr."), msg);
+}
+{
+	// The startup warning tells the user to upgrade. That upgrade must take
+	// effect in the same session: a partial probe result is not cached, so the
+	// next call re-reads `help` and finds the command.
+	resetNotes();
+	const { handlers, tools, cli } = makePi({ help: HELP_0_2_3 });
+	await handlers.session_start({}, ctx);
+	let msg = "";
+	try { await tools.get("yamlet_techspec_init").execute("id", { spec: "a.yamlet.yaml" }, undefined, undefined, ctx); } catch (e) { msg = e.message; }
+	ok("upgrade mid-session: before it, the planning tool refuses", msg.includes("techspec"), msg);
+	cli.help = HELP; // brew upgrade yamlet
+	const r = await tools.get("yamlet_techspec_init").execute("id", { spec: "a.yamlet.yaml" }, undefined, undefined, ctx);
+	ok("upgrade mid-session: after it, the planning tool runs without a restart",
+		r.details.command[1] === "techspec", JSON.stringify(r));
 }
 {
 	// A killed `help` yields empty stdout; concluding "every command missing"

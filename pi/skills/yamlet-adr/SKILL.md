@@ -32,13 +32,13 @@ This skill drives the `yamlet_adr_*` tools from the yamlet pi extension. Without
 2. **Forces.** Constraints *outside the author's control*: the trust boundary, a spec obligation, a distribution model. A prior record's obligation is **cited** (`ADR-nnnn#R-n`), never restated. `yamlet_adr_add_force({ file, text })`
 3. **Basis, if anything will be measured.** The load a number is stated under (a volume, a horizon), each with a numeral and a source. `yamlet_adr_add_basis({ file, quantity, source })`
 4. **Dimensions.** The axes, each stated as *the threshold at which it decides anything*, not what the axis is. A measured one names its unit, the yardstick (`source`) and the basis it is stated under. `yamlet_adr_add_dimension({ file, matters, unit, source, basis: ["B-n"] })`
-5. **Challenge before the options.** Spawn the **`yamlet-adr-challenger`** agent with the record's path:
+5. **Challenge before the options.** Spawn the **`yamlet-adr-challenger`** agent with the record's path **and the options you plan to write**, one line each, the status quo included. The record holds no options yet and the agent starts from a fresh context, so without that list it cannot judge whether the question is answerable or the set is honest:
 
    ```
    Agent({
      subagent_type: "yamlet-adr-challenger",
      description: "Challenge ADR before options",
-     prompt: "<path/to/record.adr.yaml>"
+     prompt: "<path/to/record.adr.yaml>\nPlanned options:\n- <option 1>\n- <option 2 (status quo)>"
    })
    ```
 

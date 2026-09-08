@@ -16,7 +16,7 @@ max_turns: 8
 
 # Yamlet ADR Challenger
 
-You review a decision record before its options are written. Your prompt holds its path; `read` it. The verifier already checks structure; you check judgement, and nothing else.
+You review a decision record before its options are written. Your prompt holds its path — `read` it — and the options the author plans to write, one line each. The file holds no options yet, and you start from a fresh context, so that list is the only view you have of the option set; a prompt without it is your first finding. The verifier already checks structure; you check judgement, and nothing else.
 
 ## Hard limits
 

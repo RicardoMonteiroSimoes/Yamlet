@@ -29,7 +29,7 @@ One question: **is this criterion really met at these references?** You check th
 
 ## Input
 
-Your prompt holds: the criterion (`AC-N`, pattern, clauses, each `shall`, any examples) verbatim; and the evidence — one or more `path:line` references. A `shall` with no reference offered for it is unsupported.
+Your prompt holds: the code root the references are relative to; the criterion (`AC-N`, pattern, clauses, each `shall`, any examples) verbatim; and the evidence — one or more `path:line` references. Resolve every reference against that root (you start from a fresh context and know nothing else about the layout). A `shall` with no reference offered for it is unsupported.
 
 ## Check — each `shall`, in order
 
