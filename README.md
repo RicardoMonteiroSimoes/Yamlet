@@ -227,7 +227,7 @@ and [the viewer's own section](tooling/README.md#the-html-viewer-yamlet-graph---
 
 ## Skills
 
-Five Claude Code skills, bundled as the `yamlet-skills` plugin under
+Eight Claude Code skills, bundled as the `yamlet-skills` plugin under
 [`plugins/yamlet-skills/`](plugins/yamlet-skills/) — no MCP server:
 
 - **`yamlet-author`** — creates a new spec *or* changes one that already exists. It routes on that one question, reads the specs already on disk first (`yamlet systems --details`, plus `yamlet impact` before a change), interviews you, and appends through the `yamlet` CLI; it never writes YAML or picks IDs itself, so the file is correct by construction.
@@ -235,10 +235,11 @@ Five Claude Code skills, bundled as the `yamlet-skills` plugin under
 - **`yamlet-criteria-challenger`** — adversarial review before each requirement and its criteria are committed.
 - **`yamlet-verifier`** — validates a spec against the rules, reporting violations with stable rule IDs.
 - **`yamlet-tester`** — projects a specs directory into a Gherkin `.feature` tree, wiping and rebuilding the target every run so the tests never drift. Disconnected: it writes features only, never step definitions.
+- **`yamlet-techspec`** — plans the work for a *finished* spec: reads the code that should implement it, records a verdict per criterion with `file:line` evidence, then a task list covering every unmet criterion, all through `yamlet techspec` into a disposable `.techspec.yaml`. A task that needs a decision stops for one: the ADR is written and linked into the spec with `yamlet add-adr`, and the spec is what remembers it. Two helpers run inside it — **`yamlet-code-research`** finds and documents, never judges; **`yamlet-evidence-challenger`** opens exactly the offered references before any criterion is recorded as met.
 
 The two challengers exist because two things are **one-way**: the contract is immutable after `init`, and committed text can't be revised or removed (appending stays open, so a mistake is expensive, not unfixable — across every consumer `yamlet impact` lists). A gate at each point is the last cheap chance to catch one.
 
-The [`pi/`](pi/) port carries the same five capabilities, split differently: the three that talk to you stay skills, and the two challengers become `pi-subagents` agents — a pi subagent runs headless and has no way to ask a question, so only an autonomous reviewer can be one. There the challengers are read-only *structurally* (`tools: read, ext:yamlet/yamlet_systems`), because the port also registers the CLI as pi tools rather than shelling out.
+The [`pi/`](pi/) port carries the first five capabilities (the tech spec flow is not ported yet), split differently: the three that talk to you stay skills, and the two challengers become `pi-subagents` agents — a pi subagent runs headless and has no way to ask a question, so only an autonomous reviewer can be one. There the challengers are read-only *structurally* (`tools: read, ext:yamlet/yamlet_systems`), because the port also registers the CLI as pi tools rather than shelling out.
 
 ### How they interact
 
@@ -283,3 +284,34 @@ You only ever start `/yamlet-author`, seeded with a one-line description — for
 ```
 
 Everything else fires from inside the flow. At each gate a forked Opus reviewer blocks and hands back objections for you to adjudicate; nothing commits until they're settled, and the author isn't done until `yamlet-verifier` reports no errors — after which it regenerates the Gherkin feature tree via `yamlet-tester` as a mandatory closing step. The others also run standalone — `/yamlet-contract-challenger`, `/yamlet-criteria-challenger`, `/yamlet-verifier <file>`, `/yamlet-tester <specs-dir>` — for a second opinion or a one-off regeneration outside the flow.
+
+### Then: planning the work (`/yamlet-techspec`)
+
+A finished spec says what must be true. The tech spec says what is true *now* in your code and what to build — one verdict per criterion, then tasks covering every unmet one. It is disposable (plan, implement, discard; keep `*.techspec.yaml` out of git); the spec and the ADRs it links are what persist.
+
+```mermaid
+flowchart TD
+    U(["You"]) -->|"/yamlet-techspec spec.yamlet.yaml"| G0{{"yamlet verify<br/>finished?"}}
+    G0 -->|"OK"| INIT["yamlet techspec init<br/>+ analysis --commit"]
+    INIT --> RQ["per requirement"]
+    RQ -.-> CR["yamlet-code-research<br/>where does each criterion live?"]
+    CR -. "EVIDENCE / DEVIATIONS / TESTS" .-> VD["verdict per criterion"]
+    VD -->|"claiming met"| G1{{"Gate · before met: true"}}
+    G1 -.-> EC["yamlet-evidence-challenger<br/>opens exactly those references"]
+    EC -. "CONFIRMED / REFUTED" .-> VD
+    VD --> REC["yamlet techspec criterion<br/>--met --evidence"]
+    REC -. "DECIDED: read the ADR" .-> VD
+    REC --> G2{{"needs a decision?"}}
+    G2 -->|"yes · you decide"| ADR["write the ADR<br/>yamlet add-adr → spec"]
+    ADR --> TK
+    G2 -->|"no"| TK["yamlet techspec task<br/>enablers first, --covers, --depends-on"]
+    TK --> V["yamlet verify<br/>every unmet criterion covered?"]
+    V -->|"OK"| OUT(["task list, in dependency order"])
+
+    INIT --> CLI[("yamlet CLI<br/>owns the file + T-N ids")]
+    REC --> CLI
+    TK --> CLI
+    ADR --> CLI
+```
+
+Same shape as authoring: forked, read-only reviewers on dotted arrows, every write through the CLI, and a verify gate that proves coverage — every criterion has one verdict, met ones cite `file:line` evidence, every unmet one is covered by a task, dependencies resolve. A decision made here is written as an ADR and linked into the *spec* (`yamlet add-adr`), so later changes to that requirement print a warning naming it, and the next tech spec is told (`DECIDED:`) before it records a verdict or covers the criterion with a task.
