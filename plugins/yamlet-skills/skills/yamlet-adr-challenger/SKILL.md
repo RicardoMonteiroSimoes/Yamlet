@@ -6,7 +6,7 @@ description: >-
   question is answerable by an option, the forces are outside the author's control, each dimension
   states a threshold rather than a topic, and the option set will be honest. Invoked by yamlet-adr;
   not a standalone tool.
-argument-hint: <the record so far: origin, question, forces, basis, dimensions, planned options>
+argument-hint: <the record so far — origin, question, forces, basis, dimensions, planned options>
 context: fork
 background: false
 model: opus
