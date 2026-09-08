@@ -34,10 +34,10 @@
 //
 // EVERY format is written to `--out=FILE` and `--out` is REQUIRED; no format
 // has a path to stdout. The payload is a deliverable for a renderer or a
-// browser, not something to read inline — `--format=html` inlines the elk
-// layout engine and is ~1.6 MB whatever the spec count. Streaming that into an
-// agent's tool result exhausts a context window in one call, so stdout carries
-// only a one-line summary of what was written.
+// browser, not something to read inline — `--format=html` is tens of KB of
+// viewer before the first spec, and `--libs=embed` inlines the elk layout
+// engine on top for ~1.6 MB. Streaming that into an agent's tool result burns
+// a context window for nothing, so stdout carries only a one-line summary.
 //
 // Reads the spec(s) and writes exactly one file, refusing a `*.yamlet.yaml`
 // target so a graph can never overwrite a spec.
@@ -610,7 +610,7 @@ export function runGraph(args: string[]): CmdResult {
   let format = "dot";
   let formatSet = false;
   let recursive = false;
-  let libs: Libs = "embed";
+  let libs: Libs = "cdn";
   let libsSet = false;
   for (const a of args) {
     if (a === "--recursive" || a === "-r") recursive = true;
@@ -632,7 +632,7 @@ export function runGraph(args: string[]): CmdResult {
   if (target === "") target = ".";
 
   // Required, and deliberately so: the payload has no path to stdout, because a
-  // single `--format=html` is ~1.6 MB and would exhaust an agent's context.
+  // single `--format=html` is tens of KB at best and ~1.6 MB with `--libs=embed`.
   if (out === "") {
     return die(
       "graph requires --out=FILE — the model is written to a file, never to stdout.\n" +
@@ -698,7 +698,7 @@ export const graphCommand: Command = {
   help: `yamlet graph — write a graph model of one spec or a whole directory to a file
 
 Usage:
-  yamlet graph [FILE|DIR] --out=FILE [--format=dot|json|html] [--libs=embed|cdn] [--recursive]
+  yamlet graph [FILE|DIR] --out=FILE [--format=dot|json|html] [--libs=cdn|embed] [--recursive]
 
 Arguments:
   FILE|DIR                a spec file or a directory of specs (default: .)
@@ -707,19 +707,20 @@ Options:
   --out=FILE              REQUIRED. Where to write the graph. The model never goes
                           to stdout in any format — stdout gets one summary line
                           (path, format, size, roots/members/wires). --format=html
-                          is ~1.6 MB whatever the spec count, because it inlines the
-                          elk layout engine; printing that exhausts an agent's
-                          context window in a single call. Refuses a *.yamlet.yaml
-                          path so a graph can never overwrite a spec.
+                          carries a whole viewer (tens of KB, ~1.6 MB with
+                          --libs=embed); printing that burns an agent's context
+                          window for nothing. Refuses a *.yamlet.yaml path so a
+                          graph can never overwrite a spec.
   --format=dot|json|html  dot:  Graphviz for one spec, one level (render the written
                                 file: \`dot -Tsvg graph.dot > diagram.svg\`)
                           json: the yamlet.graph/v1 model (renderer-agnostic)
-                          html: a self-contained interactive viewer of that model
-  --libs=embed|cdn        html only — how the layout engine (elkjs) is delivered:
-                          embed (default): inline it, one offline file, no network
-                          cdn: reference a pinned, SRI-guarded elk from jsDelivr —
-                               a small file, but needs network and that the origin
-                               is allowed (a strict CSP/artifact sandbox blocks it)
+                          html: an interactive viewer of that model
+  --libs=cdn|embed        html only — how the layout engine (elkjs) is delivered:
+                          cdn (default): reference a pinned, SRI-guarded elk from
+                               jsDelivr — a small file (tens of KB) that needs
+                               network and the cdn.jsdelivr.net origin allowed
+                          embed: inline it — one ~1.6 MB file that works offline
+                               and inside a strict CSP/artifact sandbox
   --recursive, -r         expand composite members deeply
 
 A directory or --recursive implies a model format (json/html) and expands the whole
