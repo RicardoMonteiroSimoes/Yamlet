@@ -14,7 +14,7 @@ tools: read, grep, find, ls
 prompt_mode: replace
 inherit_context: false
 run_in_background: false
-max_turns: 40
+max_turns: 8
 ---
 
 # Yamlet Code Research
