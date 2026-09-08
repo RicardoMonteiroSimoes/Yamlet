@@ -56,7 +56,7 @@ pi install git:github.com/RicardoMonteiroSimoes/Yamlet
 It registers the CLI as
 native pi tools (one per subcommand) and blocks hand-editing a `.yamlet.yaml`
 outright, so "the file is only ever written by `yamlet`" is enforced rather than
-asked for. The two adversarial challengers additionally need
+asked for. The adversarial challengers and the code researcher additionally need
 `pi install npm:@tintinweb/pi-subagents`, since pi has no built-in sub-agents.
 See [`pi/README.md`](pi/README.md) for the full mapping.
 
@@ -240,7 +240,7 @@ Ten Claude Code skills, bundled as the `yamlet-skills` plugin under
 
 The two challengers exist because two things are **one-way**: the contract is immutable after `init`, and committed text can't be revised or removed (appending stays open, so a mistake is expensive, not unfixable — across every consumer `yamlet impact` lists). A gate at each point is the last cheap chance to catch one.
 
-The [`pi/`](pi/) port carries the first five capabilities (the tech spec and decision record flows are not ported yet), split differently: the three that talk to you stay skills, and the two challengers become `pi-subagents` agents — a pi subagent runs headless and has no way to ask a question, so only an autonomous reviewer can be one. There the challengers are read-only *structurally* (`tools: read, ext:yamlet/yamlet_systems`), because the port also registers the CLI as pi tools rather than shelling out.
+The [`pi/`](pi/) port carries all ten, split differently: the five that talk to you (author, verifier, tester, tech spec, ADR) stay skills, and the five that don't (the four challengers and the code researcher) become `pi-subagents` agents — a pi subagent runs headless and has no way to ask a question, so only an autonomous reviewer can be one. There the agents are read-only *structurally* (`tools: read, ext:yamlet/yamlet_systems`, or just `tools: read`), because the port also registers the CLI as pi tools rather than shelling out — and hand-editing a `.techspec.yaml` or `.adr.yaml` is blocked the same way a `.yamlet.yaml` is.
 
 ### How they interact
 

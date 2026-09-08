@@ -45,7 +45,7 @@ jobs:
       # Both install routes a user has: the package itself (what npm ships) and
       # the repo root (what `pi install git:…` clones, resolved through the
       # private root manifest). Each gets a fresh pi home and must resolve the
-      # extension and all three skills through pi's own loader.
+      # extension and all five skills through pi's own loader.
       - name: Install as the pi package (pi/)
         env:
           PI_CODING_AGENT_DIR: ${{ runner.temp }}/pihome-package

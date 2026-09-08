@@ -36,6 +36,15 @@ import { Type } from "typebox";
 /** A spec file, by the only naming the format recognises. */
 const SPEC_RE = /\.yamlet\.ya?ml\b/i;
 
+/**
+ * Every file yamlet owns the bytes of: a spec, a tech spec (`yamlet techspec`
+ * rewrites it whole from a parsed model) and a decision record (`yamlet adr`
+ * mints its ids and freezes it on accept). The gate covers all three — the
+ * reason to never hand-write one is the same, and a tech spec or record edited
+ * by hand is refused by the CLI's own loader on the next call anyway.
+ */
+const OWNED_RE = /\.(yamlet|techspec|adr)\.ya?ml\b/i;
+
 const INSTALL_HINT =
 	"`yamlet` is not on PATH. Install it with:\n" +
 	"    brew tap RicardoMonteiroSimoes/yamlet\n" +
@@ -45,18 +54,32 @@ const INSTALL_HINT =
 	"https://github.com/RicardoMonteiroSimoes/Yamlet/releases/latest and put it on your PATH.\n" +
 	"The yamlet_* tools shell out to that binary and cannot work without it.";
 
-/** Subcommands this extension exposes; a CLI missing any of them is too old. */
+/** Subcommands the authoring tools need; a CLI missing any of them is too old to load at all. */
 const REQUIRED_COMMANDS = [
 	"verify", "systems", "impact", "graph", "tests",
 	"init", "add-component", "add-connection", "add-requirement", "add-criterion",
 ] as const;
 
+/**
+ * Subcommands the planning tools need (`yamlet_add_adr`, `yamlet_techspec_*`,
+ * `yamlet_adr_*`). These arrived after the authoring set, so a CLI that has the
+ * required commands but not these is *older*, not broken: the authoring tools
+ * keep working, and only a planning tool call fails — with the upgrade hint,
+ * not a raw usage error — so a user on the previous release loses nothing they
+ * had. Every tool checks its own top-level command against this list.
+ */
+const PLANNING_COMMANDS = ["add-adr", "techspec", "adr"] as const;
+
 /** Some models prefix path arguments with `@`; built-in tools strip it, so do we. */
 const cleanPath = (p: string): string => (p.startsWith("@") ? p.slice(1) : p);
 
 type Probe =
-	| { ok: true; version: string }
+	| { ok: true; version: string; missing: string[] }
 	| { ok: false; reason: string };
+
+const UPGRADE_HINT =
+	"Upgrade with `brew upgrade yamlet`, or download a newer build from " +
+	"https://github.com/RicardoMonteiroSimoes/Yamlet/releases/latest.";
 
 /**
  * Resolve `cmd` on PATH, or undefined.
@@ -132,18 +155,19 @@ function makeProbe(pi: ExtensionAPI): (cwd: string) => Promise<Probe> {
 			// failed `help` yields empty stdout, which would otherwise read as every
 			// command missing and disable the whole toolset for the session.
 			if (!h.killed && h.code === 0 && h.stdout.trim()) {
-				const missing = REQUIRED_COMMANDS.filter((c) => !new RegExp(`^\\s+${c}\\s`, "m").test(h.stdout));
+				const has = (c: string): boolean => new RegExp(`^\\s+${c}\\s`, "m").test(h.stdout);
+				const missing = REQUIRED_COMMANDS.filter((c) => !has(c));
 				if (missing.length > 0) {
 					return {
 						ok: false,
 						reason:
 							`Found ${version}, but it is missing the command(s) this extension needs: ` +
-							`${missing.join(", ")}.\nUpgrade with \`brew upgrade yamlet\`, or download a newer ` +
-							`build from https://github.com/RicardoMonteiroSimoes/Yamlet/releases/latest.`,
+							`${missing.join(", ")}.\n${UPGRADE_HINT}`,
 					};
 				}
+				return { ok: true, version, missing: PLANNING_COMMANDS.filter((c) => !has(c)) };
 			}
-			return { ok: true, version };
+			return { ok: true, version, missing: [] };
 		})();
 		cachedProbe = run.then((p) => {
 			if (!p.ok) cachedProbe = undefined; // retry next time; a mid-session install should just work
@@ -153,7 +177,7 @@ function makeProbe(pi: ExtensionAPI): (cwd: string) => Promise<Probe> {
 	};
 }
 
-/* ── shipping the challenger agents ──────────────────────────────────────────
+/* ── shipping the agents ────────────────────────────────────────────────────
  *
  * `pi install` can deliver an extension and skills, but NOT agents:
  * @tintinweb/pi-subagents discovers those from three hardcoded directories
@@ -161,17 +185,24 @@ function makeProbe(pi: ExtensionAPI): (cwd: string) => Promise<Probe> {
  * package-based discovery, no configurable path, and no public registration RPC
  * — its cross-extension surface is ping/spawn/stop only.
  *
- * Left alone, that means a `pi install` of this package half-installs: the author
- * skill runs, finds no `Agent` tool, and quietly degrades to reviewing its own
- * proposals — losing the adversarial gates, which are the point. So the package
- * offers to place its own agent files, with consent, and says what it did.
+ * Left alone, that means a `pi install` of this package half-installs: a skill
+ * runs, finds no `Agent` tool, and quietly degrades to reviewing its own
+ * proposals (or, for the tech spec, researching the code in its own context) —
+ * losing the adversarial gates, which are the point. So the package offers to
+ * place its own agent files, with consent, and says what it did.
  *
  * Deliberately conservative: it asks before writing anything outside its own
  * directory, never overwrites a file the user has edited without saying so,
  * stays silent when pi-subagents is absent (there would be nothing to install
  * them for), and never writes at all without a UI to ask through.
  */
-const AGENT_FILES = ["yamlet-contract-challenger.md", "yamlet-criteria-challenger.md"];
+const AGENT_FILES = [
+	"yamlet-contract-challenger.md",
+	"yamlet-criteria-challenger.md",
+	"yamlet-code-research.md",
+	"yamlet-evidence-challenger.md",
+	"yamlet-adr-challenger.md",
+];
 
 /** Where pi-subagents looks, in its own precedence order. */
 const agentSearchDirs = (cwd: string): string[] => [
@@ -208,18 +239,25 @@ function shippedAgentsDir(): string | undefined {
  * which turns "find your own bundled file" into a plain tool call. This is the
  * pi port earning its executable code a second time.
  *
- * The last two entries are the challenger *checklists*, served for the degraded
- * path where `@tintinweb/pi-subagents` is absent: the skill then has to run the
- * gate inline, and "find the agent file yourself" is exactly the instruction that
- * turns into skipping the gate.
+ * `decisions` is the tech spec skill's own reference — the decision gate it runs
+ * when a task needs a choice the user owns — served for the same reason.
+ *
+ * The `*-challenge` and `code-research` entries are the agents' *procedures*,
+ * served for the degraded path where `@tintinweb/pi-subagents` is absent: the
+ * skill then has to run the gate (or the research) inline, and "find the agent
+ * file yourself" is exactly the instruction that turns into skipping it.
  */
 const GUIDE_FILES = {
 	creating: ["skills/yamlet-author/references", "creating.md"],
 	editing: ["skills/yamlet-author/references", "editing.md"],
 	composites: ["skills/yamlet-author/references", "composites.md"],
 	patterns: ["skills/yamlet-author/references", "patterns.md"],
+	decisions: ["skills/yamlet-techspec/references", "decisions.md"],
 	"contract-challenge": ["agents", "yamlet-contract-challenger.md"],
 	"criteria-challenge": ["agents", "yamlet-criteria-challenger.md"],
+	"code-research": ["agents", "yamlet-code-research.md"],
+	"evidence-challenge": ["agents", "yamlet-evidence-challenger.md"],
+	"adr-challenge": ["agents", "yamlet-adr-challenger.md"],
 } as const;
 
 type GuideTopic = keyof typeof GUIDE_FILES;
@@ -229,9 +267,17 @@ const GUIDE_TOPICS: Record<GuideTopic, string> = {
 	editing: "Changing a spec that ALREADY EXISTS: locating the right file, reading its blast radius, what is possible.",
 	composites: "Declaring members and wiring connections on a composite.",
 	patterns: "The six EARS patterns, the three kinds of {token}, and placeholder examples.",
+	decisions: "The tech spec's decision gate: when a task needs a choice the user owns, write the record, link it, cover what it obliges.",
 	"contract-challenge": "The contract gate's checklist — only for running it inline when the Agent tool is absent.",
 	"criteria-challenge": "The criteria gate's checklist — only for running it inline when the Agent tool is absent.",
+	"code-research": "The code research procedure — only for running it inline when the Agent tool is absent.",
+	"evidence-challenge": "The evidence gate's checklist — only for running it inline when the Agent tool is absent.",
+	"adr-challenge": "The ADR gate's checklist — only for running it inline when the Agent tool is absent.",
 };
+
+/** "a", "a and b", "a, b and c". */
+const listOf = (xs: string[]): string =>
+	xs.length <= 1 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`;
 
 const readOrNull = async (p: string): Promise<string | null> => {
 	try {
@@ -291,6 +337,14 @@ async function runYamlet(
 	// it before the call so a missing CLI reads the same here as it does at startup.
 	const probe = await probeYamlet(ctx.cwd);
 	if (!probe.ok) throw new Error(probe.reason);
+	// A planning command on a CLI that predates it: say "upgrade", not "unknown
+	// command", and say it before running anything.
+	const cmd = args[0] ?? "";
+	if (probe.missing.includes(cmd)) {
+		throw new Error(
+			`Found ${probe.version}, but it is missing the command(s) this tool needs: ${cmd}.\n${UPGRADE_HINT}`,
+		);
+	}
 
 	const res = await pi.exec("yamlet", args, { signal, cwd: ctx.cwd });
 
@@ -317,6 +371,41 @@ const repeat = (flag: string, values: string[] | undefined, into: string[]): voi
 };
 
 /**
+ * The commit a tech spec is already pinned to, or undefined.
+ *
+ * `techspec analysis` needs `--commit` on its first call and refuses a
+ * different one afterwards. The tool resolves the commit from git only while
+ * the file has none, so a later call that merely adds `--deep` paths does not
+ * fail because HEAD moved in the meantime. The serializer writes exactly
+ * `analysis:\n  commit: SHA`, which is what this matches.
+ */
+async function pinnedCommit(file: string): Promise<string | undefined> {
+	const text = await readOrNull(file);
+	return text === null ? undefined : /^analysis:\n  commit: ([0-9a-f]{7,40})$/m.exec(text)?.[1];
+}
+
+/**
+ * `git rev-parse --short HEAD` in the code root.
+ *
+ * The tool reads the commit itself rather than taking it from the model, so the
+ * pin is what git says and never a remembered or invented string. A code root
+ * that is not a checkout is a usage error with a way out (`commit`), not a
+ * silent unpinned tech spec — the CLI would refuse that anyway.
+ */
+async function gitHead(pi: ExtensionAPI, cwd: string, signal: AbortSignal | undefined): Promise<string> {
+	const r = await pi.exec("git", ["rev-parse", "--short", "HEAD"], { cwd, signal, timeout: 5000 });
+	const sha = r.stdout.trim();
+	if (r.killed || r.code !== 0 || !/^[0-9a-f]{7,40}$/.test(sha)) {
+		const why = r.stderr.trim();
+		throw new Error(
+			`Could not read the commit from git in ${cwd}${why ? ` (${why})` : ""}. A tech spec pins the ` +
+			`commit its verdicts were read at; pass \`commit\` explicitly if the code root is not a git checkout.`,
+		);
+	}
+	return sha;
+}
+
+/**
  * Best-effort shell check, defence in depth only.
  *
  * The tools above remove any *need* to touch a spec through the shell, and the
@@ -328,16 +417,16 @@ const repeat = (flag: string, values: string[] | undefined, into: string[]): voi
  * it. The write/edit gate is the real guarantee; this only stops the accident.
  */
 function shellWritesSpec(command: string): boolean {
-	if (!SPEC_RE.test(command)) return false;
+	if (!OWNED_RE.test(command)) return false;
 	return command.split(/\|\||&&|[;\n|]/).some((segment) => {
 		const s = segment.trim();
-		if (!SPEC_RE.test(s)) return false;
+		if (!OWNED_RE.test(s)) return false;
 		// A redirect into a spec is blocked whatever produced the bytes — including
 		// `yamlet graph a.yamlet.yaml > b.yamlet.yaml`, which is still the shell
 		// writing the file rather than the CLI's own serializer. (`graph` itself
 		// now refuses a `*.yamlet.yaml` --out, so the two guards agree: a graph
 		// never lands on a spec, by either route.)
-		if (/>>?\s*\S*\.yamlet\.ya?ml\b/i.test(s)) return true;
+		if (/>>?\s*\S*\.(yamlet|techspec|adr)\.ya?ml\b/i.test(s)) return true;
 		// Otherwise the CLI itself is the sanctioned writer and passes.
 		if (/^(?:sudo\s+)?yamlet\b/.test(s)) return false;
 		return /\btee\b/.test(s) || /\bsed\b[^&]*\s-i\b/.test(s);
@@ -357,13 +446,21 @@ export default function (pi: ExtensionAPI) {
 		const probe = await probeYamlet(ctx.cwd);
 		if (!probe.ok) {
 			ctx.ui.notify(`yamlet tools unavailable — ${probe.reason}`, "error");
+		} else if (probe.missing.length > 0) {
+			// Older CLI: authoring works, planning does not. Say which, and how to
+			// fix it, now — not at step 2 of a tech spec.
+			ctx.ui.notify(
+				`yamlet: ${probe.version} has no ${probe.missing.join("/")} command, so the tech spec and ` +
+				`decision record tools will fail until you upgrade; the authoring tools work. ${UPGRADE_HINT}`,
+				"warning",
+			);
 		}
 		// Convenience, never a prerequisite: a failure here must not take down the
 		// session, and the yamlet_* tools work with or without the challengers.
 		try {
 			await offerAgentInstall(ctx);
 		} catch {
-			// deliberately silent — the author skill reports missing gates itself
+			// deliberately silent — the skills report a missing gate themselves
 		}
 	});
 
@@ -399,26 +496,34 @@ export default function (pi: ExtensionAPI) {
 			return;
 		}
 
-		const what = missing.join(" and ");
+		const what = listOf(missing);
+		// An upgrade path: the old agents are on disk, the new ones are not. The
+		// missing ones are offered as usual; a stale one is reported alongside
+		// rather than lost behind the prompt, and still never overwritten.
+		const staleNote = stale.length > 0
+			? ` (${listOf(stale)} differ${stale.length === 1 ? "s" : ""} from the packaged version and ` +
+				`${stale.length === 1 ? "was" : "were"} left untouched.)`
+			: "";
 		if (!ctx.hasUI) {
 			ctx.ui.notify(
-				`yamlet: the challenger agent${missing.length === 1 ? "" : "s"} (${what}) ${missing.length === 1 ? "is" : "are"} ` +
-				`not installed, so the author skill's adversarial gates cannot run. Copy ${src}/*.md into ` +
-				`${dest} (or run the package's install.sh).`,
+				`yamlet: the agent${missing.length === 1 ? "" : "s"} ${what} ${missing.length === 1 ? "is" : "are"} ` +
+				`not installed, so the yamlet skills' adversarial gates and code research cannot run as subagents. ` +
+				`Copy ${src}/*.md into ${dest} (or run the package's install.sh).${staleNote}`,
 				"info",
 			);
 			return;
 		}
 
 		const yes = await ctx.ui.confirm(
-			"Install the yamlet challenger agents?",
-			`The yamlet author flow runs two adversarial reviewers as subagents. ${what} ` +
-			`${missing.length === 1 ? "is" : "are"} not on disk yet, and pi-subagents can only load agents ` +
-			`from a fixed set of directories — a package cannot ship them.\n\n` +
-			`Copy them to ${dest}? Without them the author still works, but reviews its own proposals.`,
+			"Install the yamlet agents?",
+			`The yamlet author, tech spec and ADR flows run their adversarial reviewers and code research as ` +
+			`subagents. ${what} ${missing.length === 1 ? "is" : "are"} not on disk yet, and pi-subagents can ` +
+			`only load agents from a fixed set of directories — a package cannot ship them.\n\n` +
+			`Copy them to ${dest}? Without them the skills still work, but run those steps inline, in their ` +
+			`own context — a weaker check.${staleNote}`,
 		);
 		if (!yes) {
-			ctx.ui.notify("yamlet: skipped. The author will say so when it reaches a gate.", "info");
+			ctx.ui.notify("yamlet: skipped. The skills will say so when they reach a gate.", "info");
 			return;
 		}
 
@@ -430,7 +535,7 @@ export default function (pi: ExtensionAPI) {
 			}
 			ctx.ui.notify(
 				`yamlet: installed ${what} to ${dest}. Restart pi (or /reload) to pick them up — ` +
-				`pi-subagents reads agents at startup.`,
+				`pi-subagents reads agents at startup.${staleNote}`,
 				"info",
 			);
 		} catch (err) {
@@ -459,6 +564,25 @@ export default function (pi: ExtensionAPI) {
 						`deleting committed text is unsupported — say so rather than working around it.`,
 				};
 			}
+			if (/\.techspec\.ya?ml\b/i.test(path)) {
+				return {
+					block: true,
+					reason:
+						`Refusing to ${event.toolName} ${path} directly. A .techspec.yaml is written only by the ` +
+						`yamlet CLI, which checks every RQ-/AC- id against the spec and mints every T- id. Use the ` +
+						`yamlet_techspec_* tools. A verdict is never revised in place: if one was wrong, delete the ` +
+						`file and start the tech spec over.`,
+				};
+			}
+			if (/\.adr\.ya?ml\b/i.test(path)) {
+				return {
+					block: true,
+					reason:
+						`Refusing to ${event.toolName} ${path} directly. A .adr.yaml is written only by the yamlet ` +
+						`CLI, which mints every B-/D-/OPT-/R- id and freezes the record on accept. Use the ` +
+						`yamlet_adr_* tools; a decision that no longer holds is superseded by a new record, never edited.`,
+				};
+			}
 		}
 
 		if (event.toolName === "bash") {
@@ -467,8 +591,8 @@ export default function (pi: ExtensionAPI) {
 				return {
 					block: true,
 					reason:
-						"Refusing a shell command that writes a .yamlet.yaml. Specs are written only by the " +
-						"yamlet CLI — use the yamlet_* tools. (Running `yamlet ...` itself is fine.)",
+						"Refusing a shell command that writes a .yamlet.yaml, .techspec.yaml or .adr.yaml. These " +
+						"are written only by the yamlet CLI — use the yamlet_* tools. (Running `yamlet ...` itself is fine.)",
 				};
 			}
 		}
@@ -505,8 +629,9 @@ export default function (pi: ExtensionAPI) {
 		name: "yamlet_guide",
 		label: "yamlet guide",
 		description:
-			"Read one of the yamlet-author procedures. Load only the one in play.",
-		promptSnippet: "Read a yamlet-author procedure or challenger checklist",
+			"Read one of the yamlet skills' procedures, or an agent's checklist for running it inline. Load " +
+			"only the one in play.",
+		promptSnippet: "Read a yamlet skill procedure or an agent's checklist",
 		parameters: Type.Object({
 			topic: StringEnum(Object.keys(GUIDE_FILES) as [GuideTopic, ...GuideTopic[]], {
 				description: Object.entries(GUIDE_TOPICS).map(([k, v]) => `${k}: ${v}`).join(" "),
@@ -774,6 +899,395 @@ export default function (pi: ExtensionAPI) {
 				if (params.where) args.push("--where", params.where);
 				repeat("--shall", params.shall, args);
 				repeat("--example", params.examples, args);
+				return args;
+			}, signal);
+		},
+	});
+
+	// ── linking a decision into a spec ──────────────────────────────────────
+	// The one in-place mutation of an existing block: it appends a path to the
+	// block's `adrs:` list. Queued on the spec like every other spec mutation.
+	pi.registerTool({
+		name: "yamlet_add_adr",
+		label: "yamlet add-adr",
+		description:
+			"Link a decision record (.adr.yaml, written by the yamlet_adr_* tools) to ONE requirement (rq) or " +
+			"ONE criterion (ac) of a spec — exactly one of the two. `adr` is relative to the spec's directory " +
+			"and must exist. The same record may be linked on several requirements.",
+		promptSnippet: "Link an ADR to a spec's requirement or criterion",
+		parameters: Type.Object({
+			file: Type.String({ description: "The spec .yamlet.yaml" }),
+			adr: Type.String({ description: "The record's path, relative to the spec's directory" }),
+			rq: Type.Optional(Type.String({ description: "Link on this requirement: every criterion under it is decided by it" })),
+			ac: Type.Optional(Type.String({ description: "Link on this one criterion" })),
+		}),
+		async execute(_id, params, signal, _onUpdate, ctx) {
+			if (!params.rq === !params.ac) {
+				throw new Error("yamlet_add_adr needs exactly one of `rq` (RQ-N) or `ac` (AC-N).");
+			}
+			return mutate(params.file, ctx, () => [
+				"add-adr", cleanPath(params.file), cleanPath(params.adr),
+				...(params.rq ? ["--rq", params.rq] : ["--ac", params.ac!]),
+			], signal);
+		},
+	});
+
+	// ── tech spec ───────────────────────────────────────────────────────────
+	// Every call rewrites the whole file from a parsed model, so calls on one
+	// tech spec are queued on its path exactly like spec mutations.
+	pi.registerTool({
+		name: "yamlet_techspec_init",
+		label: "yamlet techspec init",
+		description:
+			"Open a tech spec for a FINISHED spec (one yamlet_verify reports OK on): writes " +
+			"<spec>.techspec.yaml next to it (or `out`) and returns its path. Refuses to overwrite. The file " +
+			"is disposable — plan from it, implement, discard; keep it out of version control.",
+		promptSnippet: "Open a disposable .techspec.yaml for a finished spec (returns its path)",
+		parameters: Type.Object({
+			spec: Type.String({ description: "The finished .yamlet.yaml to plan against" }),
+			out: Type.Optional(Type.String({
+				description: "Where to write it (must end in .techspec.yaml); default: next to the spec",
+			})),
+		}),
+		async execute(_id, params, signal, _onUpdate, ctx) {
+			const spec = cleanPath(params.spec);
+			const out = params.out ? cleanPath(params.out) : spec.replace(/\.yamlet\.ya?ml$/i, ".techspec.yaml");
+			return mutate(out, ctx, () => {
+				const args = ["techspec", "init", spec];
+				if (params.out) args.push("--out", out);
+				return args;
+			}, signal);
+		},
+	});
+
+	pi.registerTool({
+		name: "yamlet_techspec_analysis",
+		label: "yamlet techspec analysis",
+		description:
+			"Record what the verdicts are relative to: the commit the code was read at, and the directories " +
+			"read closely (`deep`) or only glanced at (`skimmed`), which accumulate across calls. The commit " +
+			"is fixed on the first call and read from git in `code_root` unless `commit` is given.",
+		promptSnippet: "Pin a tech spec to the commit read, and record which directories were read",
+		parameters: Type.Object({
+			file: Type.String({ description: "The .techspec.yaml" }),
+			code_root: Type.Optional(Type.String({
+				description: "Where the code lives; `git rev-parse --short HEAD` runs here (default: the working directory)",
+			})),
+			commit: Type.Optional(Type.String({
+				description: "7–40 hex chars; only when the code was read at a commit other than HEAD of code_root",
+			})),
+			deep: Type.Optional(Type.Array(Type.String(), { description: "Directories read closely, relative to the code root" })),
+			skimmed: Type.Optional(Type.Array(Type.String(), { description: "Directories only glanced at" })),
+		}),
+		async execute(_id, params, signal, _onUpdate, ctx) {
+			const file = cleanPath(params.file);
+			let commit = params.commit;
+			if (!commit && (await pinnedCommit(resolve(ctx.cwd, file))) === undefined) {
+				commit = await gitHead(pi, resolve(ctx.cwd, cleanPath(params.code_root ?? ".")), signal);
+			}
+			return mutate(file, ctx, () => {
+				const args = ["techspec", "analysis", file];
+				if (commit) args.push("--commit", commit);
+				repeat("--deep", params.deep, args);
+				repeat("--skimmed", params.skimmed, args);
+				return args;
+			}, signal);
+		},
+	});
+
+	pi.registerTool({
+		name: "yamlet_techspec_criterion",
+		label: "yamlet techspec criterion",
+		description:
+			"Record one criterion's verdict. met=true needs `evidence` (PATH:LINE where each shall is " +
+			"satisfied) and goes through the evidence challenger first; met=false takes the references as " +
+			"evidence and a one-line `note` saying what differs. One verdict per criterion, never revised — " +
+			"a wrong one means delete the file and start over. A DECIDED notice in the result names ADRs to read.",
+		promptSnippet: "Record a met/unmet verdict for one criterion, with file:line evidence",
+		parameters: Type.Object({
+			file: Type.String({ description: "The .techspec.yaml" }),
+			ac: Type.String({ description: "The criterion's id in the spec, e.g. AC-3" }),
+			met: Type.Boolean({ description: "true only when EVERY shall is observably satisfied at a cited reference" }),
+			evidence: Type.Optional(Type.Array(Type.String(), {
+				description: "PATH:LINE references, relative to the code root; required when met",
+			})),
+			note: Type.Optional(Type.String({ description: "One line: what falls short, or a caveat" })),
+		}),
+		async execute(_id, params, signal, _onUpdate, ctx) {
+			return mutate(params.file, ctx, () => {
+				const args = [
+					"techspec", "criterion", cleanPath(params.file),
+					"--ac", params.ac, "--met", params.met ? "true" : "false",
+				];
+				repeat("--evidence", params.evidence, args);
+				if (params.note) args.push("--note", params.note);
+				return args;
+			}, signal);
+		},
+	});
+
+	pi.registerTool({
+		name: "yamlet_techspec_task",
+		label: "yamlet techspec task",
+		description:
+			"Append a task and return its T-N. `covers` names unmet criteria (AC-N) whose verdicts are " +
+			"recorded, or obligations (ADR-nnnn#R-n) of records the spec links; a task covering nothing is an " +
+			"enabler and needs `why`. `depends_on` names tasks that already exist. The title states the " +
+			"behaviour delivered, not the activity.",
+		promptSnippet: "Append a task to a tech spec (returns its T-N)",
+		parameters: Type.Object({
+			file: Type.String({ description: "The .techspec.yaml" }),
+			title: Type.String({ description: "The behaviour this task delivers" }),
+			covers: Type.Optional(Type.Array(Type.String(), { description: "AC-N or ADR-nnnn#R-n, each unmet/uncovered" })),
+			depends_on: Type.Optional(Type.Array(Type.String(), { description: "T-N of tasks that must land first" })),
+			why: Type.Optional(Type.String({ description: "For an enabler (no covers): what it makes possible" })),
+		}),
+		async execute(_id, params, signal, _onUpdate, ctx) {
+			return mutate(params.file, ctx, () => {
+				const args = ["techspec", "task", cleanPath(params.file), "--title", params.title];
+				repeat("--covers", params.covers, args);
+				repeat("--depends-on", params.depends_on, args);
+				if (params.why) args.push("--why", params.why);
+				return args;
+			}, signal);
+		},
+	});
+
+	// ── decision records ────────────────────────────────────────────────────
+	// Phase-ordered by the CLI (forces any time; basis -> dimensions -> options
+	// -> decide -> obligations/accepts/revisit -> accept), frozen after accept.
+	// `init` mints the next id in DIR, so it is queued on the directory; every
+	// other call rewrites one record and is queued on that file.
+	pi.registerTool({
+		name: "yamlet_adr_init",
+		label: "yamlet adr init",
+		description:
+			"Start a decision record: writes DIR/ADR-nnnn-<slug>.adr.yaml (the next id in DIR) as proposed " +
+			"and returns its path. A record must arise from a spec criterion or requirement " +
+			"(`arises_from`: SPEC.yamlet.yaml#AC-n) or assume a prior record (`assumes`: ADR-nnnn); every " +
+			"reference is resolved before anything is written. The question must be answerable by choosing " +
+			"one option.",
+		promptSnippet: "Start a decision record (.adr.yaml) in a records directory (returns its path)",
+		parameters: Type.Object({
+			dir: Type.String({ description: "The records directory (one per system); must exist" }),
+			title: Type.String(),
+			kind: StringEnum(["selection", "mechanism", "policy", "boundary", "sequencing"] as const, {
+				description: "selection (a product; every option then needs a ref), mechanism (a pattern), policy (a fixed value), boundary, sequencing",
+			}),
+			question: Type.String({ description: "Answerable by choosing one option" }),
+			arises_from: Type.Optional(Type.Array(Type.String(), {
+				description: "SPEC.yamlet.yaml#AC-n or #RQ-n, relative to dir",
+			})),
+			assumes: Type.Optional(Type.Array(Type.String(), { description: "ADR-nnnn, lower-numbered records in dir" })),
+			date: Type.Optional(Type.String({ description: "YYYY-MM-DD (default: today)" })),
+		}),
+		async execute(_id, params, signal, _onUpdate, ctx) {
+			return mutate(params.dir, ctx, () => {
+				const args = [
+					"adr", "init", cleanPath(params.dir),
+					"--title", params.title, "--kind", params.kind, "--question", params.question,
+				];
+				repeat("--arises-from", params.arises_from, args);
+				repeat("--assumes", params.assumes, args);
+				if (params.date) args.push("--date", params.date);
+				return args;
+			}, signal);
+		},
+	});
+
+	/** The `FILE TEXT` shape shared by add-force / add-obligation / add-accept / add-revisit. */
+	const textTool = (name: string, sub: string, description: string, promptSnippet: string, text: string) =>
+		pi.registerTool({
+			name,
+			label: `yamlet adr ${sub}`,
+			description,
+			promptSnippet,
+			parameters: Type.Object({
+				file: Type.String({ description: "The .adr.yaml" }),
+				text: Type.String({ description: text }),
+			}),
+			async execute(_id, params, signal, _onUpdate, ctx) {
+				return mutate(params.file, ctx, () => ["adr", sub, cleanPath(params.file), params.text], signal);
+			},
+		});
+
+	textTool(
+		"yamlet_adr_add_force", "add-force",
+		"Add one force: a constraint OUTSIDE the author's control (a trust boundary, a spec obligation, a " +
+		"distribution model). A prior record's obligation is cited as ADR-nnnn#R-n, never restated. Allowed " +
+		"at any phase.",
+		"Add a force (an external constraint) to a decision record",
+		"The constraint, one sentence",
+	);
+
+	pi.registerTool({
+		name: "yamlet_adr_add_basis",
+		label: "yamlet adr add-basis",
+		description:
+			"Declare the load a measured dimension's numbers are stated under (a volume, a horizon) and " +
+			"return its B-n. Needs a numeral in the quantity and a source. Before any dimension that cites it.",
+		promptSnippet: "Add a measurement basis to a decision record (returns its B-n)",
+		parameters: Type.Object({
+			file: Type.String({ description: "The .adr.yaml" }),
+			quantity: Type.String({ description: "With a numeral, e.g. '40000 uploads / month'" }),
+			source: Type.String({ description: "Where the number comes from" }),
+		}),
+		async execute(_id, params, signal, _onUpdate, ctx) {
+			return mutate(params.file, ctx, () => [
+				"adr", "add-basis", cleanPath(params.file), "--quantity", params.quantity, "--source", params.source,
+			], signal);
+		},
+	});
+
+	pi.registerTool({
+		name: "yamlet_adr_add_dimension",
+		label: "yamlet adr add-dimension",
+		description:
+			"Declare one axis the options are judged on and return its D-n. `matters` states the THRESHOLD at " +
+			"which the axis decides anything, not what the axis is. A measured dimension names its unit, its " +
+			"source (a shared yardstick) and the basis it is stated under. All dimensions before any option.",
+		promptSnippet: "Add a dimension (a decisive threshold) to a decision record (returns its D-n)",
+		parameters: Type.Object({
+			file: Type.String({ description: "The .adr.yaml" }),
+			matters: Type.String({ description: "The threshold at which this axis decides anything" }),
+			unit: Type.Optional(Type.String({ description: "Makes the dimension measured: every cell then needs a numeral" })),
+			source: Type.Optional(Type.String({ description: "The yardstick the cells are measured with" })),
+			basis: Type.Optional(Type.Array(Type.String(), { description: "B-n the numbers are stated under" })),
+		}),
+		async execute(_id, params, signal, _onUpdate, ctx) {
+			return mutate(params.file, ctx, () => {
+				const args = ["adr", "add-dimension", cleanPath(params.file), "--matters", params.matters];
+				if (params.unit) args.push("--unit", params.unit);
+				if (params.source) args.push("--source", params.source);
+				repeat("--basis", params.basis, args);
+				return args;
+			}, signal);
+		},
+	});
+
+	pi.registerTool({
+		name: "yamlet_adr_add_option",
+		label: "yamlet adr add-option",
+		description:
+			"Add one option, judged against EVERY declared dimension in this one call, and return its OPT-n. " +
+			"A cell states a fact; on a measured dimension it carries a numeral; 'n/a — <reason>' is allowed, " +
+			"a bare 'n/a' is not. kind=selection needs at least one ref (a locator: URL, path, citation) per option.",
+		promptSnippet: "Add an option judged against every dimension (returns its OPT-n)",
+		parameters: Type.Object({
+			file: Type.String({ description: "The .adr.yaml" }),
+			summary: Type.String({ description: "The option, one line; the status quo counts" }),
+			reversibility: StringEnum(["reversible", "costly", "one-way"] as const),
+			refs: Type.Optional(Type.Array(
+				Type.Object({
+					label: Type.String({ description: "e.g. project, licence, docs" }),
+					locator: Type.String({ description: "A URL, path or short citation — never prose" }),
+				}),
+				{ description: "Locators for this option; required under kind=selection" },
+			)),
+			against: Type.Array(
+				Type.Object({
+					dimension: Type.String({ description: "D-n" }),
+					text: Type.String({ description: "The fact for this option on that dimension" }),
+				}),
+				{ minItems: 1, description: "One cell per declared dimension — exactly the declared set" },
+			),
+		}),
+		async execute(_id, params, signal, _onUpdate, ctx) {
+			return mutate(params.file, ctx, () => [
+				"adr", "add-option", cleanPath(params.file),
+				"--summary", params.summary, "--reversibility", params.reversibility,
+				...(params.refs ?? []).flatMap((r) => ["--ref", `${r.label}=${r.locator}`]),
+				...params.against.flatMap((a) => ["--against", `${a.dimension}=${a.text}`]),
+			], signal);
+		},
+	});
+
+	pi.registerTool({
+		name: "yamlet_adr_decide",
+		label: "yamlet adr decide",
+		description:
+			"Record the user's choice among the options. After every option is judged against every dimension; " +
+			"before the obligations, accepted costs and revisit conditions.",
+		promptSnippet: "Record which option a decision record chooses",
+		parameters: Type.Object({
+			file: Type.String({ description: "The .adr.yaml" }),
+			option: Type.String({ description: "OPT-n" }),
+		}),
+		async execute(_id, params, signal, _onUpdate, ctx) {
+			return mutate(params.file, ctx, () => ["adr", "decide", cleanPath(params.file), params.option], signal);
+		},
+	});
+
+	textTool(
+		"yamlet_adr_add_obligation", "add-obligation",
+		"Add what the decision obliges — work, in the imperative — and return its R-n. Addressable as " +
+		"ADR-nnnn#R-n: a tech spec task covers it exactly as it covers a criterion. After decide.",
+		"Add an obligation to a decision record (returns its R-n)",
+		"Imperative voice: the work the decision requires",
+	);
+	textTool(
+		"yamlet_adr_add_accept", "add-accept",
+		"Add a cost the decision takes knowingly. Deliberately not addressable: nothing discharges a cost. " +
+		"After decide.",
+		"Add an accepted cost to a decision record",
+		"The cost, one sentence",
+	);
+	textTool(
+		"yamlet_adr_add_revisit", "add-revisit",
+		"Add a condition under which the decision stops being right; one with a threshold names its number. " +
+		"After decide.",
+		"Add a revisit condition to a decision record",
+		"The condition, with its number if it has one",
+	);
+
+	/** The `FILE [--date D]` shape shared by accept and reject. */
+	const statusTool = (name: string, sub: string, description: string, promptSnippet: string) =>
+		pi.registerTool({
+			name,
+			label: `yamlet adr ${sub}`,
+			description,
+			promptSnippet,
+			parameters: Type.Object({
+				file: Type.String({ description: "The .adr.yaml" }),
+				date: Type.Optional(Type.String({ description: "YYYY-MM-DD (default: today)" })),
+			}),
+			async execute(_id, params, signal, _onUpdate, ctx) {
+				return mutate(params.file, ctx, () => {
+					const args = ["adr", sub, cleanPath(params.file)];
+					if (params.date) args.push("--date", params.date);
+					return args;
+				}, signal);
+			},
+		});
+
+	statusTool(
+		"yamlet_adr_accept", "accept",
+		"Accept a decided record that verifies clean, and FREEZE it: afterwards only reject, supersede and " +
+		"their dates change. The spec must then link it (yamlet_add_adr).",
+		"Accept and freeze a decision record",
+	);
+	statusTool(
+		"yamlet_adr_reject", "reject",
+		"Reject a proposed record. Only from proposed; an accepted record is superseded, never rejected.",
+		"Reject a proposed decision record",
+	);
+
+	pi.registerTool({
+		name: "yamlet_adr_supersede",
+		label: "yamlet adr supersede",
+		description:
+			"Mark an accepted record as superseded by a newer one (which should `assumes` it). The old record " +
+			"and its links stay; they are history. Then link the new record where the old one was.",
+		promptSnippet: "Supersede an accepted decision record by a newer one",
+		parameters: Type.Object({
+			file: Type.String({ description: "The old .adr.yaml" }),
+			by: Type.String({ description: "ADR-nnnn of the successor, in the same directory" }),
+			date: Type.Optional(Type.String({ description: "YYYY-MM-DD (default: today)" })),
+		}),
+		async execute(_id, params, signal, _onUpdate, ctx) {
+			return mutate(params.file, ctx, () => {
+				const args = ["adr", "supersede", cleanPath(params.file), "--by", params.by];
+				if (params.date) args.push("--date", params.date);
 				return args;
 			}, signal);
 		},

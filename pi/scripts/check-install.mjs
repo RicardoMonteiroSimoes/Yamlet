@@ -3,7 +3,7 @@
 // `pi install` only records a source in settings; nothing tells you whether the
 // manifest resolved to the resources you meant to ship until a session starts.
 // This asks pi's own resource loader, against a pi home the caller has already
-// installed into, and fails unless the extension and all three skills resolved.
+// installed into, and fails unless the extension and all five skills resolved.
 //
 //   PI_CODING_AGENT_DIR=/tmp/pihome node pi/scripts/check-install.mjs
 //
@@ -43,7 +43,7 @@ for (const err of [...(extResult?.errors ?? []), ...(skillResult?.errors ?? [])]
 const failures = [];
 const ext = extensions.filter((p) => p.replace(/\\/g, "/").endsWith("/pi/extensions/yamlet/index.ts"));
 if (ext.length !== 1) failures.push(`expected exactly one yamlet extension, got: ${JSON.stringify(extensions)}`);
-for (const name of ["yamlet-author", "yamlet-verifier", "yamlet-tester"]) {
+for (const name of ["yamlet-author", "yamlet-verifier", "yamlet-tester", "yamlet-techspec", "yamlet-adr"]) {
 	if (!skills.has(name)) failures.push(`skill not resolved: ${name}`);
 }
 const strays = [...skills.keys()].filter((n) => !n.startsWith("yamlet-"));
@@ -57,4 +57,4 @@ if (failures.length) {
 	for (const f of failures) console.error(`FAIL  ${f}`);
 	process.exit(1);
 }
-console.log("ok: extension and all three skills resolve");
+console.log("ok: extension and all five skills resolve");

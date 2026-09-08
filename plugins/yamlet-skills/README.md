@@ -44,7 +44,7 @@ The same flow is ported to the [pi coding agent](https://pi.dev) under
 [`pi/`](../../pi) in this repo — `pi install git:github.com/RicardoMonteiroSimoes/Yamlet`.
 There the CLI is registered as native pi tools and hand-editing a `.yamlet.yaml`
 is blocked outright, because pi has no permission layer to express that with.
-The tech spec flow (`yamlet-techspec` and its two helpers) and the decision record flow (`yamlet-adr` and its challenger) are not ported yet.
+The tech spec and decision record flows are ported too: the two interviewing skills stay skills, and their three helpers run as `pi-subagents` agents.
 
 ## Source
 
