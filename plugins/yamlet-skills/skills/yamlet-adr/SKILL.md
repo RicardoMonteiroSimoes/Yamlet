@@ -1,12 +1,9 @@
 ---
 name: yamlet-adr
 description: >-
-  Writes an architecture decision record (.adr.yaml) by interviewing the user and driving `yamlet
-  adr` — never by hand-writing YAML. Use when a design choice must be recorded: which library,
-  mechanism, policy, boundary or sequencing, judged against explicit dimensions, with the obligations
-  it places on the work. Used inside yamlet-techspec's decision gate, or standalone with the records
-  directory as its argument (e.g. `/yamlet-adr adr`). Not for specs (yamlet-author) or task lists
-  (yamlet-techspec).
+  Writes a decision record (.adr.yaml) by interviewing the user and driving `yamlet adr`, never by
+  hand-writing YAML. Use when a design choice must be recorded — standalone (`/yamlet-adr adr`) or
+  inside yamlet-techspec's decision gate.
 argument-hint: <records-dir> [what is being decided]
 allowed-tools: Bash(yamlet:*), Read, Skill(yamlet-adr-challenger *), Skill(yamlet-skills:yamlet-adr-challenger *)
 ---
@@ -34,7 +31,7 @@ Turn a choice into a **decision record**: the question, the forces, the dimensio
 2. **Forces.** Constraints *outside the author's control*: the trust boundary, a spec obligation, a distribution model. A prior record's obligation is **cited** (`ADR-nnnn#R-n`), never restated. `yamlet adr add-force FILE TEXT`
 3. **Basis, if anything will be measured.** The load a number is stated under (a volume, a horizon), each with a numeral and a source. `yamlet adr add-basis FILE --quantity Q --source S`
 4. **Dimensions.** The axes, each stated as *the threshold at which it decides anything*, not what the axis is. A measured one names its unit, the yardstick (`--source`) and the basis it is stated under. `yamlet adr add-dimension FILE --matters M [--unit U --source S --basis B-n]`
-5. **Challenge before the options.** Invoke **`yamlet-adr-challenger`** (`/yamlet-adr-challenger <the record so far, verbatim>`). Resolve every **BLOCKER**, put its **QUESTIONS** to the user. Dimensions are the last thing that is cheap to change.
+5. **Challenge before the options.** Invoke **`yamlet-adr-challenger`** with the record's path (`/yamlet-adr-challenger FILE`). Resolve every **BLOCKER**, put its **QUESTIONS** to the user. Dimensions are the last thing that is cheap to change.
 6. **Options.** At least two; the status quo counts and naming it is what makes the set honest. Each is judged against **every** dimension in one call: a cell states a fact, a measured cell carries a numeral, `n/a — <reason>` is allowed and a bare `n/a` is not. A selection needs a locator per option (`--ref project=URL`).
    `yamlet adr add-option FILE --summary S --reversibility reversible|costly|one-way [--ref L=URL] --against D-1=... --against D-2=...`
 7. **Decision.** The user picks. `yamlet adr decide FILE OPT-n`

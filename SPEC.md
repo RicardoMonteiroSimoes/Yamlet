@@ -478,57 +478,55 @@ change, and a decision is revised by superseding it with a new record. Records a
 written only by `yamlet adr`, which mints every id and rewrites the file whole.
 
 ```yaml
-adr: ADR-0001                        # four digits, minted in time order        (E803)
-title: Structural PDF parsing        # the subject — not the question, not the answer
+adr: ADR-0001                        # ^ADR-[0-9]{4}$, unique in its directory  (E803)
+title: Structural PDF parsing
 status: accepted                     # proposed | accepted | rejected | superseded (E804)
-date: 2026-09-07                     # when it entered its current status          (E805)
+date: 2026-09-07                     # YYYY-MM-DD                                  (E805)
 kind: selection                      # selection | mechanism | policy | boundary | sequencing (E806)
-arises_from:                         # origin: this, or `assumes`, non-empty       (E807)
-- pdf-verify.yamlet.yaml#AC-8        # <spec>#<RQ-n|AC-n>, relative to this file, must resolve
-assumes:                             # prior records, lower-numbered only
-- ADR-0000
+arises_from:                         # this or `assumes`, non-empty                (E807)
+- pdf-verify.yamlet.yaml#AC-8        # <spec>#<RQ-n|AC-n>, relative to this file
+assumes:
+- ADR-0000                           # lower-numbered only
 
-question: >-                         # answerable by choosing one option
+question: >-
   What reads the cross-reference table …?
 
-forces:                              # constraints outside the author's control   (E808)
-- >-                                 # always a block scalar: a colon-space in bare prose
-  AC-10 fixes a precedence order …   # would silently become a mapping
+forces:                              # block scalars; may cite ADR-nnnn#R-n        (E808)
 - >-
-  ADR-0000#R-2 already bounds the …  # cite an obligation, never restate it
+  AC-10 fixes a precedence order …
 
-basis:                               # the load a measured dimension is stated under (E809)
+basis:                               # (E809)
 - id: B-1
-  quantity: 40000 uploads / month    # carries a numeral
+  quantity: 40000 uploads / month
   source: >-
     ingest telemetry, 2026-08 monthly mean
 
-dimensions:                          # the axes, declared before the options       (E810)
+dimensions:                          # (E810)
 - id: D-1
-  matters: >-                        # the threshold at which the axis decides anything
+  matters: >-
     An AGPL obligation on a distributed artifact is a legal blocker, not a cost.
-  source: OSS-policy/distribution.md # the shared yardstick only
+  source: OSS-policy/distribution.md
 - id: D-5
   matters: >-
     Only decisive at a spread wide enough to survive the day rate being wrong by a third.
-  unit: EUR of total ownership       # a measure needs a source, and basis refs when basis exists
+  unit: EUR of total ownership
   basis:
   - B-1
   source: >-
     cost/pdf-parsing-tco.md
 
-options:                             # at least two; the status quo counts          (E811)
+options:                             # at least two                                 (E811)
 - id: OPT-1
   summary: >-
     Apache PDFBox 3.x
-  refs:                              # label → locator; required under kind: selection
+  refs:                              # required under kind: selection
     project: https://pdfbox.apache.org/
   reversibility: costly              # reversible | costly | one-way
   against:                           # exactly the declared dimensions             (E812)
     D-1: >-
       Apache-2.0, no distribution obligation.
     D-5: >-
-      About 26k, mostly recurring …  # a measured cell carries a numeral
+      About 26k, mostly recurring …
 - id: OPT-2
   summary: >-
     iText 8
@@ -539,23 +537,22 @@ options:                             # at least two; the status quo counts      
     D-1: >-
       AGPL-3.0. Blocker under the distribution model.
     D-5: >-
-      n/a — not priced, D-1 excludes the option.   # a bare n/a is rejected; a cited
-                                                    # excluding D-n must be substantive
+      n/a — not priced, D-1 excludes the option.
 
-decision: OPT-1                      # a declared option; required once accepted   (E813)
+decision: OPT-1                      # (E813)
 
-requires:                            # durable obligations on future work           (E814)
+requires:                            # (E814)
 - id: R-1                            # addressable as ADR-0001#R-1
   must: >-
     Validate every byte offset against the file length before using it.
 
-accepts:                             # costs taken knowingly; not addressable
+accepts:
 - >-
   It is not a PDF validator.
 
-revisit:                             # when the decision stops being right          (E815)
+revisit:                             # (E815)
 - >-
-  Ownership runs past 0.25 engineer-day / month.   # a threshold names its number
+  Ownership runs past 0.25 engineer-day / month.
 ```
 
 **What the ids carry.** `ADR-nnnn` is four digits, zero-padded, minted in time
