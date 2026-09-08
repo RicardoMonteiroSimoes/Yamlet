@@ -1,18 +1,23 @@
 # Releasing yamlet
 
-A release is **one click**. From the repo's **Actions** tab, run the **Release**
-workflow and enter a version (e.g. `0.1.0`, no leading `v`). That single action:
+A release is **one click**, after one commit. First bump the two port manifests
+to the release number (see below), merge that to `main`, then from the repo's
+**Releases** page **draft a new release** with a new tag `v<version>` (e.g.
+`v0.3.0`) on `main` and publish it. Publishing the Release is the trigger; the
+workflow (`on: release: published`) then:
 
-1. cross-compiles the four target binaries (macOS + Linux, Intel + arm64),
-2. packages each as `yamlet-<version>-<target>.tar.gz` with a `SHA256SUMS` file,
-3. creates the `v<version>` tag and publishes a GitHub Release with those assets,
-4. renders `Formula/yamlet.rb` from [`tooling/packaging/yamlet.rb.tmpl`](tooling/packaging/yamlet.rb.tmpl)
+1. checks that both port manifests carry the release version, and stops if not,
+2. cross-compiles the four target binaries (macOS + Linux, Intel + arm64),
+3. packages each as `yamlet-<version>-<target>.tar.gz` with a `SHA256SUMS` file
+   and attaches them to that same Release,
+4. publishes the pi port to npm as `yamlet-pi@<version>`,
+5. renders `Formula/yamlet.rb` from [`tooling/packaging/yamlet.rb.tmpl`](tooling/packaging/yamlet.rb.tmpl)
    and pushes it to the [`homebrew-yamlet`](https://github.com/RicardoMonteiroSimoes/homebrew-yamlet)
    tap.
 
 Users then get it with `brew tap RicardoMonteiroSimoes/yamlet && brew install yamlet`
-(and `brew upgrade yamlet` after each release). Pushing a `v*` tag by hand runs
-the same pipeline.
+(and `brew upgrade yamlet` after each release). A bare `v*` tag does **not** run
+the pipeline — only a published Release does, so it never fights an existing one.
 
 ## What else a release ships
 
@@ -84,7 +89,7 @@ The `yamlet-skills` Claude Code plugin ([`plugins/yamlet-skills/`](plugins/yamle
 is **served live from this repo's git tree**, not built or published by the release
 workflow. Its marketplace catalog is [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json).
 Merging a skill change to the branch users track is the "release" — there is nothing to
-tag or upload. The five skills have a single source of truth under
+tag or upload. The ten skills have a single source of truth under
 `plugins/yamlet-skills/skills/`; the repo's `.claude/skills/` entries are symlinks into it
 (dereferenced to real files when Claude Code installs the plugin from the marketplace).
 

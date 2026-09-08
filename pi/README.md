@@ -25,9 +25,9 @@ The port and the CLI share one version number, so pin the port to the release
 whose CLI you run:
 
 ```sh
-pi install npm:yamlet-pi@0.2.3
+pi install npm:yamlet-pi@0.3.0
 # or straight from the repo, at the same tag
-pi install git:github.com/RicardoMonteiroSimoes/Yamlet@v0.2.3
+pi install git:github.com/RicardoMonteiroSimoes/Yamlet@v0.3.0
 ```
 
 Unpinned — `pi install git:github.com/RicardoMonteiroSimoes/Yamlet` — tracks
