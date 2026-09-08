@@ -19,18 +19,21 @@ import { verifyText } from "./verify.ts";
 import { type Contract, contractOf } from "./systems.ts";
 import { type CompositeInfo, resolveComposite, socketKey } from "./composite.ts";
 import { type Block, blocksOf, criteriaKeyLine, findBlock, spliceAfter } from "./blocks.ts";
+import { listUnder } from "./records.ts";
+import {
+  argVal,
+  basename,
+  CmdError,
+  die,
+  dirname,
+  exists,
+  isFile,
+  renderFindings,
+  resolveFrom,
+} from "./cmd.ts";
 
 const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const NAME = /^[a-z][a-z0-9_]*$/;
-
-// ── control-flow helper: a thrown CmdError short-circuits a runner ──
-class CmdError {
-  constructor(public result: CmdResult) {}
-}
-const die = (msg: string): CmdResult => ({ exitCode: 2, stdout: "", stderr: `error: ${msg}\n` });
-const fail = (msg: string): never => {
-  throw new CmdError(die(msg));
-};
 
 const USAGE = `Usage:
   yamlet init FILE --system s --topic t --summary s --description d \\
@@ -42,6 +45,7 @@ const USAGE = `Usage:
                    --pattern ubiquitous|state|event|optional|unwanted|complex \\
                    [--when ...|--if ...|--while ... (repeatable)|--where ...] \\
                    --shall "..." [--shall "..." ...] [--example "k=v;k=v" ...]
+  yamlet add-adr         FILE PATH (--rq RQ-N | --ac AC-N)
 `;
 const usageResult = (): CmdResult => ({ exitCode: 2, stdout: "", stderr: USAGE });
 
@@ -89,31 +93,6 @@ function emitExampleRow(row: string): string {
     out += (i === 0 ? "    - " : "      ") + k + ": " + v + "\n";
   });
   return out;
-}
-
-// ── filesystem helpers ──
-function exists(path: string): boolean {
-  try {
-    Deno.statSync(path);
-    return true;
-  } catch {
-    return false;
-  }
-}
-function isFile(path: string): boolean {
-  try {
-    return Deno.statSync(path).isFile;
-  } catch {
-    return false;
-  }
-}
-function basename(p: string): string {
-  const slash = p.lastIndexOf("/");
-  return slash < 0 ? p : p.slice(slash + 1);
-}
-function dirname(p: string): string {
-  const slash = p.lastIndexOf("/");
-  return slash < 0 ? "" : p.slice(0, slash);
 }
 
 // ── ID allocation (max existing number for a prefix; caller adds 1) ──
@@ -186,19 +165,29 @@ function guardCheck(file: string, text: string): { ok: boolean; unexpected: Find
   return { ok: unexpected.length === 0, unexpected };
 }
 
-function renderUnexpected(findings: Finding[]): string {
-  return findings.map((f) =>
-    f.line > 0
-      ? `${f.rule} LINE ${f.line} ${f.path}: ${f.message}`
-      : `${f.rule} ${f.path}: ${f.message}`
-  ).join("\n");
-}
+const renderUnexpected = renderFindings;
 
-// ── argument-value getter ──
-function argVal(args: string[], i: number, flag: string): string {
-  const v = args[i + 1];
-  if (v === undefined) fail(`${flag} needs a value`);
-  return v!;
+/**
+ * The stricter gate for a mutation that *rewrites an existing block* rather than
+ * appending after the last one. `guardCheck`'s allowlist is the appenders'
+ * predicted work-in-progress findings; it says nothing about a change in the
+ * middle of a file. This one does: the findings after the change must be a
+ * subset of the findings before it, keyed on (rule, message) — not on line or
+ * path index, which an insertion shifts. A mutation that predicts a finding of
+ * its own adds it to `predicted`.
+ */
+function strictGuard(
+  file: string,
+  before: string,
+  after: string,
+  predicted: string[] = [],
+): { ok: boolean; unexpected: Finding[] } {
+  const key = (f: Finding): string => `${f.rule}\u0000${f.message}`;
+  const prior = new Set(verifyText(file, before).result.errors.map(key));
+  const unexpected = verifyText(file, after).result.errors.filter(
+    (e) => !prior.has(key(e)) && !predicted.includes(e.rule),
+  );
+  return { ok: unexpected.length === 0, unexpected };
 }
 
 // ── init ──
@@ -413,8 +402,7 @@ export function runAddComponent(args: string[]): CmdResult {
     if (existing.includes(alias)) return die(`duplicate component alias: ${alias}`);
 
     // The member must exist and expose a contract to be wireable.
-    const dir = dirname(file);
-    const resolved = path.startsWith("/") ? path : dir === "" ? path : `${dir}/${path}`;
+    const resolved = resolveFrom(dirname(file), path);
     if (!isFile(resolved)) {
       return die(`component path does not resolve to a file: ${path} (looked at ${resolved})`);
     }
@@ -1009,7 +997,155 @@ export function runAddCriterion(args: string[]): CmdResult {
         }\n`,
       };
     }
-    return { exitCode: 0, stdout: `${acid}\n`, stderr: "" };
+    // A requirement-level link decides every criterion under it — this one too.
+    const notice = decidedNotice(
+      rq,
+      `the new criterion ${acid} falls under its decision`,
+      adrsOf(next, target.path),
+    );
+    return { exitCode: 0, stdout: `${acid}\n`, stderr: notice };
+  } catch (e) {
+    if (e instanceof CmdError) return e.result;
+    throw e;
+  }
+}
+
+// ── decided blocks ──
+
+/** The `adrs:` entries of the block at `path` (`requirements[i]` or a criterion under it). */
+function adrsOf(text: string, path: string): string[] {
+  return listUnder(flatten(text).records, `${path}.adrs`);
+}
+
+/**
+ * The notice a mutation prints when it touches behaviour an ADR decides. The
+ * tool cannot judge whether the decision still holds, and the spec is not the
+ * place to settle it: that happens when the work is planned — the tech spec
+ * that covers the changed behaviour is where the decision is met, kept, or
+ * revisited. So the notice names the records and points there. On stderr,
+ * exit 0: the change is applied, the reader is told what it touched. Any
+ * future `edit`/`rm` of a linked block prints the same notice.
+ */
+export function decidedNotice(id: string, change: string, adrs: string[]): string {
+  if (adrs.length === 0) return "";
+  let s = `WARNING: ${id} is decided by an ADR — ${change}.\n`;
+  for (const a of adrs) s += `  ${a}\n`;
+  s += "The decision is not revisited here. The tech spec that plans this change must\n" +
+    "read it and account for it (yamlet techspec).\n";
+  return s;
+}
+
+// ── add-adr ──
+// Link an ADR to a requirement or a criterion: `adrs:` on the block, a list of
+// paths relative to the spec's directory. The decision this records is made
+// *after* the spec is finished (while planning the work), so the block already
+// exists — which makes this the first mutation that rewrites an existing block
+// instead of appending after the last one, and the first to run `strictGuard`.
+//
+// Placement keeps every extent in `blocks.ts` true: on a requirement the list
+// goes before `acceptance-criteria:` (which must stay the requirement's last
+// key); on a criterion it goes at the block's end.
+export function runAddAdr(args: string[]): CmdResult {
+  try {
+    const file = args[0] ?? "";
+    if (file === "") return usageResult();
+
+    let rq = "";
+    let ac = "";
+    const positionals: string[] = [];
+    let i = 1;
+    while (i < args.length) {
+      const a = args[i]!;
+      if (a === "--rq") {
+        rq = argVal(args, i, a);
+        i += 2;
+      } else if (a === "--ac") {
+        ac = argVal(args, i, a);
+        i += 2;
+      } else if (a.startsWith("--")) {
+        return die(`unknown flag for add-adr: ${a}`);
+      } else {
+        positionals.push(a);
+        i++;
+      }
+    }
+    const path = positionals[0] ?? "";
+    if (path === "") {
+      return die("add-adr requires PATH (the ADR file, relative to FILE's directory)");
+    }
+    if (positionals.length > 1) return die(`too many arguments: ${positionals[1]}`);
+    if ((rq === "") === (ac === "")) {
+      return die("add-adr requires exactly one of --rq RQ-N or --ac AC-N");
+    }
+    if (!isFile(file)) return die(`file not found: ${file} (run 'init' first)`);
+
+    const resolved = resolveFrom(dirname(file), path);
+    if (!isFile(resolved)) {
+      return die(`ADR path does not resolve to a file: ${path} (looked at ${resolved})`);
+    }
+
+    const backup = Deno.readTextFileSync(file);
+    const blocks = blocksOf(backup);
+    const id = rq !== "" ? rq : ac;
+    const want = rq !== "" ? "requirement" : "criterion";
+    const target = findBlock(blocks, id);
+    if (target === undefined || target.kind !== want) {
+      const known = blocks.filter((b) => b.kind === want && b.id !== "").map((b) => b.id);
+      return die(`no such ${want}: ${id} (this spec has ${known.join(", ") || "none"})`);
+    }
+
+    // An existing `adrs:` list on this block, and the line of its last entry.
+    // A requirement's own lines end at its `acceptance-criteria:` key, so the
+    // scan over `start..end` never strays into a criterion's list.
+    const lines = backup.split("\n");
+    const indent = want === "requirement" ? "  " : "    ";
+    let lastEntry = 0;
+    for (let ln = target.start; ln <= target.end; ln++) {
+      if (lines[ln - 1] !== `${indent}adrs:`) continue;
+      lastEntry = ln;
+      while (lastEntry < target.end && (lines[lastEntry] ?? "").startsWith(`${indent}- `)) {
+        lastEntry++;
+      }
+      break;
+    }
+    if (lastEntry > 0) {
+      const unq = (v: string): string => (v.startsWith('"') ? v.slice(1, -1) : v);
+      for (let ln = lastEntry; lines[ln - 1] !== `${indent}adrs:`; ln--) {
+        if (unq((lines[ln - 1] ?? "").slice(indent.length + 2)) === path) {
+          return die(`${id} already links ${path}`);
+        }
+      }
+    }
+
+    let next: string;
+    if (lastEntry > 0) {
+      next = spliceAfter(backup, lastEntry, `${indent}- ${q(path)}\n`);
+    } else if (want === "requirement") {
+      const keyLine = criteriaKeyLine(backup, target);
+      if (keyLine === 0) {
+        return die(
+          `${id} has no 'acceptance-criteria:' key to anchor on.\n` +
+            `It was not written by this tool; add the key before linking an ADR.`,
+        );
+      }
+      next = spliceAfter(backup, keyLine - 1, `  adrs:\n  - ${q(path)}\n`);
+    } else {
+      next = spliceAfter(backup, target.end, `    adrs:\n    - ${q(path)}\n`);
+    }
+
+    Deno.writeTextFileSync(file, next);
+    const guard = strictGuard(file, backup, next);
+    if (!guard.ok) {
+      Deno.writeTextFileSync(file, backup);
+      return {
+        exitCode: 3,
+        stdout: "",
+        stderr: `error: add-adr produced an unexpected finding and was rolled back:\n${
+          renderUnexpected(guard.unexpected)
+        }\n`,
+      };
+    }
+    return { exitCode: 0, stdout: "", stderr: "" };
   } catch (e) {
     if (e instanceof CmdError) return e.result;
     throw e;
@@ -1162,4 +1298,26 @@ Without --after the criterion is appended to the end of that requirement's
 criteria and takes the next free number.
 `,
   run: runAddCriterion,
+};
+
+export const addAdrCommand: Command = {
+  name: "add-adr",
+  summary: "link an ADR to a requirement or criterion",
+  help: `yamlet add-adr — link an architecture decision record to a requirement or criterion
+
+Usage:
+  yamlet add-adr FILE PATH --rq RQ-N
+  yamlet add-adr FILE PATH --ac AC-N
+
+PATH    the ADR file, relative to FILE's directory; it must exist. yamlet reads
+        nothing from it — the link is what the spec holds.
+--rq    link on the requirement (every criterion under it is decided by it).
+--ac    link on one criterion.
+
+Appends PATH to that block's \`adrs:\` list, creating the list on the first link.
+The same path may be linked on several requirements: a decision that covers a
+whole service is repeated where it applies rather than hoisted to the file.
+Every link is checked by verify (E109): the file must resolve.
+`,
+  run: runAddAdr,
 };

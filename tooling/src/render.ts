@@ -62,8 +62,9 @@ export function renderJson(result: Result, kind: RenderKind): string {
     if (i > 0) out += ",";
     out += "\n  " + entry(f);
   });
+  const tasks = result.summary.tasks === undefined ? "" : `,"tasks":${result.summary.tasks}`;
   out +=
-    `\n],"summary":{"requirements":${result.summary.requirements},"acceptanceCriteria":${result.summary.acceptanceCriteria}}}\n`;
+    `\n],"summary":{"requirements":${result.summary.requirements},"acceptanceCriteria":${result.summary.acceptanceCriteria}${tasks}}}\n`;
   return out;
 }
 
@@ -97,8 +98,9 @@ export function renderHuman(result: Result, kind: RenderKind): { stderr: string;
   }
   let stdout = "";
   if (result.valid) {
+    const tasks = result.summary.tasks === undefined ? "" : `, ${result.summary.tasks} tasks`;
     stdout =
-      `OK: ${result.file} (${result.summary.requirements} requirements, ${result.summary.acceptanceCriteria} acceptance-criteria)\n`;
+      `OK: ${result.file} (${result.summary.requirements} requirements, ${result.summary.acceptanceCriteria} acceptance-criteria${tasks})\n`;
   }
   return { stderr, stdout };
 }

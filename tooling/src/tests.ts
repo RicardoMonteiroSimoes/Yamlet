@@ -46,6 +46,7 @@
 import type { CmdResult, Command, FlatRecord } from "./types.ts";
 import { flatten } from "./flatten.ts";
 import { listSpecs } from "./systems.ts";
+import { escRe, indicesUnder, listUnder } from "./records.ts";
 
 const die = (msg: string): CmdResult => ({ exitCode: 2, stdout: "", stderr: `error: ${msg}\n` });
 
@@ -75,34 +76,6 @@ interface SpecDoc {
   front: string;
   blastRadius: string;
   requirements: Requirement[];
-}
-
-/** Escape the literal characters of a record path for use inside a RegExp. */
-function escRe(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-/** The distinct sequence indices present for `${prefix}[N]…`, ascending. */
-function indicesUnder(records: readonly FlatRecord[], prefix: string): number[] {
-  const re = new RegExp(`^${escRe(prefix)}\\[(\\d+)\\]`);
-  const seen = new Set<number>();
-  for (const r of records) {
-    const m = r.path.match(re);
-    if (m) seen.add(Number(m[1]));
-  }
-  return [...seen].sort((a, b) => a - b);
-}
-
-/** The ordered scalar values of an indexed list at `${prefix}[N]`. */
-function listUnder(records: readonly FlatRecord[], prefix: string): string[] {
-  const re = new RegExp(`^${escRe(prefix)}\\[(\\d+)\\]$`);
-  const rows: { i: number; v: string }[] = [];
-  for (const r of records) {
-    const m = r.path.match(re);
-    if (m) rows.push({ i: Number(m[1]), v: r.value });
-  }
-  rows.sort((a, b) => a.i - b.i);
-  return rows.map((x) => x.v);
 }
 
 /** Parse one criterion's `examples` rows into per-row key→value maps + the sorted key union. */

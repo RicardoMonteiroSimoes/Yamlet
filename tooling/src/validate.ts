@@ -56,9 +56,14 @@ function topKey(path: string): string {
   return path.replace(/[.[].*$/, "");
 }
 
+/**
+ * `fileDir` is the directory of the file being verified: an `adrs` entry is a
+ * path relative to it (E109), the same way a `components` path is.
+ */
 export function validate(
   records: FlatRecord[],
   composite: CompositeInfo,
+  fileDir = "",
 ): ValidateOutput {
   const findings: Finding[] = [];
   const finding = (rule: string, line: number, path: string, message: string): void => {
@@ -246,6 +251,39 @@ export function validate(
         acSeenIds.add(acid);
       }
     }
+  }
+
+  // ── E109: ADR links on a requirement or criterion ──
+  // `adrs:` is an optional list of paths (relative to the spec's directory) on
+  // either block. The link is the spec's, so the spec is where it is checked:
+  // an entry must be non-empty, unique within its block, and resolve to a file.
+  const adrSeen = new Map<string, Set<string>>(); // block prefix → entries
+  const adrPaths = [...byPath.keys()]
+    .filter((p) =>
+      /^requirements\[[0-9]+\](?:\.acceptance-criteria\[[0-9]+\])?\.adrs\[[0-9]+\]$/.test(p)
+    )
+    .sort();
+  for (const p of adrPaths) {
+    const v = byPath.get(p)!;
+    const ln = byLine.get(p)!;
+    const block = p.replace(/\.adrs\[[0-9]+\]$/, "");
+    if (v === "") {
+      finding("E109", ln, p, block + ": adrs entry is empty");
+      continue;
+    }
+    const seen = adrSeen.get(block) ?? new Set<string>();
+    adrSeen.set(block, seen);
+    if (seen.has(v)) {
+      finding("E109", ln, p, block + ": duplicate adrs entry: " + v);
+      continue;
+    }
+    seen.add(v);
+    const resolved = v.startsWith("/") ? v : fileDir === "" ? v : fileDir + "/" + v;
+    let ok = false;
+    try {
+      ok = Deno.statSync(resolved).isFile;
+    } catch { /* not a file */ }
+    if (!ok) finding("E109", ln, p, block + ": adrs entry does not resolve to a file: " + v);
   }
 
   // ── exposes contract (optional top-level) ──

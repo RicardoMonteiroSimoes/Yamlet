@@ -1,0 +1,42 @@
+spec: valid-example.yamlet.yaml
+system: e-mail-sending-service
+
+analysis:
+  commit: 9f3c1ab
+  deep:
+  - src/main/
+  skimmed:
+  - src/resources/
+
+requirements:
+- id: RQ-1
+  acceptance-criteria:
+  - id: AC-1
+    met: true
+    evidence:
+    - src/main/Smtp.java:12
+  - id: AC-2
+    met: false
+    evidence:
+    - src/main/Smtp.java:40
+    note: Re-authenticates but drops the in-flight e-mail.
+  - id: AC-3
+    met: false
+
+tasks:
+- id: T-1
+  title: Assemble a flaky-SMTP test double
+  why: The timeout paths cannot be exercised against a real server.
+- id: T-2
+  title: Resend the in-flight e-mail after re-authentication
+  covers:
+  - AC-2
+  depends_on:
+  - T-1
+- id: T-3
+  title: Schedule retries with the specified backoff
+  covers:
+  - AC-3
+  depends_on:
+  - T-1
+  - T-2

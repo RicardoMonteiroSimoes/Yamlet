@@ -11,6 +11,8 @@
 //   yamlet init FILE ...
 //   yamlet add-requirement FILE --description "..."
 //   yamlet add-criterion FILE --rq RQ-N --pattern P ...
+//   yamlet add-adr FILE PATH (--rq RQ-N | --ac AC-N)
+//   yamlet techspec init|analysis|criterion|task ...
 //
 // Exit codes: 0 success · 1 verify found errors · 2 usage/validation · 3 mutation
 // rolled back by the commit gate.
@@ -23,12 +25,14 @@ import { CATALOG } from "./src/catalog.ts";
 import { renderHuman, renderJson } from "./src/render.ts";
 import { verifyFile } from "./src/verify.ts";
 import {
+  addAdrCommand,
   addComponentCommand,
   addConnectionCommand,
   addCriterionCommand,
   addRequirementCommand,
   initCommand,
 } from "./src/author.ts";
+import { techspecCommand } from "./src/techspec_author.ts";
 import { systemsCommand } from "./src/systems.ts";
 import { impactCommand } from "./src/impact.ts";
 import { graphCommand } from "./src/graph.ts";
@@ -102,12 +106,16 @@ function runVerify(args: string[]): CmdResult {
 
 const verifyCommand: Command = {
   name: "verify",
-  summary: "check a spec against the rule catalog",
-  help: `yamlet verify — check a spec against the rule catalog
+  summary: "check a spec (or a tech spec) against the rule catalog",
+  help: `yamlet verify — check a spec, or a tech spec, against the rule catalog
 
 Usage:
   yamlet verify [--format=human|json] <file.yamlet.yaml>
+  yamlet verify [--format=human|json] <file.techspec.yaml>
   yamlet verify --list-rules [--format=human|json]
+
+The extension picks the rules: a .yamlet.yaml spec gets E0xx–E6xx and W00x, a
+.techspec.yaml tech spec gets E7xx (see \`yamlet techspec --help\`).
 
 Options:
   --format=human|json   output shape (default: human)
@@ -145,6 +153,8 @@ export const COMMANDS: Command[] = [
   addConnectionCommand,
   addRequirementCommand,
   addCriterionCommand,
+  addAdrCommand,
+  techspecCommand,
 ];
 
 /**

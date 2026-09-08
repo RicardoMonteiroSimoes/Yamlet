@@ -7,6 +7,7 @@
 
 import { assertEquals } from "jsr:@std/assert@1";
 import {
+  runAddAdr,
   runAddComponent,
   runAddConnection,
   runAddCriterion,
@@ -30,6 +31,8 @@ function run(cmd: string, file: string, args: string[]): CmdResult {
       return runAddRequirement(argv);
     case "add-criterion":
       return runAddCriterion(argv);
+    case "add-adr":
+      return runAddAdr(argv);
     default:
       throw new Error(`unknown command: ${cmd}`);
   }
@@ -424,6 +427,75 @@ Deno.test("composite: components + connections reproduce the frozen golden", () 
   );
 
   assertEquals(Deno.readTextFileSync(C), golden("composite.yamlet.yaml"));
+});
+
+Deno.test("adrs: decision links on a requirement and a criterion reproduce the frozen golden", () => {
+  const dir = Deno.makeTempDirSync();
+  const A = `${dir}/adrs.yamlet.yaml`;
+  Deno.mkdirSync(`${dir}/adr`);
+  Deno.writeTextFileSync(`${dir}/adr/ADR-0001-parser.md`, "# ADR-0001\n");
+  Deno.writeTextFileSync(`${dir}/adr/ADR-0002-isolation.md`, "# ADR-0002\n");
+  assertEquals(
+    run("init", A, [
+      "--system",
+      "pdf-service",
+      "--topic",
+      "PDF verification",
+      "--summary",
+      "Verifies a PDF's structure",
+      "--description",
+      "Checks the header, cross-reference table and object structure.",
+      "--blast-radius",
+      "medium",
+      "--front",
+      "internal",
+    ]).exitCode,
+    0,
+  );
+  run("add-requirement", A, ["--description", "Verifies the header"]);
+  run("add-criterion", A, [
+    "--rq",
+    "RQ-1",
+    "--pattern",
+    "ubiquitous",
+    "--shall",
+    "check the header",
+  ]);
+  run("add-requirement", A, ["--description", "Verifies the cross-reference table and objects"]);
+  run("add-criterion", A, [
+    "--rq",
+    "RQ-2",
+    "--pattern",
+    "ubiquitous",
+    "--shall",
+    "resolve startxref",
+  ]);
+  run("add-criterion", A, [
+    "--rq",
+    "RQ-2",
+    "--pattern",
+    "ubiquitous",
+    "--shall",
+    "balance obj/endobj",
+  ]);
+  assertEquals(run("add-adr", A, ["adr/ADR-0001-parser.md", "--rq", "RQ-2"]).exitCode, 0);
+  assertEquals(run("add-adr", A, ["adr/ADR-0001-parser.md", "--ac", "AC-2"]).exitCode, 0);
+  assertEquals(run("add-adr", A, ["adr/ADR-0002-isolation.md", "--ac", "AC-2"]).exitCode, 0);
+  assertEquals(run("add-adr", A, ["adr/ADR-0002-isolation.md", "--rq", "RQ-2"]).exitCode, 0);
+  assertEquals(
+    run("add-criterion", A, [
+      "--rq",
+      "RQ-2",
+      "--after",
+      "AC-2",
+      "--pattern",
+      "ubiquitous",
+      "--shall",
+      "read the trailer",
+    ]).stdout,
+    "AC-2a\n",
+  );
+  assertEquals(Deno.readTextFileSync(A), golden("adrs.yamlet.yaml"));
 });
 
 Deno.test("rejection paths: same inputs rejected with exit 2, nothing written", () => {

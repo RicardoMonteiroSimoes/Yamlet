@@ -34,7 +34,11 @@ src/validate.ts   Phase 2: structural + semantic rules over records
 src/catalog.ts    the rule catalog (source of truth for rule ids/severities)
 src/render.ts     byte-exact human/JSON output
 src/verify.ts     orchestration: extension -> flatten -> composite -> validate
-src/author.ts     correct-by-construction appender; runs verifier as commit gate
+src/author.ts     correct-by-construction appender; runs verifier as commit gate. `add-adr` is its one in-place mutation
+src/cmd.ts        command helpers shared by author + techspec (usage error, flag values, path predicates)
+src/records.ts    readers over flattened records by prefix (shared by `tests` and the tech spec)
+src/techspec.ts   the tech spec format (`*.techspec.yaml`): model, reader, canonical serializer, rules E701–E715
+src/techspec_author.ts  `yamlet techspec init|analysis|criterion|task` — full rewrite per call, verify as gate
 src/blocks.ts     address an existing RQ-N/AC-N by id + its line extent (starts from records, ends from the next start)
 src/systems.ts    `yamlet systems` (read-only)
 src/impact.ts     `yamlet impact` — reverse dependency index: which composites consume a spec (read-only)
@@ -68,15 +72,18 @@ change is a regression, not a re-freeze.
 ## Conventions
 
 - Deno fmt: 2-space, 100 col, semicolons, double quotes. `strict` + `noUncheckedIndexedAccess`.
-- `edit` / `rm` are **not implemented yet**, and must not be stubbed. Two pieces of the groundwork
-  do exist: `src/blocks.ts` addresses an existing `RQ-N`/`AC-N` and its line extent, and
-  `yamlet impact` supplies the reverse-dependency analysis safe removal needs. What is still missing
-  is the mutation itself — and the commit gate that would police it. `guardCheck`'s allowlist is not
-  a general safety property; it is the _append_ commands' predicted findings, written as a constant.
-  A command that rewrites or deletes an existing block needs the stricter rule ("the resulting
-  findings must be a subset of the pre-existing ones plus the ones this command predicts"), keyed on
-  `(rule, message, owning RQ/AC)` rather than on path, since indices shift under insert and remove.
-  Build that first.
+- `edit` / `rm` are **not implemented yet**, and must not be stubbed. The groundwork exists:
+  `src/blocks.ts` addresses an existing `RQ-N`/`AC-N` and its line extent, `yamlet impact` supplies
+  the reverse-dependency analysis safe removal needs, and `add-adr` is the first mutation of an
+  existing block, gated by `strictGuard` ("the resulting findings must be a subset of the
+  pre-existing ones plus the ones this command predicts", keyed on `(rule, message)` rather than on
+  path, since indices shift under insert and remove). `guardCheck`'s allowlist is not a general
+  safety property; it is the _append_ commands' predicted findings, written as a constant. A rewrite
+  or delete goes through `strictGuard`, never `guardCheck`. `add-adr` keeps `acceptance-criteria` a
+  requirement's last key (the list goes before it) — `blocks.ts` depends on that.
+- A **tech spec** is derived and disposable; it is rewritten whole from a parsed model on every
+  mutation (no line splicing, no ids of its own except `T-N`), and every `RQ-N`/`AC-N` in it is
+  checked against the spec it names. `verify` dispatches on the extension.
 - **IDs are permanent.** Never renumber and never reuse one: `yamlet tests` keys its manifest on
   `AC-N`, so a renumber silently re-points step definitions — the one failure mode with no loud
   symptom. Deletion leaves a gap, and the gap is correct. Ordered insertion uses the letter suffix

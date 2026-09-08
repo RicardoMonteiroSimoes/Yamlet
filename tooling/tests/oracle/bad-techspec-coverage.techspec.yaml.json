@@ -1,0 +1,26 @@
+{"file":"bad-techspec-coverage.techspec.yaml","valid":false,"errors":[
+  {"rule":"E702","severity":"error","line":0,"path":"extra","message":"unknown top-level key: extra"},
+  {"rule":"E704","severity":"error","line":2,"path":"system","message":"system is wrong-system but the spec says e-mail-sending-service"},
+  {"rule":"E705","severity":"error","line":5,"path":"analysis.commit","message":"analysis.commit must be 7–40 hex characters, got: notahash"},
+  {"rule":"E705","severity":"error","line":9,"path":"analysis.skimmed[0]","message":"path listed as both deep and skimmed: src/main/"},
+  {"rule":"E705","severity":"error","line":10,"path":"analysis.extra","message":"unknown key under analysis: extra"},
+  {"rule":"E709","severity":"error","line":15,"path":"requirements[0].acceptance-criteria[0]","message":"AC-1: met: true must cite at least one piece of evidence"},
+  {"rule":"E708","severity":"error","line":18,"path":"requirements[0].acceptance-criteria[1].met","message":"AC-2: met must be true|false, got: maybe"},
+  {"rule":"E707","severity":"error","line":21,"path":"requirements[0].acceptance-criteria[2].id","message":"criterion AC-2 is recorded twice"},
+  {"rule":"E707","severity":"error","line":23,"path":"requirements[1].id","message":"requirement RQ-7 is not in the spec"},
+  {"rule":"E707","severity":"error","line":25,"path":"requirements[1].acceptance-criteria[0].id","message":"criterion AC-3 belongs to RQ-1 in the spec, not RQ-7"},
+  {"rule":"E710","severity":"error","line":27,"path":"requirements[1].acceptance-criteria[0].kind","message":"unknown key under requirements[1].acceptance-criteria[0]: kind"},
+  {"rule":"E707","severity":"error","line":28,"path":"requirements[1].acceptance-criteria[1].id","message":"criterion AC-9 is not in the spec"},
+  {"rule":"E715","severity":"error","line":28,"path":"requirements[1].acceptance-criteria[1]","message":"AC-9 is unmet and no task covers it"},
+  {"rule":"E714","severity":"error","line":32,"path":"tasks[0].depends_on","message":"T-1: depends on unknown task T-8"},
+  {"rule":"E712","severity":"error","line":35,"path":"tasks[0].covers[0]","message":"T-1: covers AC-1, which is already met"},
+  {"rule":"E712","severity":"error","line":37,"path":"tasks[0].covers[2]","message":"T-1: covers AC-3 twice"},
+  {"rule":"E711","severity":"error","line":38,"path":"tasks[1].id","message":"duplicate task id: T-1"},
+  {"rule":"E713","severity":"error","line":42,"path":"tasks[1].why","message":"T-1: covers criteria; drop the why (the criteria justify it)"},
+  {"rule":"E714","severity":"error","line":44,"path":"tasks[1].depends_on[0]","message":"T-1: depends on itself"},
+  {"rule":"E713","severity":"error","line":46,"path":"tasks[2]","message":"T-3: covers no criterion, so it needs a why"},
+  {"rule":"E711","severity":"error","line":48,"path":"tasks[3]","message":"task-4: missing required field: title"},
+  {"rule":"E711","severity":"error","line":48,"path":"tasks[3].id","message":"tasks[3]: id must match ^T-[0-9]+$, got: task-4"},
+  {"rule":"E712","severity":"error","line":50,"path":"tasks[3].covers[0]","message":"task-4: covers AC-77, which is not in the spec"}
+],"warnings":[
+],"summary":{"requirements":2,"acceptanceCriteria":5,"tasks":4}}

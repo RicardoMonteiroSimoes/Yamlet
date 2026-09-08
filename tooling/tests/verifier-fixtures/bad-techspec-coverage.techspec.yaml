@@ -1,0 +1,51 @@
+spec: valid-example.yamlet.yaml
+system: wrong-system
+
+analysis:
+  commit: notahash
+  deep:
+  - src/main/
+  skimmed:
+  - src/main/
+  extra: x
+
+requirements:
+- id: RQ-1
+  acceptance-criteria:
+  - id: AC-1
+    met: true
+  - id: AC-2
+    met: maybe
+    evidence:
+    - src/main/Smtp.java:40
+  - id: AC-2
+    met: false
+- id: RQ-7
+  acceptance-criteria:
+  - id: AC-3
+    met: false
+    kind: fix
+  - id: AC-9
+    met: false
+
+tasks:
+- id: T-1
+  title: Covers a met criterion and one twice
+  covers:
+  - AC-1
+  - AC-3
+  - AC-3
+- id: T-1
+  title: Duplicate id, self-dependent, unknown dependency
+  covers:
+  - AC-2
+  why: not allowed here
+  depends_on:
+  - T-1
+  - T-8
+- id: T-3
+  title: Enabler without a why
+- id: task-4
+  covers:
+  - AC-77
+extra: nope

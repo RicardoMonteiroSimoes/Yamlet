@@ -1,0 +1,39 @@
+system: pdf-service
+topic: PDF verification
+summary: Verifies a PDF's structure
+description: >-
+  Checks the header, cross-reference table and object structure.
+blast_radius: medium
+front: internal
+
+requirements:
+- id: RQ-1
+  description: >-
+    Verifies the header
+  acceptance-criteria:
+  - id: AC-1
+    pattern: ubiquitous
+    shall:
+    - check the header
+- id: RQ-2
+  description: >-
+    Verifies the cross-reference table and objects
+  adrs:
+  - adr/ADR-0001-parser.md
+  - adr/ADR-0002-isolation.md
+  acceptance-criteria:
+  - id: AC-2
+    pattern: ubiquitous
+    shall:
+    - resolve startxref
+    adrs:
+    - adr/ADR-0001-parser.md
+    - adr/ADR-0002-isolation.md
+  - id: AC-2a
+    pattern: ubiquitous
+    shall:
+    - read the trailer
+  - id: AC-3
+    pattern: ubiquitous
+    shall:
+    - balance obj/endobj

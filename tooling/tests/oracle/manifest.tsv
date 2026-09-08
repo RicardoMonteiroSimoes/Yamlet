@@ -1,3 +1,4 @@
+bad-adrs.yamlet.yaml	1
 bad-blast-radius-enum.yamlet.yaml	1
 bad-complex-both-when-and-if.yamlet.yaml	1
 bad-complex-missing-while.yamlet.yaml	1
@@ -32,15 +33,20 @@ bad-placeholder-missing-example-key.yamlet.yaml	1
 bad-state-missing-while.yamlet.yaml	1
 bad-system-slug.yamlet.yaml	1
 bad-tabs.yamlet.yaml	1
+bad-techspec-coverage.techspec.yaml	1
+bad-techspec-cycle.techspec.yaml	1
+bad-techspec-no-spec.techspec.yaml	1
 bad-unquoted-brace.yamlet.yaml	1
 bad-unwanted-missing-if.yamlet.yaml	1
 bad-wrong-extension.yaml	1
+valid-adrs.yamlet.yaml	0
 valid-composite.yamlet.yaml	0
 valid-example.yamlet.yaml	0
 valid-exposes-outputs.yamlet.yaml	0
 valid-exposes.yamlet.yaml	0
 valid-optional-pattern.yamlet.yaml	0
 valid-state-pattern.yamlet.yaml	0
+valid-techspec.techspec.yaml	0
 valid-ubiquitous-pattern.yamlet.yaml	0
 valid-unwanted-pattern.yamlet.yaml	0
 valid-with-placeholders-and-examples.yamlet.yaml	0

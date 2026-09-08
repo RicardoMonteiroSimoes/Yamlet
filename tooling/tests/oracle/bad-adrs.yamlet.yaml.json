@@ -1,0 +1,6 @@
+{"file":"bad-adrs.yamlet.yaml","valid":false,"errors":[
+  {"rule":"E109","severity":"error","line":14,"path":"requirements[0].adrs[0]","message":"requirements[0]: adrs entry does not resolve to a file: adr/ADR-0009-missing.md"},
+  {"rule":"E109","severity":"error","line":22,"path":"requirements[0].acceptance-criteria[0].adrs[1]","message":"requirements[0].acceptance-criteria[0]: duplicate adrs entry: adr/ADR-0001-parser.md"},
+  {"rule":"E109","severity":"error","line":23,"path":"requirements[0].acceptance-criteria[0].adrs[2]","message":"requirements[0].acceptance-criteria[0]: adrs entry is empty"}
+],"warnings":[
+],"summary":{"requirements":1,"acceptanceCriteria":1}}

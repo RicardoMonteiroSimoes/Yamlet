@@ -30,16 +30,23 @@ export interface FlattenResult {
   parseErrors: ParseError[];
 }
 
+/**
+ * Counts reported alongside the findings. `tasks` is present only for a tech
+ * spec (a spec has none), so the spec output keeps its exact shape.
+ */
+export interface Summary {
+  requirements: number;
+  acceptanceCriteria: number;
+  tasks?: number;
+}
+
 /** The final verification result for one file. */
 export interface Result {
   file: string;
   valid: boolean;
   errors: Finding[];
   warnings: Finding[];
-  summary: {
-    requirements: number;
-    acceptanceCriteria: number;
-  };
+  summary: Summary;
 }
 
 /** The result of running a CLI command: the streams to write and the exit code. */
