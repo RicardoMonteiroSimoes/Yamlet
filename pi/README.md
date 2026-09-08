@@ -8,17 +8,12 @@ The Claude Code build lives in [`plugins/yamlet-skills/`](../plugins/yamlet-skil
 This directory is the pi build. They are separate ports of one idea, not a shared
 source: pi's model differs enough that a symlink would lie.
 
-> **Not yet ported:** the tech spec flow (`yamlet techspec`, `yamlet add-adr`, and the
-> `yamlet-techspec` / `yamlet-code-research` / `yamlet-evidence-challenger` skills) and the
-> decision record flow (`yamlet adr`, `yamlet-adr`, `yamlet-adr-challenger`). The extension
-> neither registers those subcommands nor requires them, so an older CLI still loads.
-
 ## Prerequisites
 
 | | |
 | --- | --- |
-| **`yamlet` CLI** (required) | `brew tap RicardoMonteiroSimoes/yamlet && brew trust --tap RicardoMonteiroSimoes/yamlet && brew install yamlet` (Homebrew 6+ gates non-official taps behind the trust step) — the extension shells out to it and is inert without it. It is checked at session start, and again on every tool call, with an actionable message either way. |
-| **`@tintinweb/pi-subagents`** (required for the challengers) | `pi install npm:@tintinweb/pi-subagents` — provides the `Agent` tool the two adversarial gates run in. Without it the author degrades loudly rather than skipping the gates. |
+| **`yamlet` CLI** (required) | `brew tap RicardoMonteiroSimoes/yamlet && brew trust --tap RicardoMonteiroSimoes/yamlet && brew install yamlet` (Homebrew 6+ gates non-official taps behind the trust step) — the extension shells out to it and is inert without it. It is checked at session start, and again on every tool call, with an actionable message either way. A CLI from before tech specs and decision records (0.2.3) still loads: the authoring tools work, the planning tools fail with an upgrade hint, and the session says so once at startup. |
+| **`@tintinweb/pi-subagents`** (required for the agents) | `pi install npm:@tintinweb/pi-subagents` — provides the `Agent` tool the four adversarial gates and the code researcher run in. Without it the skills degrade loudly rather than skipping those steps. |
 
 The binary is **not** bundled. Keeping it out preserves the rule the Claude Code
 plugin follows — ship no binary, call bare `yamlet` on PATH — and keeps yamlet's
@@ -68,27 +63,45 @@ ping/spawn/stop, so there is no registration hook either. **A package physically
 cannot ship them.**
 
 Rather than half-install, the extension offers to place them itself: on the first
-session where pi-subagents is present and the challengers are absent, it asks, and
-on yes copies them into `$PI_CODING_AGENT_DIR/agents/`. It stays silent when
-pi-subagents is not installed (nothing would use them), never writes without a UI
-to ask through, and never overwrites a file whose contents differ from what the
-package ships — it reports the difference instead, so a local edit survives.
-pi-subagents reads agents at startup, so the new ones need a restart or `/reload`.
+session where pi-subagents is present and any of the five agents is absent, it
+asks, and on yes copies the missing ones into `$PI_CODING_AGENT_DIR/agents/`. It
+stays silent when pi-subagents is not installed (nothing would use them), never
+writes without a UI to ask through, and never overwrites a file whose contents
+differ from what the package ships — it reports the difference instead, so a local
+edit survives (an upgrade that adds agents installs the new ones and names the
+edited old ones it left alone). pi-subagents reads agents at startup, so the new
+ones need a restart or `/reload`.
 
 `install.sh` places them directly, without the prompt.
 
 ## The yamlet tools
 
-`extensions/yamlet/` registers **one tool per `yamlet` subcommand**, so the
-read/mutate split is expressible in a `tools:` line instead of hoped for in prose:
+`extensions/yamlet/` registers **one tool per `yamlet` subcommand** (and per
+`techspec`/`adr` sub-subcommand), so the read/mutate split is expressible in a
+`tools:` line instead of hoped for in prose:
 
-| read | mutate | project |
-| --- | --- | --- |
-| `yamlet_systems` | `yamlet_init` | `yamlet_tests` |
-| `yamlet_verify` | `yamlet_add_component` | `yamlet_graph` |
-| `yamlet_impact` | `yamlet_add_connection` | |
-| `yamlet_guide` | `yamlet_add_requirement` | |
-| | `yamlet_add_criterion` | |
+| read | mutate a spec | project | tech spec | decision record |
+| --- | --- | --- | --- | --- |
+| `yamlet_systems` | `yamlet_init` | `yamlet_tests` | `yamlet_techspec_init` | `yamlet_adr_init` |
+| `yamlet_verify` | `yamlet_add_component` | `yamlet_graph` | `yamlet_techspec_analysis` | `yamlet_adr_add_force` |
+| `yamlet_impact` | `yamlet_add_connection` | | `yamlet_techspec_criterion` | `yamlet_adr_add_basis` |
+| `yamlet_guide` | `yamlet_add_requirement` | | `yamlet_techspec_task` | `yamlet_adr_add_dimension` |
+| | `yamlet_add_criterion` | | | `yamlet_adr_add_option` |
+| | `yamlet_add_adr` | | | `yamlet_adr_decide` |
+| | | | | `yamlet_adr_add_obligation` |
+| | | | | `yamlet_adr_add_accept` |
+| | | | | `yamlet_adr_add_revisit` |
+| | | | | `yamlet_adr_accept` · `_reject` |
+| | | | | `yamlet_adr_supersede` |
+
+The **tech spec** and **decision record** columns are the planning flow: every one
+of them is a mutation of a file the CLI owns whole. Each tool's schema is the CLI's
+phase order made visible — `yamlet_adr_add_option` takes every dimension's cell in
+one call because the CLI does, and `yamlet_add_adr` refuses anything but exactly
+one of `rq`/`ac` before running. One tool reads outside the CLI:
+`yamlet_techspec_analysis` resolves the commit it pins from `git rev-parse` in the
+code root, so the SHA is what git says and never a remembered string; pass
+`commit` only to pin a different one.
 
 The **project** column writes yamlet-owned artifacts — a Gherkin tree, a graph —
 and never a spec. Both take their destination as a required argument and return
@@ -128,38 +141,58 @@ The procedures live in `skills/yamlet-author/references/` (mirroring the Claude 
 layout, so the two ports stay legible side by side) and the smoke test asserts the
 tool returns those exact files, not a stub — if they move, it fails.
 
-It also serves the two challenger **checklists** (`contract-challenge`,
-`criteria-challenge`) straight out of `agents/`. Those are for the degraded path
-only: with `@tintinweb/pi-subagents` absent there is no `Agent` tool, so the skill
-must run the gate inline — and "go find the agent file yourself" is the instruction
-that quietly becomes "skip the gate". Serving the real checklist keeps the weaker
-path honest instead of leaving it to the model's memory of it.
+The tech spec skill's own reference (`decisions` — the gate it runs when a task
+needs a choice the user owns) is served the same way, from
+`skills/yamlet-techspec/references/`.
+
+It also serves the agents' **procedures** (`contract-challenge`,
+`criteria-challenge`, `code-research`, `evidence-challenge`, `adr-challenge`)
+straight out of `agents/`. Those are for the degraded path only: with
+`@tintinweb/pi-subagents` absent there is no `Agent` tool, so the skill must run
+the gate — or the code research — inline, and "go find the agent file yourself" is
+the instruction that quietly becomes "skip the gate". Serving the real checklist
+keeps the weaker path honest instead of leaving it to the model's memory of it.
 
 ## What is enforced
 
-**The one hard rule — never hand-write a `.yamlet.yaml` — is a gate, not a
+**The one hard rule — never hand-write a file yamlet owns — is a gate, not a
 request.** A `tool_call` handler blocks `write` and `edit` on any `*.yamlet.yaml`,
-and blocks the obvious shell equivalents (a redirect, `tee`, or `sed -i` aimed at a
-spec; a plain `yamlet …` invocation still passes). This holds in the **main
-session**, which is where the author skill runs and where no subagent tool-scoping
-can reach — it makes pi stricter than the Claude Code build, where `allowed-tools`
-constrains only what happens inside a skill and the main agent can still hand-edit a
-spec.
+`*.techspec.yaml` or `*.adr.yaml`, and blocks the obvious shell equivalents (a
+redirect, `tee`, or `sed -i` aimed at one; a plain `yamlet …` invocation still
+passes). Each refusal names the tools to use instead. This holds in the **main
+session**, which is where the interviewing skills run and where no subagent
+tool-scoping can reach — it makes pi stricter than the Claude Code build, where
+`allowed-tools` constrains only what happens inside a skill and the main agent can
+still hand-edit a spec.
 
-**The challengers are read-only structurally.** Each gets `read` plus exactly one
-yamlet tool:
+**The agents are read-only structurally.** A challenger that needs the CLI gets
+`read` plus exactly one yamlet tool; the three that do not get no extension at all:
 
 ```yaml
 # agents/yamlet-contract-challenger.md
 extensions: [yamlet]
 skills: false
 tools: read, ext:yamlet/yamlet_systems
+
+# agents/yamlet-code-research.md — the only one that may search
+extensions: false
+skills: false
+tools: read, grep, find, ls
+
+# agents/yamlet-evidence-challenger.md, yamlet-adr-challenger.md
+extensions: false
+skills: false
+tools: read
 ```
 
 No `bash`, no `write`, no `edit`, no mutating `yamlet_*`. `extensions: [yamlet]`
 matters as much as the selector: without it, every *other* loaded extension's tools
 would surface in a supposedly read-only adversary, because a `tools:` list only
 constrains built-ins until an `ext:` entry flips extension tools to an allowlist.
+`extensions: false` is the same guarantee for an agent that needs no extension
+tool at all. The evidence challenger deliberately has no `grep`: it checks the
+references it was handed and nothing else, and a search tool would let it go
+looking for better evidence than the tech spec offered.
 
 ## What is still not enforced
 
@@ -191,8 +224,11 @@ pi/
 │   ├── index.ts                        # the yamlet_* tools + the write/edit gate
 │   └── smoke.test.mjs                  # mock-pi harness: argv construction + gate
 ├── agents/                             # requires @tintinweb/pi-subagents
-│   ├── yamlet-contract-challenger.md
-│   └── yamlet-criteria-challenger.md
+│   ├── yamlet-contract-challenger.md   # author: before init freezes the contract
+│   ├── yamlet-criteria-challenger.md   # author: before a requirement is committed
+│   ├── yamlet-code-research.md         # tech spec: where each criterion lives (read/grep/find/ls)
+│   ├── yamlet-evidence-challenger.md   # tech spec: before a criterion is recorded as met
+│   └── yamlet-adr-challenger.md        # adr: after the dimensions, before any option
 └── skills/
     ├── yamlet-author/
     │   ├── SKILL.md                    # the router: route, gates, closing steps
@@ -202,7 +238,11 @@ pi/
     │       ├── composites.md           #   members and wiring
     │       └── patterns.md             #   EARS patterns and {token} kinds
     ├── yamlet-verifier/SKILL.md
-    └── yamlet-tester/SKILL.md
+    ├── yamlet-tester/SKILL.md
+    ├── yamlet-techspec/
+    │   ├── SKILL.md                    # verdicts per criterion, then tasks, through yamlet_techspec_*
+    │   └── references/decisions.md     # the decision gate (served as `decisions`)
+    └── yamlet-adr/SKILL.md             # the decision record interview, through yamlet_adr_*
 ```
 
 To dogfood the port from this repo, run `./pi/install.sh --project` once — it
@@ -230,14 +270,19 @@ question.** A pi subagent therefore runs headless and cannot interview anyone.
 | `yamlet-criteria-challenger` (`context: fork`) | **agent** | Same. |
 | `yamlet-verifier` skill | **skill** | In Claude Code the `` !`cmd` `` body pre-executes and the output is already in the prompt. pi has no equivalent, so it becomes "call the tool, then interpret." |
 | `yamlet-tester` skill | **skill** | Same. |
+| `yamlet-techspec` skill | **skill** | It puts the decision gate to the user and relays every `DECIDED` notice. Stays where the human is. |
+| `yamlet-code-research` (`context: fork`) | **agent** | Autonomous: a code root and one requirement in, `file:line` facts out. `tools: read, grep, find, ls`, `extensions: false`. |
+| `yamlet-evidence-challenger` (`context: fork`) | **agent** | Autonomous, and narrower still: `tools: read` only, so it can check the offered references and cannot go looking for others. |
+| `yamlet-adr` skill | **skill** | An interview: the user decides. `yamlet-techspec`'s decision gate loads it in the same session rather than spawning it, because a subagent could not ask. |
+| `yamlet-adr-challenger` (`context: fork`) | **agent** | Autonomous reviewer of a record's judgement, `tools: read`. |
 
 Agent frontmatter translates almost 1:1:
 
 | Claude Code | pi-subagents |
 | --- | --- |
 | `context: fork` | `inherit_context` — set to `false` here (see below) |
-| `model: opus` | `model: opus` |
-| `effort: low` | `thinking: low` |
+| `model: opus` | *(not set)* — the agent inherits the session's model; a pin would tie the port to one provider |
+| `effort: low` | `thinking: low` — pi clamps a level the model lacks, so this stays provider-agnostic |
 | `allowed-tools: Bash(yamlet systems:*), Read` | `tools: read, ext:yamlet/yamlet_systems` |
 
 **`inherit_context: false` is a deliberate change, not a shortfall.** Claude Code's
@@ -260,7 +305,7 @@ builds, and the gate's block/allow decisions.
 [`.github/workflows/pi-port.yml`](../.github/workflows/pi-port.yml) runs it on
 every PR against the latest published pi, then installs the package both ways a
 user can — `pi install ./pi` and the repo root, which is what `git:` clones — and
-asks pi's own resource loader whether the extension and all three skills resolved
+asks pi's own resource loader whether the extension and all five skills resolved
 ([`scripts/check-install.mjs`](scripts/check-install.mjs)). A manifest path typo
 installs fine and loads nothing; that check is the only thing that notices.
 
@@ -283,3 +328,19 @@ a **new** spec or a **change** to one that exists, then:
 
 Both then converge: per requirement, draft → **criteria challenge** → commit → verify →
 regenerate the Gherkin feature tree.
+
+Once a spec is finished, plan the work against the code:
+
+```
+/skill:yamlet-techspec specs/pdf_upload.yamlet.yaml [code-root]
+```
+
+It opens a disposable `.techspec.yaml` (`yamlet_techspec_init`, pinned to the commit
+`git` reports), runs **code research** once per requirement, records a verdict per
+criterion — every `met: true` through the **evidence challenge** first — then a task
+list covering every unmet criterion, and closes with `yamlet_verify` on the tech
+spec. A task that needs a choice the user owns stops for one: the `yamlet-adr` skill
+interviews you (**ADR challenge** after the dimensions, before any option), the
+record is accepted and frozen, and `yamlet_add_adr` links it into the spec so the
+tasks must cover what it obliges. `/skill:yamlet-adr adr` runs that interview on its
+own.

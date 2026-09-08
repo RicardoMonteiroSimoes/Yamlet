@@ -22,11 +22,14 @@ Two separate products, one repo:
   behavioural changes in step across both builds.
 
   Unlike the Claude Code plugin, the pi port **does ship executable code**:
-  `pi/extensions/yamlet/` registers one pi tool per `yamlet` subcommand and gates
-  `write`/`edit` on `*.yamlet.yaml`. That is what makes "never hand-write the
+  `pi/extensions/yamlet/` registers one pi tool per `yamlet` subcommand (and per
+  `techspec`/`adr` sub-subcommand) and gates `write`/`edit` on `*.yamlet.yaml`,
+  `*.techspec.yaml` and `*.adr.yaml`. That is what makes "never hand-write the
   YAML" enforced on pi rather than merely instructed — pi has no permission layer
   and drops a skill's `allowed-tools`. It still ships **no binary**: the tools
-  shell out to bare `yamlet` on PATH, same as the skills.
+  shell out to bare `yamlet` on PATH, same as the skills. A new CLI command needs
+  a tool, a smoke-test assertion, and — if the previous release lacks it — an entry
+  in the extension's optional-capability list, so an older CLI still loads.
 
   One tool is not a subcommand: `yamlet_guide` serves the author skill's own
   `references/` procedures. Claude Code skills read bundled files relative to
