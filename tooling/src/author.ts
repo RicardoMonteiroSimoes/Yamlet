@@ -1078,6 +1078,9 @@ export function runAddAdr(args: string[]): CmdResult {
       return die("add-adr requires exactly one of --rq RQ-N or --ac AC-N");
     }
     if (!isFile(file)) return die(`file not found: ${file} (run 'init' first)`);
+    if (!path.endsWith(".adr.yaml")) {
+      return die(`PATH must name a .adr.yaml record (written by 'yamlet adr'): ${path}`);
+    }
 
     const resolved = resolveFrom(dirname(file), path);
     if (!isFile(resolved)) {
@@ -1309,8 +1312,9 @@ Usage:
   yamlet add-adr FILE PATH --rq RQ-N
   yamlet add-adr FILE PATH --ac AC-N
 
-PATH    the ADR file, relative to FILE's directory; it must exist. yamlet reads
-        nothing from it — the link is what the spec holds.
+PATH    the decision record (a .adr.yaml written by 'yamlet adr'), relative to
+        FILE's directory; it must exist. The link is what the spec holds; the
+        tech spec reads the record's obligations through it.
 --rq    link on the requirement (every criterion under it is decided by it).
 --ac    link on one criterion.
 

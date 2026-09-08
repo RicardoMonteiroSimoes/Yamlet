@@ -39,6 +39,8 @@ src/cmd.ts        command helpers shared by author + techspec (usage error, flag
 src/records.ts    readers over flattened records by prefix (shared by `tests` and the tech spec)
 src/techspec.ts   the tech spec format (`*.techspec.yaml`): model, reader, canonical serializer, rules E701–E715
 src/techspec_author.ts  `yamlet techspec init|analysis|criterion|task` — full rewrite per call, verify as gate
+src/adr.ts        the decision record format (`*.adr.yaml`, adr/v1): model, reader, serializer, resolution, E801–E815
+src/adr_author.ts `yamlet adr init|add-*|decide|accept|reject|supersede` — phase-ordered, frozen after accept
 src/blocks.ts     address an existing RQ-N/AC-N by id + its line extent (starts from records, ends from the next start)
 src/systems.ts    `yamlet systems` (read-only)
 src/impact.ts     `yamlet impact` — reverse dependency index: which composites consume a spec (read-only)
@@ -84,6 +86,11 @@ change is a regression, not a re-freeze.
 - A **tech spec** is derived and disposable; it is rewritten whole from a parsed model on every
   mutation (no line splicing, no ids of its own except `T-N`), and every `RQ-N`/`AC-N` in it is
   checked against the spec it names. `verify` dispatches on the extension.
+- A **decision record** is frozen after `accept`: the only mutations of an accepted record are
+  `supersede` and its date. The two records the format was specified with are fixtures
+  (`tests/verifier-fixtures/ADR-000{1,2}-*.adr.yaml`) and `adr_test.ts` rebuilds them byte-for-byte
+  through the commands — change the serializer and both the parity oracle and that test move.
+  `assumes` is acyclic by construction (lower ids only), and a directory is the id namespace.
 - **IDs are permanent.** Never renumber and never reuse one: `yamlet tests` keys its manifest on
   `AC-N`, so a renumber silently re-points step definitions — the one failure mode with no loud
   symptom. Deletion leaves a gap, and the gap is correct. Ordered insertion uses the letter suffix

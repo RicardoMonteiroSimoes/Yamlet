@@ -212,8 +212,8 @@ pattern), `E303` (complex needs exactly one of when/if).
 ### `adrs` — linking a decision
 
 A requirement or a criterion may carry an `adrs:` list: paths, relative to the
-spec's directory, to the architecture decision records that decide *how* it is
-met. The spec stays the *what*; the link is the one thing it holds about the
+spec's directory, to the [decision records](#decision-records--adryaml) (`.adr.yaml`)
+that decide *how* it is met. The spec stays the *what*; the link is the one thing it holds about the
 *how*, and it holds it so the spec is where a reader finds the decision and where
 a change to the behaviour meets the decision it was made under.
 
@@ -237,8 +237,9 @@ A link on a requirement covers all its criteria; a link on a criterion is
 specific to it. The same record may be linked from several requirements — a
 decision that spans a service is repeated where it applies rather than hoisted to
 the file, where it would imply more than it decides. Each entry must be non-empty,
-unique within its block, and resolve to an existing file (`E109`); yamlet reads
-nothing from the record itself.
+unique within its block, name a `.adr.yaml` record and resolve to a file (`E109`).
+The record's own validity is its own business (`yamlet verify` on it); the spec only
+holds the link. The tech spec reads the record's obligations through that link.
 
 Decisions are made *after* a spec is finished, while the work is planned (see
 [tech specs](#tech-specs--planning-the-work)), so the link is attached to an
@@ -440,6 +441,7 @@ tasks:
   title: Return invalid_xref_trailer when no startxref resolves
   covers:                            # unmet criteria this task satisfies     (E712)
   - AC-8
+  - ADR-0001#R-1                     # …or an obligation of a linked record   (E712, E716)
   depends_on:
   - T-6
 ```
@@ -448,8 +450,9 @@ tasks:
 criterion of the spec has exactly one verdict (`E706`, `E707`); `met: true` cites
 evidence (`E709`); every unmet criterion is covered by a task (`E715`); a task
 covering nothing is an enabler and says `why` (`E713`); `depends_on` resolves and
-is acyclic (`E714`). The criterion an agent quietly skips is the failure the file
-exists to catch. Nothing else is stored: a requirement's status, and whether an
+is acyclic (`E714`); every obligation of an *accepted* record the spec links is
+covered by a task (`E716`). The criterion an agent quietly skips is the failure the
+file exists to catch. Nothing else is stored: a requirement's status, and whether an
 unmet criterion has wrong code or no code, are readable from the verdicts and the
 evidence, so they are not fields.
 
@@ -458,11 +461,136 @@ The file is written only by `yamlet techspec` (`init` · `analysis` · `criterio
 rewrites the file canonically on every call. A verdict, once recorded, is not
 revised in place: a tech spec is cheap to rebuild, and a rewrite would be the one
 edit whose history the file cannot show. Where a task needed a decision, the
-decision becomes an ADR and is linked into the spec with `add-adr`; the task
-reaches it through the criteria it covers, so tasks carry no link of their own.
+decision becomes a [record](#decision-records--adryaml) and is linked into the spec
+with `add-adr`; the task reaches it through the criteria it covers, and discharges
+what the record obliges by covering `ADR-nnnn#R-n` exactly as it covers a criterion.
 The reverse direction is printed, not stored: recording a verdict on a decided
 criterion, or a task covering one, prints a `DECIDED` notice naming the records,
 so the how is never written down without the decision being named.
+
+## Decision records — `.adr.yaml`
+
+A **decision record** (format `adr/v1`) is the second long-lived artifact besides
+the spec. A spec says what must be true; a record says what was chosen to make it
+true, judged against what, and what that choice obliges. It is **written once and
+frozen**: after `status: accepted` only `status`, `date` and `superseded_by` may
+change, and a decision is revised by superseding it with a new record. Records are
+written only by `yamlet adr`, which mints every id and rewrites the file whole.
+
+```yaml
+adr: ADR-0001                        # ^ADR-[0-9]{4}$, unique in its directory  (E803)
+title: Structural PDF parsing
+status: accepted                     # proposed | accepted | rejected | superseded (E804)
+date: 2026-09-07                     # YYYY-MM-DD                                  (E805)
+kind: selection                      # selection | mechanism | policy | boundary | sequencing (E806)
+arises_from:                         # this or `assumes`, non-empty                (E807)
+- pdf-verify.yamlet.yaml#AC-8        # <spec>#<RQ-n|AC-n>, relative to this file
+assumes:
+- ADR-0000                           # lower-numbered only
+
+question: >-
+  What reads the cross-reference table …?
+
+forces:                              # block scalars; may cite ADR-nnnn#R-n        (E808)
+- >-
+  AC-10 fixes a precedence order …
+
+basis:                               # (E809)
+- id: B-1
+  quantity: 40000 uploads / month
+  source: >-
+    ingest telemetry, 2026-08 monthly mean
+
+dimensions:                          # (E810)
+- id: D-1
+  matters: >-
+    An AGPL obligation on a distributed artifact is a legal blocker, not a cost.
+  source: OSS-policy/distribution.md
+- id: D-5
+  matters: >-
+    Only decisive at a spread wide enough to survive the day rate being wrong by a third.
+  unit: EUR of total ownership
+  basis:
+  - B-1
+  source: >-
+    cost/pdf-parsing-tco.md
+
+options:                             # at least two                                 (E811)
+- id: OPT-1
+  summary: >-
+    Apache PDFBox 3.x
+  refs:                              # required under kind: selection
+    project: https://pdfbox.apache.org/
+  reversibility: costly              # reversible | costly | one-way
+  against:                           # exactly the declared dimensions             (E812)
+    D-1: >-
+      Apache-2.0, no distribution obligation.
+    D-5: >-
+      About 26k, mostly recurring …
+- id: OPT-2
+  summary: >-
+    iText 8
+  refs:
+    licence: https://github.com/itext/itext-java/blob/develop/LICENSE.md
+  reversibility: costly
+  against:
+    D-1: >-
+      AGPL-3.0. Blocker under the distribution model.
+    D-5: >-
+      n/a — not priced, D-1 excludes the option.
+
+decision: OPT-1                      # (E813)
+
+requires:                            # (E814)
+- id: R-1                            # addressable as ADR-0001#R-1
+  must: >-
+    Validate every byte offset against the file length before using it.
+
+accepts:
+- >-
+  It is not a PDF validator.
+
+revisit:                             # (E815)
+- >-
+  Ownership runs past 0.25 engineer-day / month.
+```
+
+**What the ids carry.** `ADR-nnnn` is four digits, zero-padded, minted in time
+order, so `assumes` may only point at a lower id and string comparison alone proves
+the graph acyclic. `B-n`, `D-n`, `OPT-n`, `R-n` are minted per record. An accepted
+record may not assume a non-accepted one (`E807`).
+
+**What the matrix enforces.** Dimensions are declared before options so a hole is
+visible rather than absent: every option's `against` covers exactly the declared
+dimensions. A cell may read `n/a — <reason>`; a bare `n/a` is rejected, and a reason
+citing `D-n` as excluding the option must point at that option's substantive cell.
+A cell on a dimension with a `unit` carries a numeral once id references are
+stripped. `kind: selection` requires `refs` on every option, since an unlinked
+product name cannot be checked; a ref's value is a locator (URL, path, short
+citation), never prose.
+
+**Obligations are work.** `requires` is imperative voice; each entry is addressable
+as `ADR-nnnn#R-n`, and a [tech spec](#tech-specs--planning-the-work) task
+discharges one through `covers:` exactly as it covers a criterion. An accepted
+record linked from a spec with an obligation no task covers is a gap the tech spec
+reports (`E716`). `accepts` is deliberately not addressable: nothing discharges a
+cost, so an id there would invite a task claiming to have paid it off.
+
+**Deliberately absent.** Arithmetic of any kind (a cost model rots and the file is
+frozen — totals live behind `source`); inverse indexes (no dependents, no task
+list); per-cell provenance (option-specific goes in `refs`, shared in the
+dimension's `source`); confidence tiers (`source` is falsifiable, a tier is not);
+task or ticket ids (regenerable, and would dangle in a frozen file).
+
+**Resolution.** A directory is the namespace: `ADR-nnnn` resolves to the file in the
+same directory whose `adr:` declares it (a duplicate is `E803`), `<spec>#<id>`
+resolves relative to the record. Both hazards this creates are stated rather than
+solved: a spec referenced by a record must not be renamed until yamlet grows a
+stable spec id, and records of one system belong in one directory.
+
+`specs_example/` carries no records; the two the format was specified with live as
+verifier fixtures (`tooling/tests/verifier-fixtures/ADR-000{1,2}-*.adr.yaml`) and
+are rebuilt byte-for-byte through `yamlet adr` by the test suite.
 
 ## Decisions in flight
 
@@ -479,9 +607,10 @@ Not yet implemented.
 
 ---
 
-*Shipped since first draft: [`adrs`](#adrs--linking-a-decision) links on requirements
-and criteria (`E109`) and the derived [tech spec](#tech-specs--planning-the-work)
-(`E701`–`E715`); the [`exposes`](#exposes--the-contract-signature) contract
+*Shipped since first draft: [decision records](#decision-records--adryaml)
+(`E801`–`E815`), [`adrs`](#adrs--linking-a-decision) links on requirements and
+criteria (`E109`) and the derived [tech spec](#tech-specs--planning-the-work)
+(`E701`–`E716`); the [`exposes`](#exposes--the-contract-signature) contract
 signature with `{input.NAME}`/`{output.NAME}` references and both-direction binding
 (`E501`–`E511`); and full [Composition](#composition--a-level-above-the-component) — a
 `components:` membership list plus an explicit `connections:` block (`sink: source`),

@@ -11,13 +11,14 @@ requirements:
   description: >-
     Parses the document with the chosen parser
   adrs:
-  - adr/ADR-0009-missing.md
+  - ADR-0009-missing.adr.yaml
   acceptance-criteria:
   - id: AC-1
     pattern: ubiquitous
     shall:
     - parse the document
     adrs:
-    - adr/ADR-0001-parser.md
-    - adr/ADR-0001-parser.md
+    - ADR-0001-structural-pdf-parsing.adr.yaml
+    - ADR-0001-structural-pdf-parsing.adr.yaml
     - ""
+    - notes/ADR-0002.md

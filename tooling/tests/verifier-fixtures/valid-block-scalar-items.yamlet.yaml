@@ -1,0 +1,21 @@
+system: block-items
+topic: Block scalars as list items
+summary: A list item may itself be a folded or literal block scalar
+description: >-
+  The shape decision records use for prose lists is legal in a spec too.
+blast_radius: low
+front: internal
+
+requirements:
+- id: RQ-1
+  description: >-
+    Long obligations fold
+  acceptance-criteria:
+  - id: AC-1
+    pattern: ubiquitous
+    shall:
+    - >-
+      reject the upload with a reason: the file is not a PDF, stated in the
+      response body
+    - |-
+      log the rejection

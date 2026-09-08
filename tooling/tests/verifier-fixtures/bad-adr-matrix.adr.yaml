@@ -1,0 +1,61 @@
+adr: ADR-0091
+title: A selection whose matrix is dishonest
+status: accepted
+date: 2026-09-07
+kind: selection
+arises_from:
+- pdf-verify.yamlet.yaml#AC-8
+- pdf-verify.yamlet.yaml#AC-99
+- missing.yamlet.yaml#AC-1
+- pdf-verify.yamlet.yaml
+assumes:
+- ADR-0002
+- ADR-0095
+- ADR-0091
+
+question: >-
+  Which parser?
+
+forces:
+- >-
+  Cites ADR-0001#R-9, which does not exist, and ADR-0077#R-1, which does not resolve.
+
+basis:
+- id: B-1
+  quantity: 40000 uploads / month
+  source: telemetry
+- id: B-2
+  quantity: 36 months
+  source: horizon
+
+dimensions:
+- id: D-1
+  matters: >-
+    Licence
+- id: D-2
+  matters: >-
+    Cost
+  unit: EUR
+  source: costing note
+
+options:
+- id: OPT-1
+  summary: >-
+    Library A
+  refs:
+    project: A library that does the thing and is quite popular among the teams that need it.
+  reversibility: costly
+  against:
+    D-1: >-
+      n/a
+    D-2: >-
+      About twenty-six thousand
+- id: OPT-2
+  summary: >-
+    Library B
+  reversibility: one-way
+  against:
+    D-1: >-
+      n/a — D-2 excludes it
+    D-2: >-
+      n/a — not priced

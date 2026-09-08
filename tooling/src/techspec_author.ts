@@ -46,22 +46,25 @@ import {
   COMMIT_RE,
   decidedBy,
   indexSpec,
+  linkedAdrs,
   parseTechspec,
   serializeTechspec,
   SPEC_EXT,
   type SpecIndex,
+  specPathOf,
   TASK_ID_RE,
   type Techspec,
   TECHSPEC_EXT,
   validateTechspec,
 } from "./techspec.ts";
+import { OBLIGATION_RE } from "./adr.ts";
 
 const USAGE = `Usage:
   yamlet techspec init      SPEC [--out FILE]
   yamlet techspec analysis  FILE --commit SHA [--deep DIR ...] [--skimmed DIR ...]
   yamlet techspec criterion FILE --ac AC-N --met true|false \\
                             [--evidence PATH:LINE ...] [--note "..."]
-  yamlet techspec task      FILE --title "..." [--covers AC-N ...] \\
+  yamlet techspec task      FILE --title "..." [--covers AC-N|ADR-nnnn#R-n ...] \\
                             [--depends-on T-N ...] [--why "..."]
 `;
 const usageResult = (): CmdResult => ({ exitCode: 2, stdout: "", stderr: USAGE });
@@ -74,7 +77,8 @@ const usageResult = (): CmdResult => ({ exitCode: 2, stdout: "", stderr: USAGE }
  * hand.
  */
 const inProgress = (f: Finding): boolean =>
-  (f.rule === "E701" && f.path === "analysis") || f.rule === "E706" || f.rule === "E715";
+  (f.rule === "E701" && f.path === "analysis") || f.rule === "E706" || f.rule === "E715" ||
+  (f.rule === "E716" && f.path === "tasks");
 
 /** Newlines have no representation in a one-line scalar; fold them, as prose. */
 const oneLine = (s: string): string => s.replace(/\s*\n\s*/g, " ").trim();
@@ -144,7 +148,12 @@ function relativePath(fromDir: string, target: string): string {
 // on the verdict and on the task — and the skill relays it. stderr, exit 0.
 
 /** The notice printed when a verdict is recorded on decided behaviour. */
-function decidedVerdictNotice(spec: SpecIndex, acId: string, met: string): string {
+function decidedVerdictNotice(
+  spec: SpecIndex,
+  specFile: string,
+  acId: string,
+  met: string,
+): string {
   const d = decidedBy(spec, acId);
   if (d.adrs.length === 0) return "";
   let s = `DECIDED: ${acId} is decided by an ADR (via ${d.via.join(" and ")}).\n`;
@@ -152,6 +161,12 @@ function decidedVerdictNotice(spec: SpecIndex, acId: string, met: string): strin
   s += met === "true"
     ? `The evidence for ${acId} must fit these decisions.\n`
     : `The task covering ${acId} must fit these decisions, or state that one no longer holds.\n`;
+  const obligations = linkedAdrs(specFile, spec)
+    .filter((l) => d.adrs.includes(l.link) && l.status === "accepted")
+    .flatMap((l) => l.obligations);
+  if (obligations.length > 0) {
+    s += `Obligations to cover with tasks: ${obligations.join(", ")}\n`;
+  }
   return s;
 }
 
@@ -383,7 +398,11 @@ export function runTechspecCriterion(args: string[]): CmdResult {
     group.criteria.push({ id: ac, met, evidence, note });
     const r = commit(file, "techspec criterion", next, spec);
     if (r.exitCode !== 0) return r;
-    return { exitCode: 0, stdout: "", stderr: decidedVerdictNotice(spec, ac, met) };
+    return {
+      exitCode: 0,
+      stdout: "",
+      stderr: decidedVerdictNotice(spec, specPathOf(file, ts.spec), ac, met),
+    };
   } catch (e) {
     if (e instanceof CmdError) return e.result;
     throw e;
@@ -432,10 +451,23 @@ export function runTechspecTask(args: string[]): CmdResult {
     const verdict = new Map<string, string>();
     for (const rq of ts.requirements) for (const c of rq.criteria) verdict.set(c.id, c.met);
 
+    const obligations = new Set(
+      linkedAdrs(specPathOf(file, ts.spec), spec).flatMap((l) => l.obligations),
+    );
     const seenCov = new Set<string>();
     for (const c of covers) {
       if (seenCov.has(c)) return die(`duplicate --covers: ${c}`);
       seenCov.add(c);
+      if (OBLIGATION_RE.test(c)) {
+        if (!obligations.has(c)) {
+          return die(
+            `${c} is not an obligation of a record linked from ${ts.spec} (known: ${
+              [...obligations].join(", ") || "none"
+            })`,
+          );
+        }
+        continue;
+      }
       if (!spec.criteria.includes(c)) {
         return die(`no such criterion in ${ts.spec}: ${c} (it has ${spec.criteria.join(", ")})`);
       }
@@ -530,15 +562,17 @@ criterion  records AC-N as met (needs --evidence PATH:LINE) or unmet; the owning
            requirement is looked up in the spec. One verdict per criterion; to
            change one, start the tech spec over.
 task       appends a task and prints its T-N. --covers names unmet criteria whose
-           verdicts are already recorded; a task covering nothing is an enabler
-           and needs --why. --depends-on names tasks that already exist, so the
-           graph is acyclic by construction.
+           verdicts are already recorded, or obligations (ADR-nnnn#R-n) of records
+           the spec links; a task covering nothing is an enabler and needs --why.
+           --depends-on names tasks that already exist, so the graph is acyclic
+           by construction.
 decided    behaviour: where the spec links an ADR on a criterion or its
            requirement, criterion and task print a DECIDED notice on stderr naming
            the records. Read them; the tech spec is where a decision is met or
            declared no longer to hold.
-verify     E701–E715: every criterion has one verdict, met ones cite evidence,
-           every unmet one is covered, dependencies resolve. See --list-rules.
+verify     E701–E716: every criterion has one verdict, met ones cite evidence,
+           every unmet one is covered, every obligation of an accepted linked
+           record is covered, dependencies resolve. See --list-rules.
 `,
   run: runTechspec,
 };

@@ -1,0 +1,5 @@
+{"file":"bad-techspec-obligations.techspec.yaml","valid":false,"errors":[
+  {"rule":"E716","severity":"error","line":0,"path":"tasks","message":"obligation ADR-0001#R-4 is covered by no task"},
+  {"rule":"E712","severity":"error","line":80,"path":"tasks[3].covers[2]","message":"T-4: covers ADR-0077#R-1, which no record linked from the spec declares"}
+],"warnings":[
+],"summary":{"requirements":6,"acceptanceCriteria":10,"tasks":4}}

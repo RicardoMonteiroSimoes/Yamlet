@@ -19,16 +19,16 @@ requirements:
   description: >-
     Verifies the cross-reference table and objects
   adrs:
-  - adr/ADR-0001-parser.md
-  - adr/ADR-0002-isolation.md
+  - adr/ADR-0001-parser.adr.yaml
+  - adr/ADR-0002-isolation.adr.yaml
   acceptance-criteria:
   - id: AC-2
     pattern: ubiquitous
     shall:
     - resolve startxref
     adrs:
-    - adr/ADR-0001-parser.md
-    - adr/ADR-0002-isolation.md
+    - adr/ADR-0001-parser.adr.yaml
+    - adr/ADR-0002-isolation.adr.yaml
   - id: AC-2a
     pattern: ubiquitous
     shall:

@@ -1,0 +1,20 @@
+{"file":"bad-adr-matrix.adr.yaml","valid":false,"errors":[
+  {"rule":"E813","severity":"error","line":3,"path":"decision","message":"an accepted record must name its decision"},
+  {"rule":"E807","severity":"error","line":8,"path":"arises_from[1]","message":"pdf-verify.yamlet.yaml declares no AC-99"},
+  {"rule":"E807","severity":"error","line":9,"path":"arises_from[2]","message":"arises_from spec does not resolve to a file: missing.yamlet.yaml (looked at missing.yamlet.yaml)"},
+  {"rule":"E807","severity":"error","line":10,"path":"arises_from[3]","message":"arises_from entry must be <spec>.yamlet.yaml#RQ-n|AC-n, got: pdf-verify.yamlet.yaml"},
+  {"rule":"E807","severity":"error","line":12,"path":"assumes[0]","message":"an accepted record may not assume ADR-0002, which is proposed"},
+  {"rule":"E807","severity":"error","line":13,"path":"assumes[1]","message":"assumes may only name a lower-numbered record than ADR-0091, got: ADR-0095"},
+  {"rule":"E807","severity":"error","line":14,"path":"assumes[2]","message":"assumes may only name a lower-numbered record than ADR-0091, got: ADR-0091"},
+  {"rule":"E808","severity":"error","line":20,"path":"forces[0]","message":"cites ADR-0001#R-9 but ADR-0001 declares no R-9"},
+  {"rule":"E808","severity":"error","line":20,"path":"forces[0]","message":"cites ADR-0077#R-1 but ADR-0077 does not resolve to a record in ."},
+  {"rule":"E809","severity":"error","line":24,"path":"basis","message":"B-1 is referenced by no dimension"},
+  {"rule":"E809","severity":"error","line":27,"path":"basis","message":"B-2 is referenced by no dimension"},
+  {"rule":"E810","severity":"error","line":38,"path":"dimensions[1].basis","message":"D-2: a measured dimension must name the basis it is stated under"},
+  {"rule":"E811","severity":"error","line":46,"path":"options[0].refs.project","message":"OPT-1: refs.project must be a locator (URL, path or short citation), not prose"},
+  {"rule":"E812","severity":"error","line":49,"path":"options[0].against.D-1","message":"OPT-1/D-1: a bare n/a says nothing; write \"n/a — <reason>\""},
+  {"rule":"E812","severity":"error","line":51,"path":"options[0].against.D-2","message":"OPT-1/D-2: D-2 is measured in EUR; the cell needs a numeral"},
+  {"rule":"E811","severity":"error","line":53,"path":"options[1].refs","message":"OPT-2: a selection names products, so every option needs refs"},
+  {"rule":"E812","severity":"error","line":58,"path":"options[1].against.D-1","message":"OPT-2/D-1: cites D-2 as excluding the option, but OPT-2/D-2 is not a substantive cell"}
+],"warnings":[
+],"summary":{"requirements":0,"acceptanceCriteria":0,"options":2,"obligations":0}}

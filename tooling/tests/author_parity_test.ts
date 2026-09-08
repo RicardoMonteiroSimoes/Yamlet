@@ -433,8 +433,8 @@ Deno.test("adrs: decision links on a requirement and a criterion reproduce the f
   const dir = Deno.makeTempDirSync();
   const A = `${dir}/adrs.yamlet.yaml`;
   Deno.mkdirSync(`${dir}/adr`);
-  Deno.writeTextFileSync(`${dir}/adr/ADR-0001-parser.md`, "# ADR-0001\n");
-  Deno.writeTextFileSync(`${dir}/adr/ADR-0002-isolation.md`, "# ADR-0002\n");
+  Deno.writeTextFileSync(`${dir}/adr/ADR-0001-parser.adr.yaml`, "adr: ADR-0001\n");
+  Deno.writeTextFileSync(`${dir}/adr/ADR-0002-isolation.adr.yaml`, "adr: ADR-0002\n");
   assertEquals(
     run("init", A, [
       "--system",
@@ -478,10 +478,10 @@ Deno.test("adrs: decision links on a requirement and a criterion reproduce the f
     "--shall",
     "balance obj/endobj",
   ]);
-  assertEquals(run("add-adr", A, ["adr/ADR-0001-parser.md", "--rq", "RQ-2"]).exitCode, 0);
-  assertEquals(run("add-adr", A, ["adr/ADR-0001-parser.md", "--ac", "AC-2"]).exitCode, 0);
-  assertEquals(run("add-adr", A, ["adr/ADR-0002-isolation.md", "--ac", "AC-2"]).exitCode, 0);
-  assertEquals(run("add-adr", A, ["adr/ADR-0002-isolation.md", "--rq", "RQ-2"]).exitCode, 0);
+  assertEquals(run("add-adr", A, ["adr/ADR-0001-parser.adr.yaml", "--rq", "RQ-2"]).exitCode, 0);
+  assertEquals(run("add-adr", A, ["adr/ADR-0001-parser.adr.yaml", "--ac", "AC-2"]).exitCode, 0);
+  assertEquals(run("add-adr", A, ["adr/ADR-0002-isolation.adr.yaml", "--ac", "AC-2"]).exitCode, 0);
+  assertEquals(run("add-adr", A, ["adr/ADR-0002-isolation.adr.yaml", "--rq", "RQ-2"]).exitCode, 0);
   assertEquals(
     run("add-criterion", A, [
       "--rq",

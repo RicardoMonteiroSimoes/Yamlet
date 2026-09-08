@@ -10,9 +10,11 @@ minimal, testable `.yamlet.yaml` specs with EARS acceptance criteria.
 | `yamlet-criteria-challenger` | Adversarial gate before each requirement + acceptance-criteria is committed. |
 | `yamlet-verifier` | Verifies a `.yamlet.yaml` against the format rules and reports violations. |
 | `yamlet-tester` | Projects a specs directory into a Gherkin `.feature` tree, wiping and rebuilding the target every run so the tests never drift. Disconnected: it writes features only, never step definitions. |
-| `yamlet-techspec` | Plans the work for a **finished** spec: reads the code it should implement, records a verdict per criterion with `file:line` evidence, then a task list covering every unmet one — all through `yamlet techspec` into a disposable `.techspec.yaml`. Where a task needs a decision, it writes the ADR and links it into the spec with `yamlet add-adr`. Orchestrates the two below. |
+| `yamlet-techspec` | Plans the work for a **finished** spec: reads the code it should implement, records a verdict per criterion with `file:line` evidence, then a task list covering every unmet one and every obligation of the decision records the spec links — all through `yamlet techspec` into a disposable `.techspec.yaml`. Where a task needs a decision, it hands off to `yamlet-adr` and links the record into the spec with `yamlet add-adr`. Orchestrates the two below. |
 | `yamlet-code-research` | Read-only research inside the tech spec flow: per requirement, where each criterion's behaviour lives, what the code does there, deviations from each `shall`, related tests. Documents, never judges. |
 | `yamlet-evidence-challenger` | Adversarial gate before a criterion is recorded as met: opens exactly the offered `file:line` references and says, per `shall`, whether it is really satisfied there. Nothing else. |
+| `yamlet-adr` | Interviews you to write a decision record (`.adr.yaml`) through `yamlet adr`: origin, forces, basis, dimensions, every option judged against all of them, the decision, its obligations. Frozen once accepted. Standalone, or inside the tech spec's decision gate. |
+| `yamlet-adr-challenger` | Adversarial gate after the dimensions and before any option: is the question answerable, are the forces outside the author's control, does each dimension state a threshold, will the option set be honest. Judgement only; structure is the verifier's. |
 
 ## Prerequisite: the `yamlet` CLI
 
@@ -42,7 +44,7 @@ The same flow is ported to the [pi coding agent](https://pi.dev) under
 [`pi/`](../../pi) in this repo — `pi install git:github.com/RicardoMonteiroSimoes/Yamlet`.
 There the CLI is registered as native pi tools and hand-editing a `.yamlet.yaml`
 is blocked outright, because pi has no permission layer to express that with.
-The tech spec flow (`yamlet-techspec` and its two helpers) is not ported yet.
+The tech spec flow (`yamlet-techspec` and its two helpers) and the decision record flow (`yamlet-adr` and its challenger) are not ported yet.
 
 ## Source
 

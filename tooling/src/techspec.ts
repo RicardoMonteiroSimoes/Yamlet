@@ -23,6 +23,7 @@ import type { Finding, FlatRecord, Summary } from "./types.ts";
 import { flatten } from "./flatten.ts";
 import { blocksOf } from "./blocks.ts";
 import { childKeys, indicesUnder, itemsUnder, listUnder, recordAt } from "./records.ts";
+import { loadAdr, OBLIGATION_RE } from "./adr.ts";
 
 export const TECHSPEC_EXT = ".techspec.yaml";
 export const SPEC_EXT = ".yamlet.yaml";
@@ -187,6 +188,49 @@ export function indexSpec(text: string): SpecIndex | null {
 function dirname(p: string): string {
   const slash = p.lastIndexOf("/");
   return slash < 0 ? "" : p.slice(0, slash);
+}
+
+/** A decision record the spec links, with the obligations it places on the work. */
+export interface LinkedAdr {
+  /** The link as written in the spec (relative to the spec). */
+  link: string;
+  path: string;
+  /** "" when the file could not be read or parsed. */
+  id: string;
+  status: string;
+  /** `ADR-nnnn#R-n` for each obligation. */
+  obligations: string[];
+}
+
+/**
+ * Every record the spec links (on any requirement or criterion), read from
+ * disk relative to the spec's directory. An unparseable link is returned with
+ * an empty id so the caller can report it once.
+ */
+export function linkedAdrs(specFile: string, spec: SpecIndex): LinkedAdr[] {
+  const dir = dirname(specFile);
+  const seen = new Set<string>();
+  const out: LinkedAdr[] = [];
+  for (const links of spec.adrsOf.values()) {
+    for (const link of links) {
+      if (seen.has(link)) continue;
+      seen.add(link);
+      const path = link.startsWith("/") ? link : dir === "" ? link : `${dir}/${link}`;
+      const loaded = loadAdr(path);
+      if (loaded === null) {
+        out.push({ link, path, id: "", status: "", obligations: [] });
+        continue;
+      }
+      out.push({
+        link,
+        path,
+        id: loaded.adr.id,
+        status: loaded.adr.status,
+        obligations: loaded.adr.requires.map((r) => `${loaded.adr.id}#${r.id}`),
+      });
+    }
+  }
+  return out;
 }
 
 /** `spec` resolved against the tech spec's own directory. */
@@ -472,6 +516,26 @@ export function validateTechspec(file: string, records: readonly FlatRecord[]): 
     }
   }
 
+  // Obligations a task may cover: every linked record's; those it must cover: an accepted one's.
+  const linked = spec === null ? [] : linkedAdrs(specPathOf(file, ts.spec), spec);
+  const obligations = new Set<string>();
+  const required = new Set<string>();
+  for (const l of linked) {
+    if (l.id === "") {
+      finding(
+        "E716",
+        0,
+        "spec",
+        `linked record ${l.link} does not parse, so its obligations are unknown`,
+      );
+      continue;
+    }
+    for (const o of l.obligations) {
+      obligations.add(o);
+      if (l.status === "accepted") required.add(o);
+    }
+  }
+
   // ── tasks: E711–E714 ──
   const taskIds = new Set<string>();
   const covered = new Set<string>();
@@ -508,6 +572,15 @@ export function validateTechspec(file: string, records: readonly FlatRecord[]): 
       const v = recorded.get(c.value);
       if (seenCov.has(c.value)) {
         finding("E712", c.line, c.path, `${label}: covers ${c.value} twice`);
+      } else if (OBLIGATION_RE.test(c.value)) {
+        if (spec !== null && !obligations.has(c.value)) {
+          finding(
+            "E712",
+            c.line,
+            c.path,
+            `${label}: covers ${c.value}, which no record linked from the spec declares`,
+          );
+        }
       } else if (spec !== null && !spec.criteria.includes(c.value)) {
         finding("E712", c.line, c.path, `${label}: covers ${c.value}, which is not in the spec`);
       } else if (v === undefined) {
@@ -579,6 +652,11 @@ export function validateTechspec(file: string, records: readonly FlatRecord[]): 
     if (v.met === "false" && !covered.has(acId)) {
       finding("E715", v.line, v.path, `${acId} is unmet and no task covers it`);
     }
+  }
+
+  // ── E716: every obligation of an accepted linked record is covered ──
+  for (const o of required) {
+    if (!covered.has(o)) finding("E716", 0, "tasks", `obligation ${o} is covered by no task`);
   }
 
   return {

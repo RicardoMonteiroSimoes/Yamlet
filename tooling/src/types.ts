@@ -37,7 +37,11 @@ export interface FlattenResult {
 export interface Summary {
   requirements: number;
   acceptanceCriteria: number;
+  /** Tech spec only. */
   tasks?: number;
+  /** ADR only. */
+  options?: number;
+  obligations?: number;
 }
 
 /** The final verification result for one file. */

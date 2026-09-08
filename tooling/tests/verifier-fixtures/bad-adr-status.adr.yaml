@@ -1,0 +1,31 @@
+adr: ADR-0092
+title: Superseded without a successor, and an accepted record with no decision
+status: superseded
+date: 2026-09-07
+kind: policy
+assumes:
+- ADR-0002
+
+question: >-
+  How large may an upload be?
+
+dimensions:
+- id: D-1
+  matters: >-
+    Fit
+
+options:
+- id: OPT-1
+  summary: >-
+    Ten
+  reversibility: reversible
+  against:
+    D-1: >-
+      fine
+- id: OPT-2
+  summary: >-
+    Twenty
+  reversibility: reversible
+  against:
+    D-1: >-
+      also fine
