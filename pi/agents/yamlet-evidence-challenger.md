@@ -6,7 +6,6 @@ description: >-
   yamlet-techspec before every `met: true`; not a standalone tool.
 display_name: Yamlet Evidence Challenger
 color: orange
-model: opus
 thinking: low
 extensions: false
 skills: false

@@ -281,8 +281,8 @@ Agent frontmatter translates almost 1:1:
 | Claude Code | pi-subagents |
 | --- | --- |
 | `context: fork` | `inherit_context` — set to `false` here (see below) |
-| `model: opus` | `model: opus` |
-| `effort: low` | `thinking: low` |
+| `model: opus` | *(not set)* — the agent inherits the session's model; a pin would tie the port to one provider |
+| `effort: low` | `thinking: low` — pi clamps a level the model lacks, so this stays provider-agnostic |
 | `allowed-tools: Bash(yamlet systems:*), Read` | `tools: read, ext:yamlet/yamlet_systems` |
 
 **`inherit_context: false` is a deliberate change, not a shortfall.** Claude Code's

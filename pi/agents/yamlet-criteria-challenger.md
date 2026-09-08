@@ -6,7 +6,6 @@ description: >-
   standalone tool.
 display_name: Yamlet Criteria Challenger
 color: orange
-model: opus
 thinking: low
 extensions: [yamlet]
 skills: false

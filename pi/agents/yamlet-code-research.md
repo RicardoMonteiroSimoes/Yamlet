@@ -7,7 +7,6 @@ description: >-
   nothing. Invoked by yamlet-techspec once per requirement; not a standalone tool.
 display_name: Yamlet Code Research
 color: blue
-model: opus
 thinking: medium
 extensions: false
 skills: false

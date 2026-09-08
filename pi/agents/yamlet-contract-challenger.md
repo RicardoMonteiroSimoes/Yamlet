@@ -5,7 +5,6 @@ description: >-
   Invoked by yamlet-author at the pre-init gate; not a standalone tool.
 display_name: Yamlet Contract Challenger
 color: orange
-model: opus
 thinking: low
 extensions: [yamlet]
 skills: false

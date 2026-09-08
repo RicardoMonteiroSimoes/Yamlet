@@ -4,7 +4,6 @@ description: >-
   the judgement the verifier cannot. Invoked by yamlet-adr; not a standalone tool.
 display_name: Yamlet ADR Challenger
 color: orange
-model: opus
 thinking: low
 extensions: false
 skills: false
