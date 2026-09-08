@@ -1,6 +1,6 @@
 {
   "name": "yamlet-pi",
-  "version": "0.2.3",
+  "version": "0.3.0",
   "type": "module",
   "description": "Spec-driven development with yamlet for the pi coding agent: the yamlet CLI registered as first-class pi tools, with a gate that blocks hand-editing a .yamlet.yaml, .techspec.yaml or .adr.yaml; an interviewing author skill, verifier and tester skills, a tech spec skill that plans the work against your code, and an ADR skill that records each decision as a frozen record; plus the adversarial challengers and the code researcher those flows run as subagents. Requires the `yamlet` CLI on PATH; the agents additionally require @tintinweb/pi-subagents.",
   "keywords": [
