@@ -65,4 +65,4 @@ requirements:
     pattern: event
     when: the field is present
     shall:
-    - ""reason" must be recorded"
+    - '"reason" must be recorded'

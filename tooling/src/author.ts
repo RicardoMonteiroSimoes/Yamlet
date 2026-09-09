@@ -20,6 +20,7 @@ import { type Contract, contractOf } from "./systems.ts";
 import { type CompositeInfo, resolveComposite, socketKey } from "./composite.ts";
 import { type Block, blocksOf, criteriaKeyLine, findBlock, spliceAfter } from "./blocks.ts";
 import { listUnder } from "./records.ts";
+import { quote, unquote } from "./scalar.ts";
 import {
   argVal,
   basename,
@@ -51,16 +52,8 @@ const usageResult = (): CmdResult => ({ exitCode: 2, stdout: "", stderr: USAGE }
 
 // ── serialization primitives (byte-faithful to author.sh) ──
 
-/**
- * Quote a scalar only when the constrained YAML subset requires it: a leading
- * `{`/`[`/`"` (flow collection or quoted-scalar trigger) or an embedded ` #`
- * (would read as a trailing comment). Wrapping round-trips exactly because the
- * verifier's unquote just strips the outer pair.
- */
-function q(s: string): string {
-  if (s[0] === "{" || s[0] === "[" || s[0] === '"' || s.includes(" #")) return `"${s}"`;
-  return s;
-}
+/** The shared quoting rule (`scalar.ts`): bare when every YAML parser reads it back unchanged. */
+const q = quote;
 
 /** One `    - <item>` line per non-empty item (4-space indent, value quoted). */
 function emitListItems(items: string[]): string {
@@ -300,7 +293,7 @@ export function runInit(args: string[]): CmdResult {
     }
 
     let body = "";
-    body += `system: ${system}\n`;
+    body += `system: ${q(system)}\n`;
     body += `topic: ${q(topic)}\n`;
     body += `summary: ${q(summary)}\n`;
     body += "description: >-\n";
@@ -1112,9 +1105,8 @@ export function runAddAdr(args: string[]): CmdResult {
       break;
     }
     if (lastEntry > 0) {
-      const unq = (v: string): string => (v.startsWith('"') ? v.slice(1, -1) : v);
       for (let ln = lastEntry; lines[ln - 1] !== `${indent}adrs:`; ln--) {
-        if (unq((lines[ln - 1] ?? "").slice(indent.length + 2)) === path) {
+        if (unquote((lines[ln - 1] ?? "").slice(indent.length + 2)) === path) {
           return die(`${id} already links ${path}`);
         }
       }

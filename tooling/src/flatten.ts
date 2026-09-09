@@ -10,6 +10,7 @@
 // those, exactly as the sh verifier does.
 
 import type { FlatRecord, FlattenResult, ParseError } from "./types.ts";
+import { isQuoted, unquote } from "./scalar.ts";
 
 // POSIX [[:space:]] minus newline (lines are already split): space, tab, CR, FF, VT.
 const TRAILING_WS = /[ \t\r\f\v]$/;
@@ -73,8 +74,6 @@ export function flatten(text: string): FlattenResult {
     }
     return s.replace(TRAILING_WS_RUN, "");
   };
-
-  const unquote = (s: string): string => s.slice(1, s.length - 1);
 
   const finaliseBlock = (): void => {
     let v = blockVal;
@@ -197,7 +196,9 @@ export function flatten(text: string): FlattenResult {
       }
 
       const colonPos = afterDash.indexOf(": ");
-      const isMapKey = colonPos >= 0 || KEY_ONLY.test(afterDash);
+      // A quoted item is one scalar even when it holds `: ` — `- "Missing: no path"`.
+      const startsQuoted = afterDash[0] === '"' || afterDash[0] === "'";
+      const isMapKey = !startsQuoted && (colonPos >= 0 || KEY_ONLY.test(afterDash));
 
       if (isMapKey) {
         let mk: string;
@@ -209,7 +210,7 @@ export function flatten(text: string): FlattenResult {
           mk = afterDash.replace(/:.*$/, "");
           mv = "";
         }
-        if (mv !== "" && mv[0] !== '"') mv = stripComment(mv);
+        if (mv !== "" && !isQuoted(mv)) mv = stripComment(mv);
 
         pushFrame(seqBracket, thisIndent);
         pushFrame(mk, thisIndent + 2);
@@ -227,7 +228,7 @@ export function flatten(text: string): FlattenResult {
           blockVal = "";
         } else {
           let v = mv;
-          if (v[0] === '"') {
+          if (isQuoted(v)) {
             v = unquote(v);
           } else {
             const fc = v[0];
@@ -261,7 +262,7 @@ export function flatten(text: string): FlattenResult {
         // "- scalar text"
         pushFrame(seqBracket, thisIndent);
         let v = afterDash;
-        if (v[0] === '"') {
+        if (isQuoted(v)) {
           v = unquote(v);
         } else {
           v = stripComment(v);
@@ -312,7 +313,7 @@ export function flatten(text: string): FlattenResult {
       seenKeys[dupProbe] = lineno;
     }
 
-    if (mv !== "" && mv[0] !== '"') mv = stripComment(mv);
+    if (mv !== "" && !isQuoted(mv)) mv = stripComment(mv);
 
     pushFrame(mk, thisIndent);
 
@@ -329,7 +330,7 @@ export function flatten(text: string): FlattenResult {
       blockVal = "";
     } else {
       let v = mv;
-      if (v[0] === '"') {
+      if (isQuoted(v)) {
         v = unquote(v);
       } else {
         const fc = v[0];

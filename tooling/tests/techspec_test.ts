@@ -211,7 +211,7 @@ tasks:
   depends_on:
   - T-1
 - id: T-3
-  title: Do c: the rest
+  title: "Do c: the rest"
   covers:
   - AC-3
   depends_on:

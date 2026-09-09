@@ -29,6 +29,7 @@ array.
 
 ```
 src/flatten.ts    Phase 1: constrained-YAML -> tab-free records; short-circuits on parse error
+src/scalar.ts     quote/unquote: the one scalar-quoting rule shared by every serializer and the parser
 src/composite.ts  cross-file member/socket tables (directional: inputs vs outputs)
 src/validate.ts   Phase 2: structural + semantic rules over records
 src/catalog.ts    the rule catalog (source of truth for rule ids/severities)

@@ -33,6 +33,7 @@ import { flatten } from "./flatten.ts";
 import { blocksOf } from "./blocks.ts";
 import { childKeys, indicesUnder, itemsUnder, recordAt } from "./records.ts";
 import { QUANTITY_WORD } from "./validate.ts";
+import { quote } from "./scalar.ts";
 
 export const ADR_EXT = ".adr.yaml";
 export const ADR_ID_RE = /^ADR-([0-9]{4})$/;
@@ -263,11 +264,8 @@ export function maxAdrNum(dir: string): number {
 
 // ── serializing ──
 
-/** Quote a scalar only when the constrained YAML subset requires it (the author's rule). */
-function q(s: string): string {
-  if (s[0] === "{" || s[0] === "[" || s[0] === '"' || s.includes(" #")) return `"${s}"`;
-  return s;
-}
+/** The shared quoting rule (`scalar.ts`), the same one the author and the tech spec use. */
+const q = quote;
 
 /**
  * Prose is always emitted as a folded block (`>-`) wrapped at ~96 columns: a

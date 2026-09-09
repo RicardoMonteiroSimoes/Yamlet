@@ -22,6 +22,7 @@
 import type { Finding, FlatRecord, Summary } from "./types.ts";
 import { flatten } from "./flatten.ts";
 import { blocksOf } from "./blocks.ts";
+import { quote } from "./scalar.ts";
 import { childKeys, indicesUnder, itemsUnder, listUnder, recordAt } from "./records.ts";
 import { loadAdr, OBLIGATION_RE } from "./adr.ts";
 
@@ -242,11 +243,8 @@ export function specPathOf(techspecFile: string, spec: string): string {
 
 // ── serializing ──
 
-/** Quote a scalar only when the constrained YAML subset requires it (same rule as the author). */
-function q(s: string): string {
-  if (s[0] === "{" || s[0] === "[" || s[0] === '"' || s.includes(" #")) return `"${s}"`;
-  return s;
-}
+/** The shared quoting rule (`scalar.ts`), the same one the author and the decision record use. */
+const q = quote;
 
 const taskNum = (id: string): number => Number(id.match(/^T-([0-9]+)$/)?.[1] ?? 0);
 
@@ -271,11 +269,11 @@ export function serializeTechspec(ts: Techspec, spec: SpecIndex | null): string 
 
   let out = "";
   out += `spec: ${q(ts.spec)}\n`;
-  out += `system: ${ts.system}\n`;
+  out += `system: ${q(ts.system)}\n`;
 
   if (ts.analysis !== null) {
     out += "\nanalysis:\n";
-    out += `  commit: ${ts.analysis.commit}\n`;
+    out += `  commit: ${q(ts.analysis.commit)}\n`;
     if (ts.analysis.deep.length > 0) {
       out += "  deep:\n";
       for (const d of ts.analysis.deep) out += `  - ${q(d)}\n`;
