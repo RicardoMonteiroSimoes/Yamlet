@@ -1,4 +1,4 @@
-# Yamlet
+# Yamlet - Yet Another Markup Language Engineering Toolkit
 
 Spec-driven development for agents, with as little text as possible.
 
