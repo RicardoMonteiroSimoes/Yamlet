@@ -14,10 +14,10 @@ Deno.test("blocksOf reports requirements and criteria with their owners", () => 
   const text = HEAD +
     "requirements:\n" +
     "- id: RQ-1\n  description: >-\n    first\n  acceptance-criteria:\n" +
-    "  - id: AC-1\n    pattern: ubiquitous\n    shall:\n    - a\n" +
+    "  - id: AC-1\n    pattern: event\n    when: a request is handled\n    shall:\n    - a\n" +
     "- id: RQ-2\n  description: >-\n    second\n  acceptance-criteria:\n" +
-    "  - id: AC-2\n    pattern: ubiquitous\n    shall:\n    - b\n" +
-    "  - id: AC-3\n    pattern: ubiquitous\n    shall:\n    - c\n";
+    "  - id: AC-2\n    pattern: event\n    when: a request is handled\n    shall:\n    - b\n" +
+    "  - id: AC-3\n    pattern: event\n    when: a request is handled\n    shall:\n    - c\n";
 
   const blocks = blocksOf(text);
   assertEquals(blocks.map((b) => b.id), ["RQ-1", "AC-1", "RQ-2", "AC-2", "AC-3"]);
@@ -37,12 +37,12 @@ Deno.test("a requirement's own extent stops at acceptance-criteria; its outer ex
   const text = HEAD +
     "requirements:\n" +
     "- id: RQ-1\n  description: >-\n    first\n  acceptance-criteria:\n" + // lines 9-13
-    "  - id: AC-1\n    pattern: ubiquitous\n    shall:\n    - a\n"; //        lines 14-17
+    "  - id: AC-1\n    pattern: event\n    when: a request is handled\n    shall:\n    - a\n"; //        lines 14-18
 
   const rq = findBlock(blocksOf(text), "RQ-1")!;
   assertEquals(rq.start, 10);
   assertEquals(rq.end, 13); // the `acceptance-criteria:` line — a header revision's extent
-  assertEquals(rq.outerEnd, 17); // through its last criterion — a removal's extent
+  assertEquals(rq.outerEnd, 18); // through its last criterion — a removal's extent
   assertEquals(criteriaKeyLine(text, rq), 13);
 });
 
@@ -52,7 +52,7 @@ Deno.test("a folded description does not truncate the block that contains it", (
   const text = HEAD +
     "requirements:\n" +
     "- id: RQ-1\n  description: >-\n    a long first line\n  acceptance-criteria:\n" +
-    "  - id: AC-1\n    pattern: ubiquitous\n    shall:\n    - a\n" +
+    "  - id: AC-1\n    pattern: event\n    when: a request is handled\n    shall:\n    - a\n" +
     "- id: RQ-2\n  description: >-\n    second\n  acceptance-criteria:\n";
 
   const blocks = blocksOf(text);
@@ -69,7 +69,7 @@ Deno.test("extents ignore trailing blank lines and key order", () => {
     // `pattern` before `id`: the dash rides the FIRST key, so the start must
     // still be the dash line rather than wherever `id` happens to sit.
     "- description: >-\n    first\n  id: RQ-1\n  acceptance-criteria:\n" +
-    "  - pattern: ubiquitous\n    id: AC-1\n    shall:\n    - a\n" +
+    "  - pattern: event\n    when: a request is handled\n    id: AC-1\n    shall:\n    - a\n" +
     "\n\n";
 
   const blocks = blocksOf(text);

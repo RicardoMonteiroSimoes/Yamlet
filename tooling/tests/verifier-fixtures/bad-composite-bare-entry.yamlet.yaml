@@ -14,6 +14,7 @@ requirements:
   description: A notification is delivered
   acceptance-criteria:
   - id: AC-1
-    pattern: ubiquitous
+    pattern: event
+    when: a request is received
     shall:
     - deliver a notification

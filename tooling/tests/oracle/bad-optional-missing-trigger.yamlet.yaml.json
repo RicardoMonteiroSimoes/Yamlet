@@ -1,0 +1,4 @@
+{"file":"bad-optional-missing-trigger.yamlet.yaml","valid":false,"errors":[
+  {"rule":"E303","severity":"error","line":12,"path":"requirements[0].acceptance-criteria[0]","message":"AC-1: pattern=optional requires exactly one of (when/if)"}
+],"warnings":[
+],"summary":{"requirements":1,"acceptanceCriteria":1}}

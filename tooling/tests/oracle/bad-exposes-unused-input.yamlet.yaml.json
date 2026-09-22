@@ -1,4 +1,5 @@
 {"file":"bad-exposes-unused-input.yamlet.yaml","valid":false,"errors":[
   {"rule":"E506","severity":"error","line":14,"path":"exposes.inputs","message":"declared exposes input never_used is never referenced as {input.never_used}"}
 ],"warnings":[
+  {"rule":"W006","severity":"warning","line":7,"path":"front","message":"front=external but no criterion carries an if clause: an untrusted caller's malformed or hostile input is unspecified"}
 ],"summary":{"requirements":1,"acceptanceCriteria":1}}

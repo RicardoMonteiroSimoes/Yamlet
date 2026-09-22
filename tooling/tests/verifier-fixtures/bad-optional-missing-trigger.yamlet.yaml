@@ -1,16 +1,16 @@
-# pattern: optional missing its required 'where'
+# pattern: optional carries its gate but no trigger — exactly one of when/if is required
 system: analytics-service
 topic: Analytics Service
 summary: An analytics service
 description: A service.
 blast_radius: low
-front: external
+front: internal
 requirements:
 - id: RQ-1
   description: Premium features
   acceptance-criteria:
   - id: AC-1
     pattern: optional
-    when: premium analytics are requested
+    where: the account has a premium subscription
     shall:
     - expose premium analytics

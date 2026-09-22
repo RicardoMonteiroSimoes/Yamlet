@@ -33,10 +33,40 @@ function seed(): { dir: string; file: string; read: () => string } {
     "internal",
   ]);
   runAddRequirement([file, "--description", "first"]);
-  runAddCriterion([file, "--rq", "RQ-1", "--pattern", "ubiquitous", "--shall", "a"]);
-  runAddCriterion([file, "--rq", "RQ-1", "--pattern", "ubiquitous", "--shall", "b"]);
+  runAddCriterion([
+    file,
+    "--rq",
+    "RQ-1",
+    "--pattern",
+    "event",
+    "--when",
+    "a request is handled",
+    "--shall",
+    "a",
+  ]);
+  runAddCriterion([
+    file,
+    "--rq",
+    "RQ-1",
+    "--pattern",
+    "event",
+    "--when",
+    "a request is handled",
+    "--shall",
+    "b",
+  ]);
   runAddRequirement([file, "--description", "second"]);
-  runAddCriterion([file, "--rq", "RQ-2", "--pattern", "ubiquitous", "--shall", "c"]);
+  runAddCriterion([
+    file,
+    "--rq",
+    "RQ-2",
+    "--pattern",
+    "event",
+    "--when",
+    "a request is handled",
+    "--shall",
+    "c",
+  ]);
   // E109 requires a `.adr.yaml` record to exist; its content is the ADR verifier's business.
   Deno.mkdirSync(`${dir}/adr`);
   Deno.writeTextFileSync(`${dir}/adr/ADR-0001.adr.yaml`, "adr: ADR-0001\n");
@@ -56,7 +86,7 @@ Deno.test("a requirement's link lands before its criteria; a criterion's at its 
   );
   assertStringIncludes(
     text,
-    "  - id: AC-1\n    pattern: ubiquitous\n    shall:\n    - a\n    adrs:\n    - adr/ADR-0002.adr.yaml\n  - id: AC-2\n",
+    "  - id: AC-1\n    pattern: event\n    when: a request is handled\n    shall:\n    - a\n    adrs:\n    - adr/ADR-0002.adr.yaml\n  - id: AC-2\n",
   );
   assertEquals(verifyText(file, text).result.valid, true);
 });
@@ -106,7 +136,9 @@ Deno.test("block extents stay true: criteria can still be appended and inserted 
       "--after",
       "AC-1",
       "--pattern",
-      "ubiquitous",
+      "event",
+      "--when",
+      "a request is handled",
       "--shall",
       "x",
     ])
@@ -115,7 +147,17 @@ Deno.test("block extents stay true: criteria can still be appended and inserted 
   );
   // Append to the linked requirement: lands after its last criterion.
   assertEquals(
-    runAddCriterion([file, "--rq", "RQ-1", "--pattern", "ubiquitous", "--shall", "y"]).stdout,
+    runAddCriterion([
+      file,
+      "--rq",
+      "RQ-1",
+      "--pattern",
+      "event",
+      "--when",
+      "a request is handled",
+      "--shall",
+      "y",
+    ]).stdout,
     "AC-4\n",
   );
   const ids = blocksOf(read()).map((b) => b.id);
@@ -166,7 +208,17 @@ Deno.test("adding a criterion under a decided requirement warns loudly, and stil
   runAddAdr([file, "adr/ADR-0002.adr.yaml", "--rq", "RQ-1"]);
   runAddAdr([file, "adr/ADR-0002.adr.yaml", "--ac", "AC-3"]); // a criterion-level link on RQ-2
 
-  const r = runAddCriterion([file, "--rq", "RQ-1", "--pattern", "ubiquitous", "--shall", "z"]);
+  const r = runAddCriterion([
+    file,
+    "--rq",
+    "RQ-1",
+    "--pattern",
+    "event",
+    "--when",
+    "a request is handled",
+    "--shall",
+    "z",
+  ]);
   assertEquals(r.exitCode, 0);
   assertEquals(r.stdout, "AC-4\n");
   assertStringIncludes(r.stderr, "WARNING: RQ-1 is decided by an ADR");
@@ -176,7 +228,17 @@ Deno.test("adding a criterion under a decided requirement warns loudly, and stil
   assertStringIncludes(read(), "    - z\n");
 
   // A criterion-level link on a sibling does not decide a new criterion of the requirement.
-  const quiet = runAddCriterion([file, "--rq", "RQ-2", "--pattern", "ubiquitous", "--shall", "w"]);
+  const quiet = runAddCriterion([
+    file,
+    "--rq",
+    "RQ-2",
+    "--pattern",
+    "event",
+    "--when",
+    "a request is handled",
+    "--shall",
+    "w",
+  ]);
   assertEquals(quiet.exitCode, 0);
   assertEquals(quiet.stderr, "");
 
@@ -188,7 +250,9 @@ Deno.test("adding a criterion under a decided requirement warns loudly, and stil
     "--after",
     "AC-1",
     "--pattern",
-    "ubiquitous",
+    "event",
+    "--when",
+    "a request is handled",
     "--shall",
     "v",
   ]);

@@ -35,10 +35,40 @@ function seedSpec(dir: string): string {
     "internal",
   ]);
   runAddRequirement([file, "--description", "first"]);
-  runAddCriterion([file, "--rq", "RQ-1", "--pattern", "ubiquitous", "--shall", "a"]);
-  runAddCriterion([file, "--rq", "RQ-1", "--pattern", "ubiquitous", "--shall", "b"]);
+  runAddCriterion([
+    file,
+    "--rq",
+    "RQ-1",
+    "--pattern",
+    "event",
+    "--when",
+    "a request is handled",
+    "--shall",
+    "a",
+  ]);
+  runAddCriterion([
+    file,
+    "--rq",
+    "RQ-1",
+    "--pattern",
+    "event",
+    "--when",
+    "a request is handled",
+    "--shall",
+    "b",
+  ]);
   runAddRequirement([file, "--description", "second"]);
-  runAddCriterion([file, "--rq", "RQ-2", "--pattern", "ubiquitous", "--shall", "c"]);
+  runAddCriterion([
+    file,
+    "--rq",
+    "RQ-2",
+    "--pattern",
+    "event",
+    "--when",
+    "a request is handled",
+    "--shall",
+    "c",
+  ]);
   return file;
 }
 

@@ -1,3 +1,4 @@
+# pattern: state is no longer accepted — every criterion carries a trigger
 system: connection-service
 topic: Connection Service
 summary: A service managing persistent connections

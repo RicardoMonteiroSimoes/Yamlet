@@ -22,14 +22,20 @@ Decide the pattern by asking *what triggers or conditions this behaviour*:
 
 | pattern | when to use | required clause(s) | parameter |
 |---|---|---|---|
-| `ubiquitous` | always-on, no trigger | none | — |
-| `state` | true while some state holds | `while` (a list) | `while: [...]` |
 | `event` | triggered by a discrete event | `when` | `when: "..."` |
-| `optional` | only in a certain configuration/feature | `where` | `where: "..."` |
 | `unwanted` | response to an error/undesired condition | `if` | `if: "..."` |
+| `optional` | only in a certain configuration/feature | `where` + exactly one of `when`/`if` | `where: "..."` + (`when`\|`if`) |
 | `complex` | a state **and** a trigger | `while` + exactly one of `when`/`if` | `while: [...]` + (`when`\|`if`) |
 
+**Every criterion carries exactly one trigger** (`when` or `if`). EARS's trigger-less `ubiquitous` and `state` are not accepted: a component with a contract has no continuous behaviour, and a trigger-less criterion projects to a Gherkin scenario with no `When` step. What people reach for them with is one of:
+
+- **a definition** ("the normalised URL is …", "blank means empty or whitespace") — that is prose for `description`, pinned by example rows on the criteria that observe it (a whitespace-only row where blankness matters, an astral character where the unit of length does);
+- **an invariant** ("at most one project per URL") — that is the `unwanted` criterion that maintains it;
+- **an always-on behaviour** ("log every request") — that is `event`, `when: "a request is received"`.
+
 Every criterion needs one or more `shall` items: the concrete, verifiable obligations ("the system shall …"). Keep each `shall` atomic and observable.
+
+**Word budgets are enforced (`E305`).** A clause (`when`, `if`, `where`, each `while` entry) and each `shall` is at most 20 words; a requirement description and the summary 30. A `when` that runs long is stacking preconditions that belong in `while`, one per entry, or is two criteria.
 
 ```
 yamlet_add_criterion({

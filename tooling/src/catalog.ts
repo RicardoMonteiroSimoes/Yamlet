@@ -71,9 +71,16 @@ export const CATALOG: Rule[] = [
   {
     id: "E303",
     severity: "error",
-    description: "pattern=complex requires exactly one of when or if (not both, not neither)",
+    description:
+      "pattern=optional|complex requires exactly one of when or if (not both, not neither)",
   },
   { id: "E304", severity: "error", description: "shall is missing or empty" },
+  {
+    id: "E305",
+    severity: "error",
+    description:
+      "field over its word budget (when/if/where/while entry 20, shall entry 20, requirement description 30, summary 30)",
+  },
   {
     id: "E401",
     severity: "error",
@@ -347,6 +354,12 @@ export const CATALOG: Rule[] = [
     id: "W005",
     severity: "warning",
     description: "open list ('such as', 'including', 'etc.') in a clause or shall",
+  },
+  {
+    id: "W006",
+    severity: "warning",
+    description:
+      "front=external but no criterion carries an if clause (no unwanted-condition behaviour)",
   },
 ];
 

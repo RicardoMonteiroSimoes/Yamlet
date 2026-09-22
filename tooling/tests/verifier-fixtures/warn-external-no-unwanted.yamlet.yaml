@@ -1,0 +1,16 @@
+# W006: an external front whose criteria never say what happens on bad input
+system: intake
+topic: Intake
+summary: Accepts a submission from a user
+description: A service.
+blast_radius: low
+front: external
+requirements:
+- id: RQ-1
+  description: Records a submission
+  acceptance-criteria:
+  - id: AC-1
+    pattern: event
+    when: a submission is received
+    shall:
+    - record the submission

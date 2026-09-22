@@ -42,7 +42,7 @@ const USAGE = `Usage:
   yamlet add-connection  FILE GROUP SOCKET=SOURCE [SOCKET=SOURCE ...]
   yamlet add-requirement FILE --description "..."
   yamlet add-criterion   FILE --rq RQ-N [--after AC-N] \\
-                   --pattern ubiquitous|state|event|optional|unwanted|complex \\
+                   --pattern event|optional|unwanted|complex \\
                    [--when ...|--if ...|--while ... (repeatable)|--where ...] \\
                    --shall "..." [--shall "..." ...] [--example "k=v;k=v" ...]
   yamlet add-adr         FILE PATH (--rq RQ-N | --ac AC-N)
@@ -787,25 +787,20 @@ export function runAddCriterion(args: string[]): CmdResult {
     const hasWhere = where !== "";
 
     // Pattern -> clause rules (mirrors the verifier; rejects at construction time).
+    // Every pattern carries exactly one trigger (--when or --if); `ubiquitous` and
+    // `state` have none and are not accepted (SPEC.md, "acceptance-criteria").
     switch (pattern) {
-      case "ubiquitous":
-        if (hasWhile || hasWhen || hasIf || hasWhere) {
-          return die(
-            "pattern=ubiquitous allows no trigger/condition clause (no --while/--when/--if/--where)",
-          );
-        }
-        break;
-      case "state":
-        if (!hasWhile) return die("pattern=state requires --while");
-        if (hasWhen || hasIf || hasWhere) return die("pattern=state allows only --while");
-        break;
       case "event":
         if (!hasWhen) return die("pattern=event requires --when");
         if (hasWhile || hasIf || hasWhere) return die("pattern=event allows only --when");
         break;
       case "optional":
         if (!hasWhere) return die("pattern=optional requires --where");
-        if (hasWhile || hasWhen || hasIf) return die("pattern=optional allows only --where");
+        if (hasWhile) return die("pattern=optional does not allow --while");
+        if (hasWhen && hasIf) {
+          return die("pattern=optional needs exactly one of --when/--if, not both");
+        }
+        if (!hasWhen && !hasIf) return die("pattern=optional needs exactly one of --when/--if");
         break;
       case "unwanted":
         if (!hasIf) return die("pattern=unwanted requires --if");
@@ -820,7 +815,7 @@ export function runAddCriterion(args: string[]): CmdResult {
         if (!hasWhen && !hasIf) return die("pattern=complex needs exactly one of --when/--if");
         break;
       default:
-        return die("pattern must be one of: ubiquitous state event optional unwanted complex");
+        return die("pattern must be one of: event optional unwanted complex");
     }
 
     // Classify every {token} across clause/shall text.
@@ -950,10 +945,6 @@ export function runAddCriterion(args: string[]): CmdResult {
     block += `  - id: ${acid}\n`;
     block += `    pattern: ${pattern}\n`;
     switch (pattern) {
-      case "state":
-        block += "    while:\n";
-        block += emitListItems(whiles);
-        break;
       case "event":
         block += `    when: ${q(when)}\n`;
         break;
@@ -962,6 +953,7 @@ export function runAddCriterion(args: string[]): CmdResult {
         break;
       case "optional":
         block += `    where: ${q(where)}\n`;
+        block += hasWhen ? `    when: ${q(when)}\n` : `    if: ${q(ifClause)}\n`;
         break;
       case "complex":
         block += "    while:\n";

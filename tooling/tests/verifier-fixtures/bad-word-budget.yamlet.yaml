@@ -1,0 +1,24 @@
+# E305 on every budgeted field: summary, requirement description, when, a while entry, a shall
+system: registry
+topic: Registry
+summary: A registry that records projects and their repository locations and names and descriptions and reports every problem with a submission back to the caller in one answer so nothing is lost
+description: A service.
+blast_radius: low
+front: internal
+requirements:
+- id: RQ-1
+  description: The service applies every submitted field to the named project and leaves every field the caller does not submit unchanged and reports every broken rule at once without any precedence between them
+  acceptance-criteria:
+  - id: AC-1
+    pattern: complex
+    while:
+    - the project named by the caller is stored and carries a repository URL and a display name and a description that were all recorded earlier
+    when: an amendment is submitted naming a registered project and carrying a repository URL that is an absolute https URL whose normalised form no other stored project carries
+    shall:
+    - store the named project carrying the submitted repository URL and the submitted display name and the submitted description exactly as they were submitted
+    - return the named project
+  - id: AC-2
+    pattern: event
+    when: an amendment is submitted
+    shall:
+    - return the named project
