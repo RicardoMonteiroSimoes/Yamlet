@@ -33,7 +33,7 @@ Decide the pattern by asking *what triggers or conditions this behaviour*:
 
 Every criterion needs one or more `--shall` items: the concrete, verifiable obligations ("the system shall …"). Keep each `shall` atomic and observable.
 
-**Word budgets are enforced (`E305`).** A clause (`--when`, `--if`, `--where`, each `--while`) and each `--shall` is at most 20 words; a requirement description and the summary 30. A `--when` that runs long is stacking preconditions that belong in `--while`, one per entry, or is two criteria.
+**Word budgets are enforced (`E305`).** A clause (`--when`, `--if`, `--where`, each `--while`) and each `--shall` is at most 20 words; a requirement description and the summary 30. A `--when` that runs long is stacking preconditions that belong in `--while`, one per entry, or is two criteria. The verifier also warns (`W007`) on a trigger that reads "X, and Y" or "X together with Y".
 
 ```
 yamlet add-criterion specs/email.yamlet.yaml \

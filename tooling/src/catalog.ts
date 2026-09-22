@@ -361,6 +361,12 @@ export const CATALOG: Rule[] = [
     description:
       "front=external but no criterion carries an if clause (no unwanted-condition behaviour)",
   },
+  {
+    id: "W007",
+    severity: "warning",
+    description:
+      "trigger clause stacks conditions (', and', 'together with', 'as well as'); split them into while entries or criteria",
+  },
 ];
 
 /** Severity lookup by rule id, mirroring the sh verifier's `catalog_sev`. */

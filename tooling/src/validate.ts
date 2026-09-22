@@ -64,6 +64,10 @@ function words(s: string): number {
   return t === "" ? 0 : t.split(/\s+/).length;
 }
 
+// W007: a trigger that stacks conditions. Bare "and" is deliberately absent —
+// "a file and its filename are submitted" is one event.
+const STACKED_CONDITION = /,\s*and\b|\btogether with\b|\bas well as\b/i;
+
 export interface ValidateOutput {
   findings: Finding[];
   summary: { requirements: number; acceptanceCriteria: number };
@@ -1049,6 +1053,23 @@ export function validate(
           l.path,
           acid + ": " + field + " is " + n + " words, budget " + cap +
             (isShall ? " (one obligation)" : " (one trigger or precondition)"),
+        );
+      }
+    }
+
+    // ── W007: a trigger that stacks conditions ──
+    // Each stacked condition is a precondition (a `while` entry) or a criterion
+    // of its own; in one clause they all land in a single Gherkin step.
+    for (const l of proseLines) {
+      if (!/\.(when|if|where)$/.test(l.path)) continue;
+      const m = l.text.match(STACKED_CONDITION);
+      if (m) {
+        finding(
+          "W007",
+          l.line,
+          l.path,
+          acid + ': trigger stacks conditions ("' + m[0].trim() +
+            '"); split them into while entries or criteria: ' + l.text,
         );
       }
     }

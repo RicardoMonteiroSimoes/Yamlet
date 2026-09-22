@@ -66,4 +66,5 @@ valid-with-placeholders-and-examples.yamlet.yaml	0
 warn-described-result.yamlet.yaml	0
 warn-external-no-unwanted.yamlet.yaml	0
 warn-open-list.yamlet.yaml	0
+warn-stacked-conditions.yamlet.yaml	0
 warn-unbound-quantity.yamlet.yaml	0

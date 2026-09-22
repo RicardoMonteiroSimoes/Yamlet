@@ -307,9 +307,9 @@ entry per line, each its own `Given` step — or is two criteria. Each clause an
 can bind without re-parsing the sentence. The budgets sit well above the repo's own
 examples (a 9-word `when` is the longest) and below where the stacking starts.
 
-### Lexical warnings — `W003`–`W005`
+### Lexical warnings — `W003`–`W005`, `W007`
 
-Every rule above is exact. These three are word-list heuristics over clause and
+Every rule above is exact. These four are word-list heuristics over clause and
 `shall` prose, each naming one way a criterion leaves a value for the test to invent:
 
 | rule | fires on | satisfy it by |
@@ -317,11 +317,14 @@ Every rule above is exact. These three are word-list heuristics over clause and
 | `W003` | a quantity word — *exceeds, maximum, minimum, limit, at most/least, more/less/longer/… than* — in a criterion with **no digit and no `{placeholder}`** | a `{placeholder}` with examples, or a literal (`10 MiB`) |
 | `W004` | an `{output.NAME}` whose value is *described* — "set `{output.outcome}` to **indicate** the record was created" | the literal: "set `{output.outcome}` to `created`" |
 | `W005` | an open list — *such as, e.g., etc., including, and so on* | the closed set |
+| `W007` | a trigger (`when`/`if`/`where`) that stacks conditions — *, and*; *together with*; *as well as* | a `while` entry per precondition, or a criterion per condition |
 
 Warnings, never errors: a heuristic that blocks teaches authors to write around the
 list ("the store's cap"). The lists are short on purpose — `timeout` and `within` are
-absent because "an SMTP timeout occurs" is an event, not a bound — and an
-`{input.NAME}` does not satisfy `W003`: it names the thing measured, not the bound.
+absent because "an SMTP timeout occurs" is an event, not a bound — an
+`{input.NAME}` does not satisfy `W003`: it names the thing measured, not the bound —
+and a bare *and* does not fire `W007`: "a file and its filename are submitted" is
+one event.
 
 They cannot see a bag input, validation on the wrong side of `front`, a negative
 `shall`, "that maximum length" pointing back into its clause, an example row that
@@ -645,7 +648,8 @@ Nothing is in flight at the moment; what shipped is recorded below.
 *Shipped since first draft: the trigger rule (every criterion carries exactly one
 `when`/`if`; `ubiquitous` and `state` retired, `E301`–`E303`), [word budgets](#word-budgets--e305)
 (`E305`), the [`front`](#front--the-trust-boundary-not-who-the-user-is)
-external-without-unwanted warning (`W006`); [decision records](#decision-records--adryaml)
+external-without-unwanted warning (`W006`) and the stacked-condition warning
+(`W007`); [decision records](#decision-records--adryaml)
 (`E801`–`E815`), [`adrs`](#adrs--linking-a-decision) links on requirements and
 criteria (`E109`) and the derived [tech spec](#tech-specs--planning-the-work)
 (`E701`–`E716`); the [`exposes`](#exposes--the-contract-signature) contract
