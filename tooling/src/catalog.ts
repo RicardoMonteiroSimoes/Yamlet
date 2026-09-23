@@ -82,6 +82,12 @@ export const CATALOG: Rule[] = [
       "field over its word budget (when/if/where/while entry 20, shall entry 20, requirement description 30, summary 30)",
   },
   {
+    id: "E306",
+    severity: "error",
+    description:
+      "a while/shall/adrs entry is not a plain string (an unquoted colon-space made it a mapping)",
+  },
+  {
     id: "E401",
     severity: "error",
     description: "criterion has placeholders but no examples table",

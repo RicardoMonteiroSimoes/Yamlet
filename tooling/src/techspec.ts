@@ -21,8 +21,17 @@
 
 import type { Finding, FlatRecord, Summary } from "./types.ts";
 import { flatten } from "./flatten.ts";
+import { scalar } from "./scalar.ts";
 import { blocksOf } from "./blocks.ts";
-import { childKeys, indicesUnder, itemsUnder, listUnder, recordAt } from "./records.ts";
+import {
+  childKeys,
+  indicesUnder,
+  itemsUnder,
+  listUnder,
+  recordAt,
+  strayMessage,
+  strayUnder,
+} from "./records.ts";
 import { loadAdr, OBLIGATION_RE } from "./adr.ts";
 
 export const TECHSPEC_EXT = ".techspec.yaml";
@@ -242,12 +251,6 @@ export function specPathOf(techspecFile: string, spec: string): string {
 
 // ── serializing ──
 
-/** Quote a scalar only when the constrained YAML subset requires it (same rule as the author). */
-function q(s: string): string {
-  if (s[0] === "{" || s[0] === "[" || s[0] === '"' || s.includes(" #")) return `"${s}"`;
-  return s;
-}
-
 const taskNum = (id: string): number => Number(id.match(/^T-([0-9]+)$/)?.[1] ?? 0);
 
 /**
@@ -270,19 +273,19 @@ export function serializeTechspec(ts: Techspec, spec: SpecIndex | null): string 
     xs.map((x, i) => ({ x, i })).sort((a, b) => key(a.x) - key(b.x) || a.i - b.i).map((p) => p.x);
 
   let out = "";
-  out += `spec: ${q(ts.spec)}\n`;
+  out += `spec: ${scalar(ts.spec)}\n`;
   out += `system: ${ts.system}\n`;
 
   if (ts.analysis !== null) {
     out += "\nanalysis:\n";
-    out += `  commit: ${ts.analysis.commit}\n`;
+    out += `  commit: ${scalar(ts.analysis.commit)}\n`;
     if (ts.analysis.deep.length > 0) {
       out += "  deep:\n";
-      for (const d of ts.analysis.deep) out += `  - ${q(d)}\n`;
+      for (const d of ts.analysis.deep) out += `  - ${scalar(d)}\n`;
     }
     if (ts.analysis.skimmed.length > 0) {
       out += "  skimmed:\n";
-      for (const d of ts.analysis.skimmed) out += `  - ${q(d)}\n`;
+      for (const d of ts.analysis.skimmed) out += `  - ${scalar(d)}\n`;
     }
   }
 
@@ -296,9 +299,9 @@ export function serializeTechspec(ts: Techspec, spec: SpecIndex | null): string 
         out += `    met: ${ac.met}\n`;
         if (ac.evidence.length > 0) {
           out += "    evidence:\n";
-          for (const e of ac.evidence) out += `    - ${q(e)}\n`;
+          for (const e of ac.evidence) out += `    - ${scalar(e)}\n`;
         }
-        if (ac.note !== "") out += `    note: ${q(ac.note)}\n`;
+        if (ac.note !== "") out += `    note: ${scalar(ac.note)}\n`;
       }
     }
   }
@@ -307,12 +310,12 @@ export function serializeTechspec(ts: Techspec, spec: SpecIndex | null): string 
     out += "\ntasks:\n";
     for (const t of stable(ts.tasks, (x) => taskNum(x.id))) {
       out += `- id: ${t.id}\n`;
-      out += `  title: ${q(t.title)}\n`;
+      out += `  title: ${scalar(t.title)}\n`;
       if (t.covers.length > 0) {
         out += "  covers:\n";
         for (const c of t.covers) out += `  - ${c}\n`;
       }
-      if (t.why !== "") out += `  why: ${q(t.why)}\n`;
+      if (t.why !== "") out += `  why: ${scalar(t.why)}\n`;
       if (t.dependsOn.length > 0) {
         out += "  depends_on:\n";
         for (const d of t.dependsOn) out += `  - ${d}\n`;
@@ -421,6 +424,14 @@ export function validateTechspec(file: string, records: readonly FlatRecord[]): 
     for (const r of [...deep, ...skimmed]) {
       if (r.value === "") finding("E705", r.line, r.path, "analysis path entry is empty");
     }
+    for (
+      const r of [
+        ...strayUnder(records, "analysis.deep"),
+        ...strayUnder(records, "analysis.skimmed"),
+      ]
+    ) {
+      finding("E705", r.line, r.path, strayMessage(r));
+    }
     const deepSet = new Set(deep.map((r) => r.value));
     for (const r of skimmed) {
       if (r.value !== "" && deepSet.has(r.value)) {
@@ -484,6 +495,9 @@ export function validateTechspec(file: string, records: readonly FlatRecord[]): 
         );
       }
       const evidence = itemsUnder(records, `${ap}.evidence`);
+      for (const r of strayUnder(records, `${ap}.evidence`)) {
+        finding("E710", r.line, r.path, strayMessage(r));
+      }
       for (const r of evidence) {
         if (r.value === "") {
           finding("E710", r.line, r.path, `${acId || ap}: evidence entry is empty`);
@@ -567,6 +581,9 @@ export function validateTechspec(file: string, records: readonly FlatRecord[]): 
     }
 
     const covers = itemsUnder(records, `${tp}.covers`);
+    for (const r of strayUnder(records, `${tp}.covers`)) {
+      finding("E712", r.line, r.path, strayMessage(r));
+    }
     const seenCov = new Set<string>();
     for (const c of covers) {
       const v = recorded.get(c.value);
@@ -605,6 +622,9 @@ export function validateTechspec(file: string, records: readonly FlatRecord[]): 
     }
 
     const ds = itemsUnder(records, `${tp}.depends_on`);
+    for (const r of strayUnder(records, `${tp}.depends_on`)) {
+      finding("E714", r.line, r.path, strayMessage(r));
+    }
     const seenDep = new Set<string>();
     const list: string[] = [];
     for (const d of ds) {

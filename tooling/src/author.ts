@@ -15,6 +15,7 @@
 
 import type { CmdResult, Command, Finding } from "./types.ts";
 import { flatten } from "./flatten.ts";
+import { readQuoted, scalar } from "./scalar.ts";
 import { verifyText } from "./verify.ts";
 import { type Contract, contractOf } from "./systems.ts";
 import { type CompositeInfo, resolveComposite, socketKey } from "./composite.ts";
@@ -49,25 +50,14 @@ const USAGE = `Usage:
 `;
 const usageResult = (): CmdResult => ({ exitCode: 2, stdout: "", stderr: USAGE });
 
-// ── serialization primitives (byte-faithful to author.sh) ──
-
-/**
- * Quote a scalar only when the constrained YAML subset requires it: a leading
- * `{`/`[`/`"` (flow collection or quoted-scalar trigger) or an embedded ` #`
- * (would read as a trailing comment). Wrapping round-trips exactly because the
- * verifier's unquote just strips the outer pair.
- */
-function q(s: string): string {
-  if (s[0] === "{" || s[0] === "[" || s[0] === '"' || s.includes(" #")) return `"${s}"`;
-  return s;
-}
+// ── serialization primitives (every scalar goes through `scalar`) ──
 
 /** One `    - <item>` line per non-empty item (4-space indent, value quoted). */
 function emitListItems(items: string[]): string {
   let out = "";
   for (const item of items) {
     if (item === "") continue;
-    out += "    - " + q(item) + "\n";
+    out += "    - " + scalar(item) + "\n";
   }
   return out;
 }
@@ -89,8 +79,7 @@ function emitExampleRow(row: string): string {
     }
     k = k.replace(/^ +| +$/g, "");
     v = v.replace(/^ +| +$/g, "");
-    if (/^["{[]/.test(v) || / #/.test(v)) v = `"${v}"`;
-    out += (i === 0 ? "    - " : "      ") + k + ": " + v + "\n";
+    out += (i === 0 ? "    - " : "      ") + k + ": " + scalar(v) + "\n";
   });
   return out;
 }
@@ -301,8 +290,8 @@ export function runInit(args: string[]): CmdResult {
 
     let body = "";
     body += `system: ${system}\n`;
-    body += `topic: ${q(topic)}\n`;
-    body += `summary: ${q(summary)}\n`;
+    body += `topic: ${scalar(topic)}\n`;
+    body += `summary: ${scalar(summary)}\n`;
     body += "description: >-\n";
     body += `  ${description}\n`;
     body += `blast_radius: ${blast}\n`;
@@ -310,7 +299,7 @@ export function runInit(args: string[]): CmdResult {
     if (exposeName) {
       body += "exposes:\n";
       body += `  name: ${exposeName}\n`;
-      body += `  intent: ${q(exposeIntent)}\n`;
+      body += `  intent: ${scalar(exposeIntent)}\n`;
       if (inputs.length > 0) {
         body += "  inputs:\n";
         for (const inp of inputs) body += `  - ${inp}\n`;
@@ -413,7 +402,7 @@ export function runAddComponent(args: string[]): CmdResult {
       );
     }
 
-    const entry = `- ${alias}: ${q(path)}\n`;
+    const entry = `- ${alias}: ${scalar(path)}\n`;
     let next: string;
     if (cb) {
       const at = cb.index! + cb[0]!.length;
@@ -946,19 +935,19 @@ export function runAddCriterion(args: string[]): CmdResult {
     block += `    pattern: ${pattern}\n`;
     switch (pattern) {
       case "event":
-        block += `    when: ${q(when)}\n`;
+        block += `    when: ${scalar(when)}\n`;
         break;
       case "unwanted":
-        block += `    if: ${q(ifClause)}\n`;
+        block += `    if: ${scalar(ifClause)}\n`;
         break;
       case "optional":
-        block += `    where: ${q(where)}\n`;
-        block += hasWhen ? `    when: ${q(when)}\n` : `    if: ${q(ifClause)}\n`;
+        block += `    where: ${scalar(where)}\n`;
+        block += hasWhen ? `    when: ${scalar(when)}\n` : `    if: ${scalar(ifClause)}\n`;
         break;
       case "complex":
         block += "    while:\n";
         block += emitListItems(whiles);
-        block += hasWhen ? `    when: ${q(when)}\n` : `    if: ${q(ifClause)}\n`;
+        block += hasWhen ? `    when: ${scalar(when)}\n` : `    if: ${scalar(ifClause)}\n`;
         break;
     }
     block += "    shall:\n";
@@ -1104,7 +1093,7 @@ export function runAddAdr(args: string[]): CmdResult {
       break;
     }
     if (lastEntry > 0) {
-      const unq = (v: string): string => (v.startsWith('"') ? v.slice(1, -1) : v);
+      const unq = (v: string): string => (v.startsWith('"') ? readQuoted(v) : v);
       for (let ln = lastEntry; lines[ln - 1] !== `${indent}adrs:`; ln--) {
         if (unq((lines[ln - 1] ?? "").slice(indent.length + 2)) === path) {
           return die(`${id} already links ${path}`);
@@ -1114,7 +1103,7 @@ export function runAddAdr(args: string[]): CmdResult {
 
     let next: string;
     if (lastEntry > 0) {
-      next = spliceAfter(backup, lastEntry, `${indent}- ${q(path)}\n`);
+      next = spliceAfter(backup, lastEntry, `${indent}- ${scalar(path)}\n`);
     } else if (want === "requirement") {
       const keyLine = criteriaKeyLine(backup, target);
       if (keyLine === 0) {
@@ -1123,9 +1112,9 @@ export function runAddAdr(args: string[]): CmdResult {
             `It was not written by this tool; add the key before linking an ADR.`,
         );
       }
-      next = spliceAfter(backup, keyLine - 1, `  adrs:\n  - ${q(path)}\n`);
+      next = spliceAfter(backup, keyLine - 1, `  adrs:\n  - ${scalar(path)}\n`);
     } else {
-      next = spliceAfter(backup, target.end, `    adrs:\n    - ${q(path)}\n`);
+      next = spliceAfter(backup, target.end, `    adrs:\n    - ${scalar(path)}\n`);
     }
 
     Deno.writeTextFileSync(file, next);

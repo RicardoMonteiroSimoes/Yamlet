@@ -47,10 +47,10 @@ requirements:
     shall:
     - schedule a retry after {delay_seconds} seconds
     examples:
-    - n: 0
-      delay_seconds: 10
-    - n: 1
-      delay_seconds: 30
+    - n: "0"
+      delay_seconds: "10"
+    - n: "1"
+      delay_seconds: "30"
 - id: RQ-2
   description: >-
     Handles bounces
@@ -69,4 +69,4 @@ requirements:
     pattern: event
     when: the field is present
     shall:
-    - ""reason" must be recorded"
+    - "\"reason\" must be recorded"

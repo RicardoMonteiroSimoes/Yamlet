@@ -7,7 +7,7 @@
   {"rule":"E804","severity":"error","line":3,"path":"status","message":"status must be proposed|accepted|rejected|superseded, got: pending"},
   {"rule":"E805","severity":"error","line":4,"path":"date","message":"date must be YYYY-MM-DD, got: 7 Sep 2026"},
   {"rule":"E806","severity":"error","line":5,"path":"kind","message":"kind must be selection|mechanism|policy|boundary|sequencing, got: choice"},
-  {"rule":"E808","severity":"error","line":12,"path":"forces[0].Doing nothing","message":"forces entry is not a plain string (a colon-space in unquoted prose becomes a mapping); fold it with >-"},
+  {"rule":"E808","severity":"error","line":12,"path":"forces[0]","message":"forces[0]: entry is not a plain string (an unquoted colon-space made it a mapping); quote it: Doing nothing: not available"},
   {"rule":"E808","severity":"error","line":13,"path":"forces[1]","message":"forces entry is empty"},
   {"rule":"E809","severity":"error","line":16,"path":"basis[0].source","message":"B-1: source is missing"},
   {"rule":"E809","severity":"error","line":17,"path":"basis[0].quantity","message":"B-1: quantity must carry a numeral, got: many"},
@@ -25,7 +25,7 @@
   {"rule":"E813","severity":"error","line":49,"path":"decision","message":"decision must be a declared option id, got: OPT-4"},
   {"rule":"E814","severity":"error","line":52,"path":"requires[0].must","message":"R-1: must is missing"},
   {"rule":"E814","severity":"error","line":53,"path":"requires[1].id","message":"duplicate obligation id: R-1"},
-  {"rule":"E814","severity":"error","line":58,"path":"accepts[0].Costs","message":"accepts entry is not a plain string (a colon-space in unquoted prose becomes a mapping); fold it with >-"},
+  {"rule":"E814","severity":"error","line":58,"path":"accepts[0]","message":"accepts[0]: entry is not a plain string (an unquoted colon-space made it a mapping); quote it: Costs: prose with a colon-space"},
   {"rule":"E815","severity":"error","line":61,"path":"revisit[0]","message":"a condition naming a threshold must quantify it: Ownership exceeds the assumption the cost rests on."}
 ],"warnings":[
 ],"summary":{"requirements":0,"acceptanceCriteria":0,"options":1,"obligations":2}}

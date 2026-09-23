@@ -10,6 +10,7 @@
 // those, exactly as the sh verifier does.
 
 import type { FlatRecord, FlattenResult, ParseError } from "./types.ts";
+import { readQuoted } from "./scalar.ts";
 
 // POSIX [[:space:]] minus newline (lines are already split): space, tab, CR, FF, VT.
 const TRAILING_WS = /[ \t\r\f\v]$/;
@@ -73,8 +74,6 @@ export function flatten(text: string): FlattenResult {
     }
     return s.replace(TRAILING_WS_RUN, "");
   };
-
-  const unquote = (s: string): string => s.slice(1, s.length - 1);
 
   const finaliseBlock = (): void => {
     let v = blockVal;
@@ -196,8 +195,10 @@ export function flatten(text: string): FlattenResult {
         continue;
       }
 
+      // A double-quoted item is a scalar whatever it contains: the quotes are
+      // exactly what keeps a colon-space from making it a mapping.
       const colonPos = afterDash.indexOf(": ");
-      const isMapKey = colonPos >= 0 || KEY_ONLY.test(afterDash);
+      const isMapKey = afterDash[0] !== '"' && (colonPos >= 0 || KEY_ONLY.test(afterDash));
 
       if (isMapKey) {
         let mk: string;
@@ -228,7 +229,7 @@ export function flatten(text: string): FlattenResult {
         } else {
           let v = mv;
           if (v[0] === '"') {
-            v = unquote(v);
+            v = readQuoted(v);
           } else {
             const fc = v[0];
             if (fc === "{" || fc === "[") {
@@ -262,7 +263,7 @@ export function flatten(text: string): FlattenResult {
         pushFrame(seqBracket, thisIndent);
         let v = afterDash;
         if (v[0] === '"') {
-          v = unquote(v);
+          v = readQuoted(v);
         } else {
           v = stripComment(v);
           const fc = v[0];
@@ -330,7 +331,7 @@ export function flatten(text: string): FlattenResult {
     } else {
       let v = mv;
       if (v[0] === '"') {
-        v = unquote(v);
+        v = readQuoted(v);
       } else {
         const fc = v[0];
         if (fc === "{" || fc === "[") {
