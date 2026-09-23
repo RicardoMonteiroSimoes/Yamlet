@@ -651,7 +651,7 @@
       if (isDone(r)) gaps.push('<span class="gap ok">all criteria met</span>');
     }
     if (NODES[r.node] && NODES[r.node].outside) {
-      gaps.push('<span class="gap warn">outside ' + esc(base(M.root)) + "</span>");
+      gaps.push('<span class="gap warn">outside ' + esc(M.name) + "</span>");
     }
     return '<button class="spec-card' + (isDone(r) ? " done" : "") + '" data-id="' + esc(r.node) +
       '">' +
@@ -713,7 +713,7 @@
         var r = ROLL[id];
         sub = n.system;
         file = n.file;
-        if (n.outside) chips.push(chip("outside " + base(M.root)));
+        if (n.outside) chips.push(chip("outside " + M.name));
         h += prose("intent", n.intent);
         if (r) {
           h += '<dl><dt>tech spec</dt><dd class="mono">' +
@@ -837,11 +837,12 @@
     };
     var met = 0, total = 0, withTs = 0;
     M.specs.forEach(function (r) {
+      if (!r.techspec) return; // no verdicts to count
       met += r.criteria.met;
       total += r.criteria.total;
-      if (r.techspec) withTs++;
+      withTs++;
     });
-    var rootName = base(M.root.replace(/\/+$/, "")) || M.root;
+    var rootName = M.name || M.root;
     document.getElementById("eyebrow").textContent = "yamlet trace · " + rootName;
     document.getElementById("title").textContent = rootName + " — decisions & plan";
     var ns = M.specs.length, na = count("adr"), nt = count("task");

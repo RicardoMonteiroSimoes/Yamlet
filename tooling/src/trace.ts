@@ -177,6 +177,8 @@ export interface TraceModel {
   format: "yamlet.trace/v1";
   kind: "trace";
   root: string;
+  /** The traced directory's own name — `root` may be `.`. */
+  name: string;
   specs: SpecRollup[];
   nodes: TraceNode[];
   edges: TraceEdge[];
@@ -804,6 +806,7 @@ export function traceModel(root: string, pinned: string[] = []): TraceModel | st
     format: "yamlet.trace/v1",
     kind: "trace",
     root,
+    name: titleOf(root),
     specs: b.rollup(),
     nodes: [...b.nodes.values()],
     edges: b.edges,
@@ -817,8 +820,10 @@ function summaryParts(m: TraceModel): string[] {
     m.nodes.filter((n) => n.type === t && !n.missing).length;
   const specs = m.specs.length;
   const techspecs = m.specs.filter((s) => s.techspec !== null).length;
-  const met = m.specs.reduce((a, s) => a + s.criteria.met, 0);
-  const total = m.specs.reduce((a, s) => a + s.criteria.total, 0);
+  // Only a spec with a tech spec has verdicts; the rest would dilute the ratio.
+  const judged = m.specs.filter((s) => s.techspec !== null);
+  const met = judged.reduce((a, s) => a + s.criteria.met, 0);
+  const total = judged.reduce((a, s) => a + s.criteria.total, 0);
   const parts = [
     `${specs} spec${specs === 1 ? "" : "s"}`,
     `${techspecs} tech spec${techspecs === 1 ? "" : "s"}`,
@@ -893,7 +898,7 @@ export function runTrace(args: string[]): CmdResult {
   const model = traceModel(target, pinned);
   if (typeof model === "string") return die(model);
   const json = JSON.stringify(model, null, format === "json" ? 2 : undefined);
-  const payload = format === "json" ? json + "\n" : renderTraceHtml(json, titleOf(target), libs);
+  const payload = format === "json" ? json + "\n" : renderTraceHtml(json, model.name, libs);
   return writePayload(out, payload, format, summaryParts(model));
 }
 

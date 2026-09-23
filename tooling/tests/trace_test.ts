@@ -70,6 +70,7 @@ Deno.test("trace models specs, criteria, ADRs, obligations and tasks with typed 
   const m = model(FIXTURES);
   assertEquals(m.format, "yamlet.trace/v1");
   assertEquals(m.kind, "trace");
+  assertEquals(m.name, "trace-fixtures");
   assertEquals(m.skipped, []);
 
   const count = (t: string): number => m.nodes.filter((n) => n.type === t && !n.missing).length;
@@ -319,6 +320,16 @@ Deno.test("trace prints a one-line summary, never the payload", () => {
   assertStringIncludes(r.summary, "1 spec, 1 tech spec, 4 ADRs, 4 tasks, 7/10 criteria met");
   assertEquals(r.summary.split("\n").length, 2); // one line + trailing newline
   assert(!r.summary.includes("yamlet.trace/v1"));
+});
+
+Deno.test("trace's met ratio counts only specs a tech spec has judged", () => {
+  const dir = copyFixtures();
+  // A second spec with no tech spec: its criteria are not "unmet", just unjudged.
+  Deno.copyFileSync(`${FIXTURES}/${SPEC}`, `${dir}/other.yamlet.yaml`);
+  const r = trace([dir, "--format=json"]);
+  assertEquals(r.exitCode, 0, r.stderr);
+  assertStringIncludes(r.summary, "2 specs, 1 tech spec");
+  assertStringIncludes(r.summary, "7/10 criteria met");
 });
 
 // A marker only the inlined elk UMD bundle contains (see graph_test.ts).
