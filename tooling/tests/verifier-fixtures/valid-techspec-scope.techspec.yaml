@@ -1,0 +1,42 @@
+system: notification-service
+
+analysis:
+  commit: 9f3c1ab
+
+specs:
+- path: valid-exposes.yamlet.yaml
+  requirements:
+  - id: RQ-1
+    acceptance-criteria:
+    - id: AC-1
+      met: true
+      evidence:
+      - src/Notify.java:14
+    - id: AC-2
+      met: false
+- path: valid-with-placeholders-and-examples.yamlet.yaml
+  scope:
+  - AC-2
+  requirements:
+  - id: RQ-1
+    acceptance-criteria:
+    - id: AC-2
+      met: false
+      note: No retry exists yet.
+
+tasks:
+- id: T-1
+  title: Add a delivery queue shared by both scopes
+  why: Both unmet criteria deliver through it.
+- id: T-2
+  title: Deliver through the queue
+  covers:
+  - valid-exposes.yamlet.yaml#AC-2
+  depends_on:
+  - T-1
+- id: T-3
+  title: Retry a failed delivery from the queue
+  covers:
+  - valid-with-placeholders-and-examples.yamlet.yaml#AC-2
+  depends_on:
+  - T-1

@@ -62,7 +62,7 @@ function verifyAdrText(file: string, text: string): VerifyOutput {
   };
 }
 
-/** A tech spec: flatten, then the E7xx rules against the spec it names. */
+/** A tech spec: flatten, then the E7xx rules against the specs it lists. */
 function verifyTechspecText(file: string, text: string): VerifyOutput {
   const { records, parseErrors } = flatten(text);
   if (parseErrors.length > 0) return parseFailure(file, parseErrors);

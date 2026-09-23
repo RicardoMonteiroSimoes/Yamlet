@@ -1,0 +1,36 @@
+system: notification-service
+
+analysis:
+  commit: 9f3c1ab
+
+specs:
+- path: valid-exposes.yamlet.yaml
+  scope:
+  - AC-2
+  - AC-2
+  - AC-7
+  - RQ-1
+  requirements:
+  - id: RQ-1
+    acceptance-criteria:
+    - id: AC-1
+      met: true
+      evidence:
+      - src/Notify.java:14
+- path: ./valid-exposes.yamlet.yaml
+- path: valid-example.yamlet.yaml
+  requirements:
+  - id: RQ-1
+    acceptance-criteria:
+    - id: AC-1
+      met: true
+      evidence:
+      - src/main/Smtp.java:12
+    - id: AC-2
+      met: true
+      evidence:
+      - src/main/Smtp.java:40
+    - id: AC-3
+      met: true
+      evidence:
+      - src/main/Retry.java:3

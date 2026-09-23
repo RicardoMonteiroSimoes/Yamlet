@@ -1,4 +1,3 @@
-spec: valid-example.yamlet.yaml
 system: e-mail-sending-service
 
 analysis:
@@ -8,20 +7,22 @@ analysis:
   skimmed:
   - src/resources/
 
-requirements:
-- id: RQ-1
-  acceptance-criteria:
-  - id: AC-1
-    met: true
-    evidence:
-    - src/main/Smtp.java:12
-  - id: AC-2
-    met: false
-    evidence:
-    - src/main/Smtp.java:40
-    note: Re-authenticates but drops the in-flight e-mail.
-  - id: AC-3
-    met: false
+specs:
+- path: valid-example.yamlet.yaml
+  requirements:
+  - id: RQ-1
+    acceptance-criteria:
+    - id: AC-1
+      met: true
+      evidence:
+      - src/main/Smtp.java:12
+    - id: AC-2
+      met: false
+      evidence:
+      - src/main/Smtp.java:40
+      note: Re-authenticates but drops the in-flight e-mail.
+    - id: AC-3
+      met: false
 
 tasks:
 - id: T-1
@@ -30,13 +31,13 @@ tasks:
 - id: T-2
   title: Resend the in-flight e-mail after re-authentication
   covers:
-  - AC-2
+  - valid-example.yamlet.yaml#AC-2
   depends_on:
   - T-1
 - id: T-3
   title: Schedule retries with the specified backoff
   covers:
-  - AC-3
+  - valid-example.yamlet.yaml#AC-3
   depends_on:
   - T-1
   - T-2

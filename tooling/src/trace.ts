@@ -18,10 +18,10 @@
 //   depends_on    task → task
 //
 // Discovery. Specs, tech specs and ADRs are found by walking DIR. A tech spec
-// names its spec, not the reverse, so pairing is by the spec its `spec:` field
-// resolves to; two tech specs naming one spec are ambiguous and neither is used
-// unless `--techspec=FILE` pins one (it may live outside DIR — tech specs are
-// disposable). References are followed wherever they lead: an ADR linked from a
+// names its specs, not the reverse, so pairing is by the specs its `specs:`
+// paths resolve to; two tech specs naming one spec are ambiguous for that spec
+// and neither is used for it unless `--techspec=FILE` pins one (it may live
+// outside DIR — tech specs are disposable). References are followed wherever they lead: an ADR linked from a
 // spec, assumed, superseding or superseded is read even outside DIR, as is a spec
 // an ADR arises from.
 //
@@ -39,7 +39,16 @@ import { listUnder, recordAt } from "./records.ts";
 import { listFiles, listSpecs } from "./systems.ts";
 import { canonPath, metaOf, writePayload } from "./graph.ts";
 import { type Adr, listAdrs, loadAdr, OBLIGATION_RE, SPEC_REF_RE } from "./adr.ts";
-import { indexSpec, parseTechspec, type SpecIndex, specPathOf, type Techspec } from "./techspec.ts";
+import {
+  criteriaInScope,
+  CRITERION_REF_RE,
+  indexSpec,
+  parseTechspec,
+  type SpecIndex,
+  specPathOf,
+  type Techspec,
+  type TsSpec,
+} from "./techspec.ts";
 import { type Libs, renderTraceHtml } from "./viewer/html.ts";
 
 const die = (msg: string): CmdResult => ({ exitCode: 2, stdout: "", stderr: `error: ${msg}\n` });
@@ -98,6 +107,8 @@ export interface CriterionNode extends NodeBase {
   verdict: Verdict | null;
   evidence: string[];
   note: string;
+  /** Present (and true) when the spec's tech spec scopes this criterion out. */
+  outOfScope?: true;
 }
 export interface AdrNode extends NodeBase {
   type: "adr";
@@ -120,11 +131,19 @@ export interface ObligationNode extends NodeBase {
   /** `ADR-nnnn#R-n`, as a task's `covers:` names it. */
   ref: string;
   must: string;
+  /** null when no tech spec records a verdict on it. */
+  verdict: Verdict | null;
+  evidence: string[];
+  note: string;
 }
 export interface TaskNode extends NodeBase {
   type: "task";
   techspec: string;
-  spec: string;
+  /**
+   * The paired spec nodes whose criteria it covers; every spec its tech spec pairs with when it
+   * covers no criterion; none when it covers only criteria of specs the tech spec lost.
+   */
+  specs: string[];
   task: string;
   title: string;
   why: string;
@@ -162,14 +181,17 @@ export interface SpecRollup {
   techspec: string | null;
   /** Why no tech spec is paired, when one was found but not used. */
   techspecIssue?: string;
-  /** Verdict counts. Without a tech spec nothing is recorded, so every criterion is `unrecorded`. */
-  criteria: { met: number; unmet: number; unrecorded: number; total: number };
+  /**
+   * Verdict counts over the criteria in scope (`total`); `outOfScope` counts the rest. Without a
+   * tech spec nothing is recorded, so every criterion is `unrecorded`.
+   */
+  criteria: { met: number; unmet: number; unrecorded: number; total: number; outOfScope: number };
   tasks: number;
   /** ADR node ids linked from this spec (on any requirement or criterion). */
   adrs: string[];
   /** Unmet criteria no task covers (only with a tech spec). */
   uncovered: string[];
-  /** Obligations of accepted linked ADRs no task covers (only with a tech spec). */
+  /** Obligations of accepted ADRs in scope neither met nor covered by a task (only with a tech spec). */
   openObligations: string[];
 }
 
@@ -219,7 +241,7 @@ interface SpecCtx {
   node: SpecNode;
   path: string;
   index: SpecIndex | null;
-  techspec: { path: string; ts: Techspec } | null;
+  techspec: { path: string; ts: Techspec; entry: TsSpec } | null;
   techspecIssue?: string;
 }
 interface AdrCtx {
@@ -433,6 +455,9 @@ class Builder {
         adrNode: id,
         ref: `${a.id}#${r.id}`,
         must: r.must,
+        verdict: null,
+        evidence: [],
+        note: "",
       });
       this.edge("has", id, `${id}#${r.id}`);
     }
@@ -502,6 +527,9 @@ class Builder {
       adrNode: adrNodeId,
       ref: `${a?.adr || "ADR-?"}#${rid}`,
       must: "",
+      verdict: null,
+      evidence: [],
+      note: "",
     });
     this.edge("has", adrNodeId, id);
     return id;
@@ -551,37 +579,79 @@ class Builder {
 
   // ── tech specs ──
 
-  /** Apply a paired tech spec to its spec: verdicts on criteria, tasks and their edges. */
-  applyTechspec(s: SpecCtx): void {
-    const t = s.techspec;
-    if (!t) return;
-    s.node.techspec = t.path;
-    s.node.commit = t.ts.analysis?.commit ?? "";
-    const specId = s.node.id;
+  /**
+   * Apply a tech spec to the specs it is paired with: verdicts on criteria and
+   * obligations, tasks and their edges. `paired` is never empty.
+   */
+  applyTechspec(t: { path: string; ts: Techspec }, paired: SpecCtx[]): void {
+    const verdictOf = (met: string): Verdict =>
+      met === "true" ? "met" : met === "false" ? "unmet" : "unrecorded";
+    // `specs[].path` → spec node id, for the specs this tech spec is paired with only: a spec it
+    // lists but lost (ambiguous, or not found) is not its to draw verdicts, covers or tasks on.
+    const specIdOf = new Map<string, string>();
+    for (const s of paired) specIdOf.set(s.techspec!.entry.path, s.node.id);
 
-    // Every criterion the spec declares starts unrecorded; the tech spec says otherwise.
-    for (const acId of s.index?.criteria ?? []) {
-      const n = this.nodes.get(`${specId}#${acId}`) as CriterionNode | undefined;
-      if (n) n.verdict = "unrecorded";
-    }
-    for (const rq of t.ts.requirements) {
-      for (const c of rq.criteria) {
-        if (c.id === "") continue;
-        const n = this.nodes.get(this.blockRef(specId, c.id)) as CriterionNode;
-        n.verdict = c.met === "true" ? "met" : c.met === "false" ? "unmet" : "unrecorded";
-        n.evidence = c.evidence;
-        n.note = c.note;
+    for (const s of paired) {
+      const entry = s.techspec!.entry;
+      s.node.techspec = t.path;
+      s.node.commit = t.ts.analysis?.commit ?? "";
+      const specId = s.node.id;
+      // Every criterion in scope starts unrecorded; the tech spec says otherwise.
+      const inScope = s.index ? criteriaInScope(s.index, entry.scope) : [];
+      for (const acId of s.index?.criteria ?? []) {
+        const n = this.nodes.get(`${specId}#${acId}`) as CriterionNode | undefined;
+        if (!n) continue;
+        if (inScope.includes(acId)) n.verdict = "unrecorded";
+        else n.outOfScope = true;
+      }
+      for (const rq of entry.requirements) {
+        for (const c of rq.criteria) {
+          if (c.id === "") continue;
+          const n = this.nodes.get(this.blockRef(specId, c.id)) as CriterionNode;
+          n.verdict = verdictOf(c.met);
+          n.evidence = c.evidence;
+          n.note = c.note;
+        }
       }
     }
 
+    const target = (cover: string): string | null => {
+      const o = cover.match(OBLIGATION_RE);
+      if (o) return this.obligationRef(this.obligationAdr(paired, t.path, o[1]!), o[2]!);
+      const c = cover.match(CRITERION_REF_RE);
+      const specId = c ? specIdOf.get(c[1]!) : undefined;
+      return c && specId ? this.blockRef(specId, c[2]!) : null;
+    };
+
+    for (const o of t.ts.obligations) {
+      const id = o.id === "" ? null : target(o.id);
+      if (!id) continue;
+      const n = this.nodes.get(id) as ObligationNode;
+      n.verdict = verdictOf(o.met);
+      n.evidence = o.evidence;
+      n.note = o.note;
+    }
+
     const taskId = (tid: string): string => `task:${t.path}#${tid}`;
+    const all = paired.map((s) => s.node.id);
     for (const task of t.ts.tasks) {
       if (task.id === "") continue;
+      // The paired specs whose criteria it covers. A task covering criteria only of specs this
+      // tech spec is not paired with belongs to none; one covering no criterion, to all of them.
+      const specs: string[] = [];
+      let coversCriteria = false;
+      for (const cover of task.covers) {
+        const c = cover.match(CRITERION_REF_RE);
+        if (!c) continue;
+        coversCriteria = true;
+        const specId = specIdOf.get(c[1]!);
+        if (specId && !specs.includes(specId)) specs.push(specId);
+      }
       this.node<TaskNode>({
         id: taskId(task.id),
         type: "task",
         techspec: t.path,
-        spec: specId,
+        specs: coversCriteria ? specs : all,
         task: task.id,
         title: task.title,
         why: task.why,
@@ -590,10 +660,8 @@ class Builder {
     for (const task of t.ts.tasks) {
       if (task.id === "") continue;
       for (const cover of task.covers) {
-        const m = cover.match(OBLIGATION_RE);
-        const target = m ? this.obligationRef(this.obligationAdr(s, t.path, m[1]!), m[2]!) : this
-          .blockRef(specId, cover);
-        this.edge("covers", taskId(task.id), target);
+        const to = target(cover);
+        if (to) this.edge("covers", taskId(task.id), to);
       }
       for (const dep of task.dependsOn) {
         if (!this.nodes.has(taskId(dep))) {
@@ -602,7 +670,7 @@ class Builder {
             type: "task",
             missing: true,
             techspec: t.path,
-            spec: specId,
+            specs: all,
             task: dep,
             title: "",
             why: "",
@@ -614,24 +682,30 @@ class Builder {
   }
 
   /**
-   * The ADR a task's `ADR-nnnn#R-n` names: one the spec links first (the set the
-   * verifier holds a tech spec to, E716), else by id beside the spec, else beside
-   * the tech spec.
+   * The ADR an `ADR-nnnn#R-n` in a tech spec names: one a paired spec links
+   * first (the set the verifier holds a tech spec to, E716), else by id beside
+   * a paired spec, else beside the tech spec.
    */
-  private obligationAdr(s: SpecCtx, techspecPath: string, adrId: string): string {
-    for (const e of this.edges) {
-      if (e.kind !== "decided_by" || !e.from.startsWith(`${s.node.id}#`)) continue;
-      const n = this.nodes.get(e.to) as AdrNode | undefined;
-      if (n && !n.missing && n.adr === adrId) return n.id;
+  private obligationAdr(paired: SpecCtx[], techspecPath: string, adrId: string): string {
+    for (const s of paired) {
+      for (const e of this.edges) {
+        if (e.kind !== "decided_by" || !e.from.startsWith(`${s.node.id}#`)) continue;
+        const n = this.nodes.get(e.to) as AdrNode | undefined;
+        if (n && !n.missing && n.adr === adrId) return n.id;
+      }
     }
-    const specDir = dirname(s.path);
-    const near = this.adrRefById(specDir, adrId);
-    const nearNode = this.nodes.get(near) as AdrNode;
-    if (!nearNode.missing) return near;
-    const tsDir = dirname(techspecPath);
-    return canonPath(tsDir || ".") === canonPath(specDir || ".")
-      ? near
-      : this.adrRefById(tsDir, adrId);
+    const dirs = [...paired.map((s) => dirname(s.path)), dirname(techspecPath)];
+    const seen = new Set<string>();
+    let first = "";
+    for (const d of dirs) {
+      const canon = canonPath(d || ".");
+      if (seen.has(canon)) continue;
+      seen.add(canon);
+      const id = this.adrRefById(d, adrId);
+      if (first === "") first = id;
+      if (!(this.nodes.get(id) as AdrNode).missing) return id;
+    }
+    return first;
   }
 
   // ── rollup ──
@@ -645,10 +719,10 @@ class Builder {
       set.add(e.from);
       coveredBy.set(e.to, set);
     }
-    const tasksOf = (specId: string): Set<string> => {
+    const tasksWhere = (keep: (n: TaskNode) => boolean): Set<string> => {
       const ids = new Set<string>();
       for (const n of this.nodes.values()) {
-        if (n.type === "task" && !n.missing && n.spec === specId) ids.add(n.id);
+        if (n.type === "task" && !n.missing && keep(n)) ids.add(n.id);
       }
       return ids;
     };
@@ -657,17 +731,24 @@ class Builder {
 
     for (const s of this.specs.values()) {
       const specId = s.node.id;
-      const criteria = { met: 0, unmet: 0, unrecorded: 0, total: 0 };
+      const criteria = { met: 0, unmet: 0, unrecorded: 0, total: 0, outOfScope: 0 };
       const uncovered: string[] = [];
-      const tasks = tasksOf(specId);
+      const tasks = tasksWhere((n) => n.specs.includes(specId));
+      const planTasks = s.techspec
+        ? tasksWhere((n) => n.techspec === s.techspec!.path)
+        : new Set<string>();
       for (const acId of s.index?.criteria ?? []) {
         const n = this.nodes.get(`${specId}#${acId}`) as CriterionNode | undefined;
         if (!n) continue;
+        if (n.outOfScope) {
+          criteria.outOfScope++;
+          continue;
+        }
         criteria.total++;
         if (n.verdict === "met") criteria.met++;
         else if (n.verdict === "unmet") {
           criteria.unmet++;
-          if (!coveredWithin(n.id, tasks)) uncovered.push(n.id);
+          if (!coveredWithin(n.id, planTasks)) uncovered.push(n.id);
         } else criteria.unrecorded++;
       }
 
@@ -678,15 +759,31 @@ class Builder {
         }
       }
       const openObligations: string[] = [];
-      if (s.techspec) {
-        for (const a of adrs) {
+      if (s.techspec && s.index) {
+        // The records in scope: every link with no scope, else those deciding a scoped criterion.
+        const scope = s.techspec.entry.scope;
+        const blocks = new Set<string>();
+        for (const ac of criteriaInScope(s.index, scope)) {
+          blocks.add(`${specId}#${ac}`);
+          const owner = s.index.ownerOf.get(ac);
+          if (owner) blocks.add(`${specId}#${owner}`);
+        }
+        const inScope: string[] = [];
+        for (const e of this.edges) {
+          if (e.kind !== "decided_by" || inScope.includes(e.to)) continue;
+          if (scope.length === 0 ? e.from.startsWith(`${specId}#`) : blocks.has(e.from)) {
+            inScope.push(e.to);
+          }
+        }
+        for (const a of inScope) {
           const n = this.nodes.get(a) as AdrNode;
           if (n.missing || n.adrStatus !== "accepted") continue;
           for (const e of this.edges) {
             if (e.kind !== "has" || e.from !== a) continue;
+            const o = this.nodes.get(e.to) as ObligationNode | undefined;
             // A missing R-n was only cited, never declared: nothing is owed to it.
-            if (this.nodes.get(e.to)?.missing) continue;
-            if (!coveredWithin(e.to, tasks)) openObligations.push(e.to);
+            if (!o || o.missing || o.verdict === "met") continue;
+            if (!coveredWithin(e.to, planTasks)) openObligations.push(e.to);
           }
         }
       }
@@ -715,8 +812,8 @@ class Builder {
 interface ReadTechspec {
   path: string;
   ts: Techspec;
-  /** The spec path its `spec:` field resolves to. */
-  specPath: string;
+  /** Each `specs[]` entry with the spec path it resolves to. */
+  entries: { entry: TsSpec; specPath: string }[];
 }
 
 function readTechspec(path: string): ReadTechspec | string {
@@ -729,20 +826,34 @@ function readTechspec(path: string): ReadTechspec | string {
   const { records, parseErrors } = flatten(text);
   if (parseErrors.length > 0) return "parse error (run `yamlet verify`)";
   const ts = parseTechspec(records);
-  if (ts.spec === "") return "names no spec";
-  return { path, ts, specPath: joinNorm("", specPathOf(path, ts.spec)) };
+  const entries = ts.specs
+    .filter((e) => e.path !== "")
+    .map((entry) => ({ entry, specPath: joinNorm("", specPathOf(path, entry.path)) }));
+  if (entries.length === 0) return "names no spec";
+  return { path, ts, entries };
 }
 
 /**
  * Build the `yamlet.trace/v1` model of `root`. `pinned` are `--techspec` files:
- * each is paired with its spec ahead of discovery. Returns an error message when
- * a pinned tech spec cannot be used — it was asked for by name, so it is not
- * quietly skipped.
+ * each is paired with its specs ahead of discovery. Returns an error message
+ * when a pinned tech spec cannot be used — it was asked for by name, so it is
+ * not quietly skipped.
  */
 export function traceModel(root: string, pinned: string[] = []): TraceModel | string {
   const b = new Builder();
   for (const f of listSpecs(root)) b.loadSpec(f, false);
   for (const f of listFiles(root, ".adr.yaml")) b.loadAdrFile(f);
+  const loadSpecAt = (p: string): SpecCtx | null =>
+    b.specs.get(canonPath(p)) ?? (exists(p) ? b.loadSpec(p, true) : null);
+
+  /** tech spec path → the tech spec and the specs it ends up paired with. */
+  const active = new Map<string, { t: ReadTechspec; paired: SpecCtx[] }>();
+  const pair = (t: ReadTechspec, entry: TsSpec, spec: SpecCtx): void => {
+    spec.techspec = { path: t.path, ts: t.ts, entry };
+    const a = active.get(t.path) ?? { t, paired: [] };
+    a.paired.push(spec);
+    active.set(t.path, a);
+  };
 
   // Pinned tech specs first: they win over whatever discovery finds.
   const pinnedSpecs = new Set<string>();
@@ -750,20 +861,21 @@ export function traceModel(root: string, pinned: string[] = []): TraceModel | st
   for (const p of pinned) {
     const t = readTechspec(p);
     if (typeof t === "string") return `--techspec ${p}: ${t}`;
-    const spec = b.specs.get(canonPath(t.specPath)) ??
-      (exists(t.specPath) ? b.loadSpec(t.specPath, true) : null);
-    if (!spec) return `--techspec ${p}: its spec ${t.specPath} was not found or does not parse`;
-    const canon = canonPath(t.specPath);
-    if (pinnedSpecs.has(canon)) {
-      return `--techspec ${p}: another --techspec already names ${t.specPath}`;
+    for (const { entry, specPath } of t.entries) {
+      const spec = loadSpecAt(specPath);
+      if (!spec) return `--techspec ${p}: its spec ${specPath} was not found or does not parse`;
+      const canon = canonPath(specPath);
+      if (pinnedSpecs.has(canon)) {
+        return `--techspec ${p}: another --techspec already names ${specPath}`;
+      }
+      pinnedSpecs.add(canon);
+      pair(t, entry, spec);
     }
-    pinnedSpecs.add(canon);
     pinnedFiles.add(canonPath(p));
-    spec.techspec = { path: p, ts: t.ts };
   }
 
-  // Discovery: group every other tech spec by the spec it names.
-  const bySpec = new Map<string, ReadTechspec[]>();
+  // Discovery: group every other tech spec's entries by the spec each names.
+  const bySpec = new Map<string, { t: ReadTechspec; entry: TsSpec; specPath: string }[]>();
   for (const f of listFiles(root, ".techspec.yaml")) {
     if (pinnedFiles.has(canonPath(f))) continue;
     const t = readTechspec(f);
@@ -771,37 +883,39 @@ export function traceModel(root: string, pinned: string[] = []): TraceModel | st
       b.skipped.push({ file: f, reason: t });
       continue;
     }
-    const canon = canonPath(t.specPath);
-    if (pinnedSpecs.has(canon)) {
-      b.skipped.push({ file: f, reason: `${t.specPath} is paired by --techspec` });
-      continue;
+    for (const { entry, specPath } of t.entries) {
+      const canon = canonPath(specPath);
+      if (pinnedSpecs.has(canon)) {
+        b.skipped.push({ file: f, reason: `${specPath} is paired by --techspec` });
+        continue;
+      }
+      if (!loadSpecAt(specPath)) {
+        b.skipped.push({ file: f, reason: `spec not found: ${specPath}` });
+        continue;
+      }
+      const list = bySpec.get(canon) ?? [];
+      list.push({ t, entry, specPath });
+      bySpec.set(canon, list);
     }
-    if (!b.specs.has(canon) && !(exists(t.specPath) && b.loadSpec(t.specPath, true))) {
-      b.skipped.push({ file: f, reason: `spec not found: ${t.specPath}` });
-      continue;
-    }
-    const list = bySpec.get(canon) ?? [];
-    list.push(t);
-    bySpec.set(canon, list);
   }
   for (const [canon, list] of bySpec) {
     const spec = b.specs.get(canon)!;
     if (list.length === 1) {
-      spec.techspec = { path: list[0]!.path, ts: list[0]!.ts };
+      pair(list[0]!.t, list[0]!.entry, spec);
       continue;
     }
     spec.techspecIssue =
       `ambiguous — ${list.length} tech specs name this spec; pin one with --techspec`;
-    for (const t of list) {
+    for (const x of list) {
       b.skipped.push({
-        file: t.path,
-        reason: `ambiguous: ${list.length} tech specs name ${t.specPath}`,
+        file: x.t.path,
+        reason: `ambiguous: ${list.length} tech specs name ${x.specPath}`,
       });
     }
   }
 
-  b.drain(); // links first: a task's ADR obligation resolves against the spec's links
-  for (const s of b.specs.values()) b.applyTechspec(s);
+  b.drain(); // links first: a task's ADR obligation resolves against the specs' links
+  for (const { t, paired } of active.values()) b.applyTechspec(t, paired);
   b.drain(); // obligations may have reached ADRs not read yet
 
   return {
@@ -821,7 +935,8 @@ function summaryParts(m: TraceModel): string[] {
   const count = (t: TraceNode["type"]): number =>
     m.nodes.filter((n) => n.type === t && !n.missing).length;
   const specs = m.specs.length;
-  const techspecs = m.specs.filter((s) => s.techspec !== null).length;
+  // One tech spec may pair with several specs; count the files.
+  const techspecs = new Set(m.specs.map((s) => s.techspec).filter((t) => t !== null)).size;
   // Only a spec with a tech spec has verdicts; the rest would dilute the ratio.
   const judged = m.specs.filter((s) => s.techspec !== null);
   const met = judged.reduce((a, s) => a + s.criteria.met, 0);
@@ -927,15 +1042,16 @@ Options:
   --libs=cdn|embed        html only — how the layout engine (elkjs) is delivered, as
                           for \`yamlet graph\`: cdn (default, small, needs network) or
                           embed (~1.6 MB, works offline)
-  --techspec=FILE         pair this tech spec with the spec its \`spec:\` names, ahead
+  --techspec=FILE         pair this tech spec with the specs its \`specs:\` names, ahead
                           of discovery. Repeatable. For a tech spec outside DIR, or
                           to settle two that name the same spec.
 
 What it reads. Every *.yamlet.yaml, *.techspec.yaml and *.adr.yaml under DIR, and
 whatever they reference, even outside DIR: ADRs a spec links (\`adrs:\`), assumes or
-is superseded by, and specs an ADR arises from. A tech spec is paired with the spec
-its \`spec:\` field resolves to; when two name one spec, neither is used (both are
-listed as skipped) unless --techspec pins one.
+is superseded by, and specs an ADR arises from. A tech spec is paired with every spec
+its \`specs:\` paths resolve to; when two name one spec, neither is used for it (both
+are listed as skipped) unless --techspec pins one. Criteria a tech spec scopes out
+carry no verdict and are counted apart.
 
 It parses, it does not validate: an unparseable file is listed as skipped, and a
 reference that resolves to nothing is drawn as a missing node. \`yamlet verify\`

@@ -54,7 +54,7 @@ Commands:
   add-requirement   append a requirement to a spec (prints RQ-N)
   add-criterion     append an acceptance criterion (prints AC-N)
   add-adr           link an ADR to a requirement or criterion
-  techspec          build a spec's gap analysis and task list (a disposable .techspec.yaml)
+  techspec          plan a change across a system's specs: gap analysis and task list (.techspec.yaml)
   adr               write a decision record (.adr.yaml), correct by construction
 `;
 
@@ -63,8 +63,10 @@ Commands:
 const HELP_0_2_3 = HELP.replace(/  add-adr .*\n/, "").replace(/  techspec .*\n/, "").replace(/  adr .*\n/, "")
 	.replace(/  trace .*\n/, "");
 
-// The release before `trace`: everything else is there.
-const HELP_0_4_0 = HELP.replace(/  trace .*\n/, "");
+// The release before `trace` and before a tech spec spanned a system: `techspec`
+// is there by name, with the one-spec interface these tools no longer speak.
+const HELP_0_4_0 = HELP.replace(/  trace .*\n/, "")
+	.replace(/  techspec .*\n/, "  techspec          build a spec's gap analysis and task list (a disposable .techspec.yaml)\n");
 
 // A directory holding an executable `yamlet`, so findOnPath() resolves it.
 const BIN = mkdtempSync(join(tmpdir(), "yamlet-smoke-"));
@@ -129,12 +131,13 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 {
 	const { tools } = makePi();
 	const names = [...tools.keys()].sort();
-	ok("29 tools registered", names.length === 29, names.join(","));
+	ok("30 tools registered", names.length === 30, names.join(","));
 	ok("impact and guide are registered",
 		names.includes("yamlet_impact") && names.includes("yamlet_guide"), names.join(","));
 	const planning = [
 		"yamlet_add_adr",
-		"yamlet_techspec_init", "yamlet_techspec_analysis", "yamlet_techspec_criterion", "yamlet_techspec_task",
+		"yamlet_techspec_init", "yamlet_techspec_analysis", "yamlet_techspec_criterion",
+		"yamlet_techspec_obligation", "yamlet_techspec_task",
 		"yamlet_adr_init", "yamlet_adr_add_force", "yamlet_adr_add_basis", "yamlet_adr_add_dimension",
 		"yamlet_adr_add_option", "yamlet_adr_decide", "yamlet_adr_add_obligation", "yamlet_adr_add_accept",
 		"yamlet_adr_add_revisit", "yamlet_adr_accept", "yamlet_adr_reject", "yamlet_adr_supersede",
@@ -333,13 +336,20 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 }
 {
 	const { tools, calls } = makePi();
-	await tools.get("yamlet_techspec_init").execute("id", { spec: "@specs/pdf.yamlet.yaml" }, undefined, undefined, ctx);
-	ok("techspec_init argv (no --out unless given)",
-		same(calls.at(-1), ["yamlet", "techspec", "init", "specs/pdf.yamlet.yaml"]), JSON.stringify(calls.at(-1)));
 	await tools.get("yamlet_techspec_init").execute("id", {
-		spec: "specs/pdf.yamlet.yaml", out: "@plan/pdf.techspec.yaml",
+		specs: ["@specs/pdf.yamlet.yaml", "specs/upload.yamlet.yaml"],
 	}, undefined, undefined, ctx);
-	ok("techspec_init --out argv", same(calls.at(-1).slice(-2), ["--out", "plan/pdf.techspec.yaml"]),
+	ok("techspec_init argv (every spec positional; no --out unless given)",
+		same(calls.at(-1), ["yamlet", "techspec", "init", "specs/pdf.yamlet.yaml", "specs/upload.yamlet.yaml"]),
+		JSON.stringify(calls.at(-1)));
+	await tools.get("yamlet_techspec_init").execute("id", {
+		specs: ["specs/pdf.yamlet.yaml"], scope: ["specs/pdf.yamlet.yaml#AC-3", "specs/pdf.yamlet.yaml#RQ-2"],
+		out: "@plan/pdf.techspec.yaml",
+	}, undefined, undefined, ctx);
+	ok("techspec_init --scope repeats, --out last",
+		same(calls.at(-1), ["yamlet", "techspec", "init", "specs/pdf.yamlet.yaml",
+			"--scope", "specs/pdf.yamlet.yaml#AC-3", "--scope", "specs/pdf.yamlet.yaml#RQ-2",
+			"--out", "plan/pdf.techspec.yaml"]),
 		JSON.stringify(calls.at(-1)));
 }
 {
@@ -361,7 +371,7 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
 	// Once pinned, later calls that only add paths must not pass --commit: HEAD
 	// may have moved, and the CLI refuses a different commit.
-	writeFileSync(join(home, "pdf.techspec.yaml"), "spec: pdf.yamlet.yaml\nsystem: pdf\n\nanalysis:\n  commit: 9f3c1ab\n\nrequirements: []\n");
+	writeFileSync(join(home, "pdf.techspec.yaml"), "system: pdf\n\nanalysis:\n  commit: 9f3c1ab\n\nspecs:\n- path: pdf.yamlet.yaml\n");
 	const before = calls.length;
 	await tools.get("yamlet_techspec_analysis").execute("id", {
 		file: "pdf.techspec.yaml", deep: ["src/cli/"],
@@ -392,11 +402,11 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 {
 	const { tools, calls } = makePi();
 	await tools.get("yamlet_techspec_criterion").execute("id", {
-		file: "pdf.techspec.yaml", ac: "AC-3", met: false,
+		file: "pdf.techspec.yaml", ac: "pdf.yamlet.yaml#AC-3", met: false,
 		evidence: ["src/verify/SizeCheck.java:19"], note: "rejects at exactly the limit",
 	}, undefined, undefined, ctx);
 	ok("criterion argv (met as true|false)",
-		same(calls.at(-1), ["yamlet", "techspec", "criterion", "pdf.techspec.yaml", "--ac", "AC-3", "--met", "false",
+		same(calls.at(-1), ["yamlet", "techspec", "criterion", "pdf.techspec.yaml", "--ac", "pdf.yamlet.yaml#AC-3", "--met", "false",
 			"--evidence", "src/verify/SizeCheck.java:19", "--note", "rejects at exactly the limit"]),
 		JSON.stringify(calls.at(-1)));
 	await tools.get("yamlet_techspec_criterion").execute("id", {
@@ -408,14 +418,30 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 }
 {
 	const { tools, calls } = makePi();
+	await tools.get("yamlet_techspec_obligation").execute("id", {
+		file: "@pdf.techspec.yaml", of: "ADR-0001#R-4", met: true, evidence: ["src/Verify.java:55"],
+		note: "already on its own executor",
+	}, undefined, undefined, ctx);
+	ok("obligation argv (met as true|false)",
+		same(calls.at(-1), ["yamlet", "techspec", "obligation", "pdf.techspec.yaml", "--of", "ADR-0001#R-4",
+			"--met", "true", "--evidence", "src/Verify.java:55", "--note", "already on its own executor"]),
+		JSON.stringify(calls.at(-1)));
+	await tools.get("yamlet_techspec_obligation").execute("id", {
+		file: "pdf.techspec.yaml", of: "ADR-0001#R-1", met: false,
+	}, undefined, undefined, ctx);
+	ok("unmet obligation passes no --evidence or --note",
+		same(calls.at(-1).slice(-4), ["--of", "ADR-0001#R-1", "--met", "false"]), JSON.stringify(calls.at(-1)));
+}
+{
+	const { tools, calls } = makePi();
 	await tools.get("yamlet_techspec_task").execute("id", {
 		file: "pdf.techspec.yaml", title: "Return invalid_xref_trailer when no startxref resolves",
-		covers: ["AC-8", "ADR-0001#R-1"], depends_on: ["T-6"],
+		covers: ["pdf.yamlet.yaml#AC-8", "ADR-0001#R-1"], depends_on: ["T-6"],
 	}, undefined, undefined, ctx);
 	ok("task argv",
 		same(calls.at(-1), ["yamlet", "techspec", "task", "pdf.techspec.yaml",
 			"--title", "Return invalid_xref_trailer when no startxref resolves",
-			"--covers", "AC-8", "--covers", "ADR-0001#R-1", "--depends-on", "T-6"]),
+			"--covers", "pdf.yamlet.yaml#AC-8", "--covers", "ADR-0001#R-1", "--depends-on", "T-6"]),
 		JSON.stringify(calls.at(-1)));
 	await tools.get("yamlet_techspec_task").execute("id", {
 		file: "pdf.techspec.yaml", title: "Assemble a corpus of malformed PDFs", why: "the xref checks need known-bad input",
@@ -576,7 +602,7 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 	ok("older CLI: authoring tools still run", r.content[0].text.includes("AC-3"), JSON.stringify(r));
 	const before = calls.length;
 	let msg = "";
-	try { await tools.get("yamlet_techspec_init").execute("id", { spec: "a.yamlet.yaml" }, undefined, undefined, ctx); } catch (e) { msg = e.message; }
+	try { await tools.get("yamlet_techspec_init").execute("id", { specs: ["a.yamlet.yaml"] }, undefined, undefined, ctx); } catch (e) { msg = e.message; }
 	// The probe itself re-runs (a partial result is never cached, see the
 	// upgrade case below); what must not run is the command the CLI lacks.
 	ok("older CLI: a planning tool fails with the upgrade hint, before running",
@@ -594,10 +620,10 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 	const { handlers, tools, cli } = makePi({ help: HELP_0_2_3 });
 	await handlers.session_start({}, ctx);
 	let msg = "";
-	try { await tools.get("yamlet_techspec_init").execute("id", { spec: "a.yamlet.yaml" }, undefined, undefined, ctx); } catch (e) { msg = e.message; }
+	try { await tools.get("yamlet_techspec_init").execute("id", { specs: ["a.yamlet.yaml"] }, undefined, undefined, ctx); } catch (e) { msg = e.message; }
 	ok("upgrade mid-session: before it, the planning tool refuses", msg.includes("techspec"), msg);
 	cli.help = HELP; // brew upgrade yamlet
-	const r = await tools.get("yamlet_techspec_init").execute("id", { spec: "a.yamlet.yaml" }, undefined, undefined, ctx);
+	const r = await tools.get("yamlet_techspec_init").execute("id", { specs: ["a.yamlet.yaml"] }, undefined, undefined, ctx);
 	ok("upgrade mid-session: after it, the planning tool runs without a restart",
 		r.details.command[1] === "techspec", JSON.stringify(r));
 }
@@ -607,17 +633,23 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 	resetNotes();
 	const { handlers, tools, calls } = makePi({ help: HELP_0_4_0 });
 	await handlers.session_start({}, ctx);
-	ok("pre-trace CLI: one startup warning naming trace, not the planning tools",
-		notes.length === 1 && notes[0][0] === "warning" && notes[0][1].includes("no trace command") &&
-		notes[0][1].includes("traceability") && !notes[0][1].includes("tech spec"), JSON.stringify(notes));
-	const r = await tools.get("yamlet_techspec_init").execute("id", { spec: "a.yamlet.yaml" }, undefined, undefined, ctx);
-	ok("pre-trace CLI: planning tools still run", r.details.command[1] === "techspec", JSON.stringify(r));
-	const before = calls.length;
-	let msg = "";
-	try { await tools.get("yamlet_trace").execute("id", { out: "t.html" }, undefined, undefined, ctx); } catch (e) { msg = e.message; }
-	ok("pre-trace CLI: yamlet_trace fails with the upgrade hint, before running",
-		msg.includes("needs: trace.") && msg.includes("brew upgrade yamlet") &&
-		!calls.slice(before).some((c) => c[1] === "trace"), msg || JSON.stringify(calls.slice(before)));
+	ok("0.4.0 CLI: one startup warning naming trace and the one-spec techspec, not adr",
+		notes.length === 1 && notes[0][0] === "warning" && notes[0][1].includes("no techspec/trace command") &&
+		notes[0][1].includes("traceability") && notes[0][1].includes("tech spec") &&
+		!notes[0][1].includes("decision record"), JSON.stringify(notes));
+	const r = await tools.get("yamlet_adr_add_force").execute("id", { file: "a.adr.yaml", text: "t" }, undefined, undefined, ctx);
+	ok("0.4.0 CLI: the adr tools still run", r.details.command[1] === "adr", JSON.stringify(r));
+	for (const [tool, input, cmd] of [
+		["yamlet_trace", { out: "t.html" }, "trace"],
+		["yamlet_techspec_init", { specs: ["a.yamlet.yaml", "b.yamlet.yaml"] }, "techspec"],
+	]) {
+		const before = calls.length;
+		let msg = "";
+		try { await tools.get(tool).execute("id", input, undefined, undefined, ctx); } catch (e) { msg = e.message; }
+		ok(`0.4.0 CLI: ${tool} fails with the upgrade hint, before running`,
+			msg.includes(`needs: ${cmd}.`) && msg.includes("brew upgrade yamlet") &&
+			!calls.slice(before).some((c) => c[1] === cmd), msg || JSON.stringify(calls.slice(before)));
+	}
 }
 {
 	// A killed `help` yields empty stdout; concluding "every command missing"

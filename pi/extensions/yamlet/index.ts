@@ -66,7 +66,7 @@ const OWNED_KINDS: ReadonlyArray<{ re: RegExp; kind: string; reason: string }> =
 		re: /\.techspec\.ya?ml\b/i,
 		kind: ".techspec.yaml",
 		reason:
-			"which checks every RQ-/AC- id against the spec and mints every T- id. Use the yamlet_techspec_* " +
+			"which checks every RQ-/AC- id against the specs it lists and mints every T- id. Use the yamlet_techspec_* " +
 			"tools. A verdict is never revised in place: if one was wrong, delete the file and start the tech " +
 			"spec over.",
 	},
@@ -108,6 +108,18 @@ const OPTIONAL_COMMANDS: Record<string, string> = {
 	techspec: "tech spec",
 	adr: "decision record",
 	trace: "traceability",
+};
+
+/**
+ * Commands whose interface changed incompatibly after they first shipped, with
+ * what their `yamlet help` summary says once they have the interface these
+ * tools speak. Before 0.5, `techspec` planned exactly one spec (`spec:`); the
+ * tools now pass several specs, `SPEC#AC-N` and an `obligation` subcommand. A
+ * CLI whose summary lacks the marker has the command in name only, so it counts
+ * as missing — the tools then say "upgrade" instead of failing on a usage error.
+ */
+const REVISED_COMMANDS: Record<string, RegExp> = {
+	techspec: /\bsystem's specs\b/,
 };
 
 /** Some models prefix path arguments with `@`; built-in tools strip it, so do we. */
@@ -198,7 +210,10 @@ function makeProbe(pi: ExtensionAPI): (cwd: string) => Promise<Probe> {
 			// failed `help` yields empty stdout, which would otherwise read as every
 			// command missing and disable the whole toolset for the session.
 			if (!h.killed && h.code === 0 && h.stdout.trim()) {
-				const has = (c: string): boolean => new RegExp(`^\\s+${c}\\s`, "m").test(h.stdout);
+				const has = (c: string): boolean => {
+					const line = new RegExp(`^\\s+${c}\\s.*$`, "m").exec(h.stdout)?.[0];
+					return line !== undefined && (REVISED_COMMANDS[c]?.test(line) ?? true);
+				};
 				const missing = REQUIRED_COMMANDS.filter((c) => !has(c));
 				if (missing.length > 0) {
 					return {
@@ -311,7 +326,7 @@ const GUIDE_TOPICS: Record<GuideTopic, string> = {
 	editing: "Changing a spec that ALREADY EXISTS: locating the right file, reading its blast radius, what is possible.",
 	composites: "Declaring members and wiring connections on a composite.",
 	patterns: "The six EARS patterns, the three kinds of {token}, and placeholder examples.",
-	decisions: "The tech spec's decision gate: when a task needs a choice the user owns, write the record, link it, cover what it obliges.",
+	decisions: "The tech spec's decision gate: when a task needs a choice the user owns, write the record, link it, record a verdict on what it obliges.",
 	"contract-challenge": "The contract gate's checklist — only for running it inline when the Agent tool is absent.",
 	"criteria-challenge": "The criteria gate's checklist — only for running it inline when the Agent tool is absent.",
 	"code-research": "The code research procedure — only for running it inline when the Agent tool is absent.",
@@ -1008,21 +1023,32 @@ export default function (pi: ExtensionAPI) {
 		name: "yamlet_techspec_init",
 		label: "yamlet techspec init",
 		description:
-			"Open a tech spec for a FINISHED spec (one yamlet_verify reports OK on): writes " +
-			"<spec>.techspec.yaml next to it (or `out`) and returns its path. Refuses to overwrite. The file " +
-			"is disposable — plan from it, implement, discard; keep it out of version control.",
-		promptSnippet: "Open a disposable .techspec.yaml for a finished spec (returns its path)",
+			"Open ONE tech spec for a change: `specs` lists every FINISHED spec it touches (each reported OK " +
+			"by yamlet_verify), all of one system. Writes <system>.techspec.yaml beside the first spec (or " +
+			"`out`) and returns its path. `scope` narrows a spec to the criteria a change touches " +
+			"(SPEC#AC-N, or SPEC#RQ-N for a whole requirement); a spec without one is planned whole. Refuses " +
+			"when a tech spec of the same system already sits in that directory. The file is disposable — " +
+			"plan from it, implement, discard; keep it out of version control.",
+		promptSnippet: "Open one disposable .techspec.yaml over the finished specs a change touches (returns its path)",
 		parameters: Type.Object({
-			spec: Type.String({ description: "The finished .yamlet.yaml to plan against" }),
+			specs: Type.Array(Type.String(), {
+				minItems: 1,
+				description: "The finished .yamlet.yaml files the change touches, all of one system",
+			}),
+			scope: Type.Optional(Type.Array(Type.String(), {
+				description: "SPEC#AC-N or SPEC#RQ-N (SPEC as given in `specs`); only for a change to part of a spec",
+			})),
 			out: Type.Optional(Type.String({
-				description: "Where to write it (must end in .techspec.yaml); default: next to the spec",
+				description: "Where to write it (must end in .techspec.yaml); default: <system>.techspec.yaml beside the first spec",
 			})),
 		}),
 		async execute(_id, params, signal, _onUpdate, ctx) {
-			const spec = cleanPath(params.spec);
-			const out = params.out ? cleanPath(params.out) : spec.replace(/\.yamlet\.ya?ml$/i, ".techspec.yaml");
+			const specs = params.specs.map(cleanPath);
+			// The default name needs the system, which only the CLI reads; queue on the directory.
+			const out = params.out ? cleanPath(params.out) : dirname(specs[0] ?? ".");
 			return mutate(out, ctx, () => {
-				const args = ["techspec", "init", spec];
+				const args = ["techspec", "init", ...specs];
+				repeat("--scope", params.scope, args);
 				if (params.out) args.push("--out", out);
 				return args;
 			}, signal);
@@ -1075,7 +1101,9 @@ export default function (pi: ExtensionAPI) {
 		promptSnippet: "Record a met/unmet verdict for one criterion, with file:line evidence",
 		parameters: Type.Object({
 			file: Type.String({ description: "The .techspec.yaml" }),
-			ac: Type.String({ description: "The criterion's id in the spec, e.g. AC-3" }),
+			ac: Type.String({
+				description: "SPEC#AC-N — SPEC as the tech spec lists it, or any path to it; a bare AC-N only when it lists one spec",
+			}),
 			met: Type.Boolean({ description: "true only when EVERY shall is observably satisfied at a cited reference" }),
 			evidence: Type.Optional(Type.Array(Type.String(), {
 				description: "PATH:LINE references, relative to the code root; required when met",
@@ -1096,18 +1124,51 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.registerTool({
+		name: "yamlet_techspec_obligation",
+		label: "yamlet techspec obligation",
+		description:
+			"Record one ADR obligation's verdict (ADR-nnnn#R-n of a record linked on a criterion in scope " +
+			"or its requirement). One the code already discharges is met=true with `evidence`, after the " +
+			"evidence challenger — never a task written to say so; met=false must then be covered by a task. " +
+			"One verdict per obligation, never revised.",
+		promptSnippet: "Record a met/unmet verdict for one ADR obligation, with file:line evidence",
+		parameters: Type.Object({
+			file: Type.String({ description: "The .techspec.yaml" }),
+			of: Type.String({ description: "The obligation, ADR-nnnn#R-n" }),
+			met: Type.Boolean({ description: "true only when the code observably does what the obligation's `must` says" }),
+			evidence: Type.Optional(Type.Array(Type.String(), {
+				description: "PATH:LINE references, relative to the code root; required when met",
+			})),
+			note: Type.Optional(Type.String({ description: "One line: what falls short, or a caveat" })),
+		}),
+		async execute(_id, params, signal, _onUpdate, ctx) {
+			return mutate(params.file, ctx, () => {
+				const args = [
+					"techspec", "obligation", cleanPath(params.file),
+					"--of", params.of, "--met", params.met ? "true" : "false",
+				];
+				repeat("--evidence", params.evidence, args);
+				if (params.note) args.push("--note", params.note);
+				return args;
+			}, signal);
+		},
+	});
+
+	pi.registerTool({
 		name: "yamlet_techspec_task",
 		label: "yamlet techspec task",
 		description:
-			"Append a task and return its T-N. `covers` names unmet criteria (AC-N) whose verdicts are " +
-			"recorded, or obligations (ADR-nnnn#R-n) of records the spec links; a task covering nothing is an " +
-			"enabler and needs `why`. `depends_on` names tasks that already exist. The title states the " +
-			"behaviour delivered, not the activity.",
+			"Append a task and return its T-N. `covers` names unmet criteria (SPEC#AC-N) or unmet " +
+			"obligations (ADR-nnnn#R-n) whose verdicts are recorded, in any spec of the plan; a task covering " +
+			"nothing is an enabler and needs `why`. `depends_on` names tasks that already exist, whichever " +
+			"spec they serve. The title states the behaviour delivered, not the activity.",
 		promptSnippet: "Append a task to a tech spec (returns its T-N)",
 		parameters: Type.Object({
 			file: Type.String({ description: "The .techspec.yaml" }),
 			title: Type.String({ description: "The behaviour this task delivers" }),
-			covers: Type.Optional(Type.Array(Type.String(), { description: "AC-N or ADR-nnnn#R-n, each unmet/uncovered" })),
+			covers: Type.Optional(Type.Array(Type.String(), {
+				description: "SPEC#AC-N or ADR-nnnn#R-n, each recorded as unmet",
+			})),
 			depends_on: Type.Optional(Type.Array(Type.String(), { description: "T-N of tasks that must land first" })),
 			why: Type.Optional(Type.String({ description: "For an enabler (no covers): what it makes possible" })),
 		}),
@@ -1290,7 +1351,8 @@ export default function (pi: ExtensionAPI) {
 	textTool(
 		"yamlet_adr_add_obligation", "add-obligation",
 		"Add what the decision obliges — work, in the imperative — and return its R-n. Addressable as " +
-		"ADR-nnnn#R-n: a tech spec task covers it exactly as it covers a criterion. After decide.",
+		"ADR-nnnn#R-n: a tech spec records a verdict on it as on a criterion, and a task covers it when " +
+		"unmet. After decide.",
 		"Add an obligation to a decision record (returns its R-n)",
 		"Imperative voice: the work the decision requires",
 	);

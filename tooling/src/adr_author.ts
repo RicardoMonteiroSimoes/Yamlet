@@ -731,8 +731,10 @@ is allowed, a bare n/a is not.
 
 accept needs a decision and a clean verify, and freezes the record: afterwards
 only reject (from proposed), supersede (from accepted) and their dates change.
-Obligations are addressable as ADR-nnnn#R-n; a tech spec task covers one exactly
-as it covers a criterion, and verify reports an accepted record's uncovered ones.
+Obligations are addressable as ADR-nnnn#R-n. A tech spec records a verdict on each
+exactly as on a criterion (met with evidence, or unmet and covered by a task);
+verify reports an accepted record's obligation without a verdict (E716) and an
+unmet one no task covers (E715).
 `,
   run: runAdr,
 };

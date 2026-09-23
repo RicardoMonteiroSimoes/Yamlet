@@ -80,8 +80,8 @@ yamlet trace [DIR] --out=FILE [--format=html|json] [--libs=cdn|embed] [--techspe
                                                    -> the traceability model of a directory: every spec's criteria,
                                                       the verdicts and tasks its tech spec records, and the ADRs that
                                                       decide them — as an interactive page (default) or the
-                                                      yamlet.trace/v1 JSON. A tech spec is paired with the spec its
-                                                      `spec:` names; --techspec pins one (outside DIR, or to settle
+                                                      yamlet.trace/v1 JSON. A tech spec is paired with the specs its
+                                                      `specs:` names; --techspec pins one (outside DIR, or to settle
                                                       two naming one spec). Parses, never validates: dangling
                                                       references become missing nodes. --out as for graph; a
                                                       .yamlet/.techspec/.adr --out is refused
@@ -112,21 +112,27 @@ yamlet add-adr         FILE PATH (--rq RQ-N | --ac AC-N)
                                                       mutation touching decided behaviour (add-criterion under a linked
                                                       requirement) warns on stderr, naming the records; the tech spec
                                                       that plans the change is where the decision is accounted for
-yamlet techspec init      SPEC [--out FILE]        -> a disposable <spec>.techspec.yaml from a spec that verifies clean;
-                                                      prints its path
-yamlet techspec analysis  FILE --commit SHA [--deep DIR ...] [--skimmed DIR ...]
-yamlet techspec criterion FILE --ac AC-N --met true|false [--evidence PATH:LINE ...] [--note "..."]
-yamlet techspec task      FILE --title "..." [--covers AC-N|ADR-nnnn#R-n ...] [--depends-on T-N ...] [--why "..."]
+yamlet techspec init       SPEC... [--scope SPEC#AC-N|SPEC#RQ-N ...] [--out FILE]
+                                                   -> a disposable <system>.techspec.yaml over specs of one system that
+                                                      verify clean; prints its path. Refuses a second tech spec of the
+                                                      same system in that directory. --scope narrows a spec to the
+                                                      criteria a change touches (RQ-N: all of its criteria)
+yamlet techspec analysis   FILE --commit SHA [--deep DIR ...] [--skimmed DIR ...]
+yamlet techspec criterion  FILE --ac SPEC#AC-N --met true|false [--evidence PATH:LINE ...] [--note "..."]
+yamlet techspec obligation FILE --of ADR-nnnn#R-n --met true|false [--evidence PATH:LINE ...] [--note "..."]
+yamlet techspec task       FILE --title "..." [--covers SPEC#AC-N|ADR-nnnn#R-n ...] [--depends-on T-N ...] [--why "..."]
                                                                     -> prints T-N
-                                                   -> the gap analysis and task list for one spec: a verdict per
-                                                      criterion (the owning RQ is looked up in the spec), then tasks
-                                                      covering the unmet ones. Every RQ-N/AC-N is checked against the
-                                                      spec; only T-N is minted here. The file is rewritten canonically
-                                                      on every call and `verify` checks coverage (E701–E716). Where the
-                                                      spec links a record on a criterion or its requirement, criterion and
-                                                      task print a DECIDED notice on stderr naming the records; a task
-                                                      covers a record's obligation (ADR-nnnn#R-n) exactly as it covers
-                                                      a criterion, and an accepted record's uncovered one is E716
+                                                   -> the gap analysis and task list for one change: a verdict per
+                                                      criterion in scope (the owning RQ is looked up in the spec) and
+                                                      per obligation of a record the scope links, then tasks covering
+                                                      the unmet ones, across specs. SPEC is the path as listed or any
+                                                      path to the same file; with one spec a bare AC-N will do. Every
+                                                      RQ-N/AC-N is checked against its spec; only T-N is minted here.
+                                                      The file is rewritten canonically on every call and `verify`
+                                                      checks coverage (E701–E719). Where a spec links a record on a
+                                                      criterion or its requirement, criterion and task print a DECIDED
+                                                      notice on stderr naming the records; an accepted record's
+                                                      obligation without a verdict is E716
 yamlet adr init DIR --title T --kind K --question Q [--arises-from SPEC#AC-n ...] [--assumes ADR-nnnn ...]
                                                    -> a new decision record DIR/ADR-nnnn-<slug>.adr.yaml (next id in DIR),
                                                       proposed; prints its path
@@ -295,17 +301,19 @@ into one `yamlet.trace/v1` model:
 | `requirement` | `RQ-N`                                          | `has` → AC, `decided_by` → ADR (its `adrs:`)                                                     |
 | `criterion`   | `AC-N`, plus the tech spec's verdict + evidence | `decided_by` → ADR                                                                               |
 | `adr`         | an `.adr.yaml`                                  | `has` → R-n, `arises_from`, `assumes`, `superseded_by`, `cites` (a force quoting `ADR-nnnn#R-n`) |
-| `obligation`  | an ADR's `requires` entry, `ADR-nnnn#R-n`       | —                                                                                                |
+| `obligation`  | `ADR-nnnn#R-n`, plus the tech spec's verdict    | —                                                                                                |
 | `task`        | a tech spec's `T-N`                             | `covers` → AC or R-n, `depends_on` → task                                                        |
 
-Plus a per-spec rollup, computed in TS so the page and the JSON agree: verdict counts, task count,
-linked ADRs, **unmet criteria no task covers**, and **obligations of accepted linked ADRs no task
-discharges** (the E715/E716 questions, asked across the whole directory rather than one file).
+Plus a per-spec rollup, computed in TS so the page and the JSON agree: verdict counts over the
+criteria in scope (and how many a scope leaves out), task count, linked ADRs, **unmet criteria no
+task covers**, and **obligations of accepted ADRs in scope that are neither met nor discharged by a
+task** (the E715/E716 questions, asked across the whole directory rather than one file).
 
-A tech spec names its spec, not the reverse, so pairing is by the spec its `spec:` resolves to. Two
-tech specs naming one spec are ambiguous: neither is used, both are listed in `skipped[]`, until
-`--techspec=FILE` pins one. The same flag pairs a tech spec that lives outside DIR — they are
-disposable, and often do.
+A tech spec names its specs, not the reverse, so pairing is by the specs its `specs:` paths resolve
+to; one tech spec pairs with every spec it lists, and a task belongs to the specs whose criteria it
+covers (an enabler to all of them). Two tech specs naming one spec are ambiguous for that spec:
+neither is used for it, both are listed in `skipped[]`, until `--techspec=FILE` pins one. The same
+flag pairs a tech spec that lives outside DIR — they are disposable, and often do.
 
 Parse, never validate: an unparseable file lands in `skipped[]` and a reference that resolves to
 nothing becomes a node with `missing: true`. `yamlet verify` stays the judge.
@@ -320,7 +328,7 @@ hides met criteria and retired records. `--libs` works as for `graph`.
 ```sh
 yamlet trace specs --out=trace.html
 yamlet trace specs --format=json --out=trace.json
-yamlet trace specs --techspec=/tmp/pdf_upload.techspec.yaml --out=trace.html
+yamlet trace specs --techspec=/tmp/pdf-upload.techspec.yaml --out=trace.html
 ```
 
 ### The Gherkin projection (`yamlet tests`)
@@ -414,8 +422,8 @@ src/verify.ts          orchestration: extension → flatten → composite → va
 src/author.ts          correct-by-construction appender + verify commit gate (and `add-adr`, the one in-place mutation)
 src/cmd.ts             the command helpers (usage error, flag values, path predicates) shared by author + techspec
 src/records.ts         readers over flattened records by prefix, shared by `tests` and the tech spec
-src/techspec.ts        the tech spec format: model, reader, canonical serializer, E701–E715
-src/techspec_author.ts `yamlet techspec` — init/analysis/criterion/task, full rewrite per call, verify as gate
+src/techspec.ts        the tech spec format: model, reader, canonical serializer, E701–E719
+src/techspec_author.ts `yamlet techspec` — init/analysis/criterion/obligation/task, full rewrite per call, verify as gate
 src/adr.ts             the decision record format: model, reader, canonical serializer, resolution, E801–E815
 src/adr_author.ts      `yamlet adr` — init and the phase-ordered add-*/decide/accept/reject/supersede commands
 ```

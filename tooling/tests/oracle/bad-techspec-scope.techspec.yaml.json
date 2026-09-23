@@ -1,0 +1,10 @@
+{"file":"bad-techspec-scope.techspec.yaml","valid":false,"errors":[
+  {"rule":"E706","severity":"error","line":7,"path":"specs[0]","message":"criterion valid-exposes.yamlet.yaml#AC-2 has no verdict"},
+  {"rule":"E717","severity":"error","line":10,"path":"specs[0].scope[1]","message":"valid-exposes.yamlet.yaml: scope names AC-2 twice"},
+  {"rule":"E717","severity":"error","line":11,"path":"specs[0].scope[2]","message":"valid-exposes.yamlet.yaml: scope names AC-7, which is not in the spec"},
+  {"rule":"E717","severity":"error","line":12,"path":"specs[0].scope[3]","message":"valid-exposes.yamlet.yaml: scope entries are criteria (AC-N), got: RQ-1"},
+  {"rule":"E707","severity":"error","line":16,"path":"specs[0].requirements[0].acceptance-criteria[0].id","message":"criterion valid-exposes.yamlet.yaml#AC-1 is outside the scope"},
+  {"rule":"E703","severity":"error","line":20,"path":"specs[1].path","message":"./valid-exposes.yamlet.yaml is listed twice (as valid-exposes.yamlet.yaml before)"},
+  {"rule":"E704","severity":"error","line":21,"path":"specs[2].path","message":"system is notification-service but valid-example.yamlet.yaml says e-mail-sending-service"}
+],"warnings":[
+],"summary":{"requirements":2,"acceptanceCriteria":4,"tasks":0}}

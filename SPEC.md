@@ -424,16 +424,24 @@ Open sub-decisions (still unsettled):
 
 ## Tech specs — planning the work
 
-A spec says what must be true. A **tech spec** (`<scope>.techspec.yaml`) says what
-is true *now* and what to do about it: for a finished spec (one that verifies
-clean) and the code that implements it, one verdict per acceptance criterion and a
-task list covering every unmet one. It is **derived and disposable** — built when
-work is planned, consumed while it is done, discarded after. The spec and its ADRs
-are what persist; keep tech specs out of version control.
+A spec says what must be true. A **tech spec** (`<system>.techspec.yaml`) says what
+is true *now* and what to do about it: for finished specs (ones that verify clean)
+and the code that implements them, one verdict per acceptance criterion in scope,
+one per obligation the linked decisions place on that scope, and a task list
+covering every unmet one. It is **derived and disposable** — built when work is
+planned, consumed while it is done, discarded after. The specs and their ADRs are
+what persist; keep tech specs out of version control.
+
+**One plan per change, across every spec it touches.** A system's specs share one
+codebase, so a plan per spec re-plans the same foundation once per spec, pads a
+task onto each plan to discharge the same obligation, and cannot order a task in
+one plan after a task in another. A tech spec therefore lists every spec a change
+touches — all of one system — and each criterion and obligation is covered once,
+by a task that may depend on any other. `yamlet techspec init` refuses a second
+tech spec of the same system in the same directory.
 
 ```yaml
-spec: pdf_verify.yamlet.yaml         # relative to this file; must parse    (E703)
-system: pdf-service                  # must agree with the spec's           (E704)
+system: pdf-service                  # every listed spec's system          (E704)
 
 analysis:
   commit: 9f3c1ab                    # the code was read at this commit     (E705)
@@ -442,53 +450,90 @@ analysis:
   skimmed:
   - src/main/resources/
 
-requirements:                        # the spec's ids, in the spec's order
-- id: RQ-1
-  acceptance-criteria:
-  - id: AC-1
-    met: true                        # true|false                            (E708)
-    evidence:                        # required when met                     (E709)
-    - src/main/java/ch/adnovum/pdfservice/verify/SizeCheck.java:19
-  - id: AC-3
-    met: false
-    evidence:
-    - src/main/java/ch/adnovum/pdfservice/verify/SizeCheck.java:19
-    note: Rejects at exactly max_size_bytes; AC-3 requires an empty error there.
+specs:                               # relative to this file; each parses, listed once (E703)
+- path: pdf_verify.yamlet.yaml       # no scope: the whole spec is in scope
+  requirements:                      # the spec's ids, in the spec's order
+  - id: RQ-1
+    acceptance-criteria:
+    - id: AC-1
+      met: true                      # true|false                            (E708)
+      evidence:                      # required when met                     (E709)
+      - src/main/java/ch/adnovum/pdfservice/verify/SizeCheck.java:19
+    - id: AC-3
+      met: false
+      evidence:
+      - src/main/java/ch/adnovum/pdfservice/verify/SizeCheck.java:19
+      note: Rejects at exactly max_size_bytes; AC-3 requires an empty error there.
+- path: pdf_upload.yamlet.yaml
+  scope:                             # a diff: only these criteria are planned (E717)
+  - AC-4
+  requirements:
+  - id: RQ-2
+    acceptance-criteria:
+    - id: AC-4
+      met: false
+
+obligations:                         # of records the scope links; owed for accepted ones (E716, E718)
+- id: ADR-0001#R-1
+  met: false
+- id: ADR-0001#R-2
+  met: true                          # already discharged: evidence, not a task
+  evidence:
+  - src/main/java/ch/adnovum/pdfservice/verify/Offsets.java:31
 
 tasks:
-- id: T-6                            # the only ids minted here
+- id: T-1                            # the only ids minted here
   title: Assemble a corpus of malformed PDFs
   why: The xref checks cannot be exercised without known-bad input.   # enabler
-- id: T-3
+- id: T-2
   title: Return invalid_xref_trailer when no startxref resolves
-  covers:                            # unmet criteria this task satisfies     (E712)
-  - AC-8
-  - ADR-0001#R-1                     # …or an obligation of a linked record   (E712, E716)
+  covers:                            # unmet criteria and obligations        (E712)
+  - pdf_verify.yamlet.yaml#AC-3      # <spec path, as listed>#AC-n
+  - ADR-0001#R-1
+  depends_on:                        # an earlier task, whichever spec it serves
+  - T-1
+- id: T-3
+  title: Accept an upload at exactly max_size_bytes
+  covers:
+  - pdf_upload.yamlet.yaml#AC-4
   depends_on:
-  - T-6
+  - T-2
 ```
 
 **Why it earns a file rather than prose:** the verifier can check it. Every
-criterion of the spec has exactly one verdict (`E706`, `E707`); `met: true` cites
-evidence (`E709`); every unmet criterion is covered by a task (`E715`); a task
-covering nothing is an enabler and says `why` (`E713`); `depends_on` resolves and
-is acyclic (`E714`); every obligation of an *accepted* record the spec links is
-covered by a task (`E716`). The criterion an agent quietly skips is the failure the
-file exists to catch. Nothing else is stored: a requirement's status, and whether an
-unmet criterion has wrong code or no code, are readable from the verdicts and the
-evidence, so they are not fields.
+criterion in scope has exactly one verdict (`E706`, `E707`); `met: true` cites
+evidence (`E709`); every obligation of an *accepted* record the scope links has a
+verdict (`E716`); every unmet criterion and obligation is covered by a task
+(`E715`); a task covering nothing is an enabler and says `why` (`E713`);
+`depends_on` resolves and is acyclic (`E714`). The criterion an agent quietly skips
+is the failure the file exists to catch. Nothing else is stored: a requirement's
+status, and whether an unmet criterion has wrong code or no code, are readable from
+the verdicts and the evidence, so they are not fields.
+
+**Scope.** A spec listed without `scope` is planned whole. `scope` narrows it to
+the criteria a change touches — typically a diff of a spec that is already
+implemented — so the rest is not researched again. Ids are permanent, so a diff
+names its criteria exactly. The obligations owed follow the scope: those of the
+records linked on a scoped criterion or on its requirement (with no scope, every
+record the spec links).
+
+**Obligations have verdicts.** An obligation is work exactly as a criterion is, and
+code may already discharge it — a shared foundation usually does. So it is judged
+like a criterion: met with evidence, or unmet and covered by a task. Covering one
+with a task written only to say it is done is the failure this replaces.
 
 The file is written only by `yamlet techspec` (`init` · `analysis` · `criterion` ·
-`task`), which checks every `RQ-N`/`AC-N` against the spec on the way in and
-rewrites the file canonically on every call. A verdict, once recorded, is not
-revised in place: a tech spec is cheap to rebuild, and a rewrite would be the one
-edit whose history the file cannot show. Where a task needed a decision, the
-decision becomes a [record](#decision-records--adryaml) and is linked into the spec
-with `add-adr`; the task reaches it through the criteria it covers, and discharges
-what the record obliges by covering `ADR-nnnn#R-n` exactly as it covers a criterion.
-The reverse direction is printed, not stored: recording a verdict on a decided
-criterion, or a task covering one, prints a `DECIDED` notice naming the records,
-so the how is never written down without the decision being named.
+`obligation` · `task`), which checks every `RQ-N`/`AC-N` against its spec and every
+`ADR-nnnn#R-n` against the records the scope links on the way in, and rewrites the
+file canonically on every call. A verdict, once recorded, is not revised in place:
+a tech spec is cheap to rebuild, and a rewrite would be the one edit whose history
+the file cannot show. Where a task needed a decision, the decision becomes a
+[record](#decision-records--adryaml) and is linked into the spec with `add-adr`;
+the tech spec reaches it through the criteria it scopes, and accounts for what the
+record obliges exactly as it accounts for a criterion. The reverse direction is
+printed, not stored: recording a verdict on a decided criterion, or a task covering
+one, prints a `DECIDED` notice naming the records, so the how is never written down
+without the decision being named.
 
 ## Decision records — `.adr.yaml`
 
@@ -592,11 +637,12 @@ product name cannot be checked; a ref's value is a locator (URL, path, short
 citation), never prose.
 
 **Obligations are work.** `requires` is imperative voice; each entry is addressable
-as `ADR-nnnn#R-n`, and a [tech spec](#tech-specs--planning-the-work) task
-discharges one through `covers:` exactly as it covers a criterion. An accepted
-record linked from a spec with an obligation no task covers is a gap the tech spec
-reports (`E716`). `accepts` is deliberately not addressable: nothing discharges a
-cost, so an id there would invite a task claiming to have paid it off.
+as `ADR-nnnn#R-n`, and a [tech spec](#tech-specs--planning-the-work) judges it
+exactly as it judges a criterion: met with evidence, or unmet and discharged by a
+task through `covers:`. An accepted record linked from a planned scope with an
+obligation that has no verdict is a gap the tech spec reports (`E716`). `accepts`
+is deliberately not addressable: nothing discharges a cost, so an id there would
+invite a task claiming to have paid it off.
 
 **Deliberately absent.** Arithmetic of any kind (a cost model rots and the file is
 frozen — totals live behind `source`); inverse indexes (no dependents, no task
@@ -629,7 +675,7 @@ None at the moment.
 (`E305`), `W006` and `W007`; [decision records](#decision-records--adryaml)
 (`E801`–`E815`), [`adrs`](#adrs--linking-a-decision) links on requirements and
 criteria (`E109`) and the derived [tech spec](#tech-specs--planning-the-work)
-(`E701`–`E716`); the [`exposes`](#exposes--the-contract-signature) contract
+(`E701`–`E719`); the [`exposes`](#exposes--the-contract-signature) contract
 signature with `{input.NAME}`/`{output.NAME}` references and both-direction binding
 (`E501`–`E511`); and full [Composition](#composition--a-level-above-the-component) — a
 `components:` membership list plus an explicit `connections:` block (`sink: source`),
