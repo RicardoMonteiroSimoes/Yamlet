@@ -213,6 +213,12 @@ Gherkin scenario with no `When` step. What they get used for is a *definition*
 | `shall` | the concrete, verifiable obligations | non-empty list | `E304` |
 | `adrs` *(optional)* | decision records this behaviour is decided by | see [`adrs`](#adrs--linking-a-decision) | `E109` |
 
+Every `while`, `shall` and `adrs` entry is a plain string (`E306`). An entry with
+an unquoted colon-space — `- store it under the key token: followed by the id` —
+is a one-key mapping to any YAML parser, so it states nothing; quote it. The
+author quotes wherever standard YAML would otherwise read a value as anything
+other than that string, so its files parse the same in yamlet and elsewhere.
+
 ### `adrs` — linking a decision
 
 A requirement or a criterion may carry an `adrs:` list: paths, relative to the

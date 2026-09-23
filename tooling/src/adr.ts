@@ -30,8 +30,16 @@
 
 import type { Finding, FlatRecord, Summary } from "./types.ts";
 import { flatten } from "./flatten.ts";
+import { scalar } from "./scalar.ts";
 import { blocksOf } from "./blocks.ts";
-import { childKeys, indicesUnder, itemsUnder, recordAt } from "./records.ts";
+import {
+  childKeys,
+  indicesUnder,
+  itemsUnder,
+  recordAt,
+  strayMessage,
+  strayUnder,
+} from "./records.ts";
 import { QUANTITY_WORD } from "./validate.ts";
 
 export const ADR_EXT = ".adr.yaml";
@@ -263,12 +271,6 @@ export function maxAdrNum(dir: string): number {
 
 // ── serializing ──
 
-/** Quote a scalar only when the constrained YAML subset requires it (the author's rule). */
-function q(s: string): string {
-  if (s[0] === "{" || s[0] === "[" || s[0] === '"' || s.includes(" #")) return `"${s}"`;
-  return s;
-}
-
 /**
  * Prose is always emitted as a folded block (`>-`) wrapped at ~96 columns: a
  * colon-space in unquoted prose would silently turn the entry into a mapping,
@@ -299,13 +301,13 @@ const proseItem = (text: string, indent: string): string =>
 export function serializeAdr(a: Adr): string {
   let out = "";
   out += `adr: ${a.id}\n`;
-  out += `title: ${q(a.title)}\n`;
+  out += `title: ${scalar(a.title)}\n`;
   out += `status: ${a.status}\n`;
   out += `date: ${a.date}\n`;
   out += `kind: ${a.kind}\n`;
   if (a.arisesFrom.length > 0) {
     out += "arises_from:\n";
-    for (const r of a.arisesFrom) out += `- ${q(r)}\n`;
+    for (const r of a.arisesFrom) out += `- ${scalar(r)}\n`;
   }
   if (a.assumes.length > 0) {
     out += "assumes:\n";
@@ -323,7 +325,7 @@ export function serializeAdr(a: Adr): string {
     out += "\nbasis:\n";
     for (const b of a.basis) {
       out += `- id: ${b.id}\n`;
-      out += `  quantity: ${q(b.quantity)}\n`;
+      out += `  quantity: ${scalar(b.quantity)}\n`;
       out += prose("source", b.source, "  ");
     }
   }
@@ -332,7 +334,7 @@ export function serializeAdr(a: Adr): string {
     for (const d of a.dimensions) {
       out += `- id: ${d.id}\n`;
       out += prose("matters", d.matters, "  ");
-      if (d.unit !== "") out += `  unit: ${q(d.unit)}\n`;
+      if (d.unit !== "") out += `  unit: ${scalar(d.unit)}\n`;
       if (d.basis.length > 0) {
         out += "  basis:\n";
         for (const b of d.basis) out += `  - ${b}\n`;
@@ -347,7 +349,7 @@ export function serializeAdr(a: Adr): string {
       out += prose("summary", o.summary, "  ");
       if (o.refs.length > 0) {
         out += "  refs:\n";
-        for (const r of o.refs) out += `    ${r.label}: ${q(r.locator)}\n`;
+        for (const r of o.refs) out += `    ${r.label}: ${scalar(r.locator)}\n`;
       }
       out += `  reversibility: ${o.reversibility}\n`;
       if (o.against.length > 0) {
@@ -498,6 +500,9 @@ export function validateAdr(file: string, records: readonly FlatRecord[]): AdrVa
   // ── E807: origin ──
   const arises = itemsUnder(records, "arises_from");
   const assumes = itemsUnder(records, "assumes");
+  for (const r of [...strayUnder(records, "arises_from"), ...strayUnder(records, "assumes")]) {
+    finding("E807", r.line, r.path, strayMessage(r));
+  }
   if (seenTop.has("adr") && arises.length + assumes.length === 0) {
     finding(
       "E807",
@@ -574,15 +579,7 @@ export function validateAdr(file: string, records: readonly FlatRecord[]): AdrVa
   // ── E808: forces are strings; citations resolve ──
   const proseList = (key: string, rule: string): FlatRecord[] => {
     const items = itemsUnder(records, key);
-    const stray = records.filter((r) => new RegExp(`^${key}\\[[0-9]+\\]\\.`).test(r.path));
-    for (const r of stray) {
-      finding(
-        rule,
-        r.line,
-        r.path,
-        `${key} entry is not a plain string (a colon-space in unquoted prose becomes a mapping); fold it with >-`,
-      );
-    }
+    for (const r of strayUnder(records, key)) finding(rule, r.line, r.path, strayMessage(r));
     for (const r of items) {
       if (r.value === "") finding(rule, r.line, r.path, `${key} entry is empty`);
     }

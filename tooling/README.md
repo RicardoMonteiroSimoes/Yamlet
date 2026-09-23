@@ -432,12 +432,16 @@ W00x rules and `render` reproduces the three output shapes exactly. A `.techspec
 same road with `techspec.ts`'s E7xx rules in place of composite + validate; its summary carries a
 `tasks` count the spec output never has, so the spec's bytes are unchanged.
 
-**Author** owns all serialization (indentation, the quoting rule `q()`, the pattern→clause mapping,
-and ID allocation). After every mutation it runs the in-process verifier as a **commit gate**,
-tolerating only the expected "work-in-progress" findings (`E106`/`E108`/`E506`/`E511`/`E609`/`E610`,
-and the missing `requirements` / `acceptance-criteria` messages — a half-wired composite between
-`add-component` and its `add-connection` calls is expected to trip `E609`/`E610`); anything else
-rolls the file back and exits `3`.
+**Author** owns all serialization (indentation, quoting, the pattern→clause mapping, and ID
+allocation). Every writer — spec, tech spec, ADR — emits scalars through `scalar()` in
+`src/scalar.ts`: plain when a standard YAML parser reads that back as the same string, otherwise
+double-quoted with `\` and `"` escaped; the flattener's `readQuoted` undoes exactly that.
+`yaml_roundtrip_test.ts` holds every writer to it against `jsr:@std/yaml`. After every mutation it
+runs the in-process verifier as a **commit gate**, tolerating only the expected "work-in-progress"
+findings (`E106`/`E108`/`E506`/`E511`/`E609`/`E610`, and the missing `requirements` /
+`acceptance-criteria` messages — a half-wired composite between `add-component` and its
+`add-connection` calls is expected to trip `E609`/`E610`); anything else rolls the file back and
+exits `3`.
 
 ## Regression oracles (tests)
 

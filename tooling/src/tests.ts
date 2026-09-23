@@ -41,12 +41,13 @@
 // and runner live in their own directory, never in TARGET (anything put here is
 // erased on the next run).
 //
-// Writes files. Exit codes: 0 ok · 2 usage/path/collision error.
+// Writes files. Exit codes: 0 ok · 2 usage/path/collision error, or a criterion
+// that cannot be projected (no shall, or an entry read as a mapping).
 
 import type { CmdResult, Command, FlatRecord } from "./types.ts";
 import { flatten } from "./flatten.ts";
 import { listSpecs } from "./systems.ts";
-import { escRe, indicesUnder, listUnder } from "./records.ts";
+import { escRe, indicesUnder, listUnder, strayUnder } from "./records.ts";
 
 const die = (msg: string): CmdResult => ({ exitCode: 2, stdout: "", stderr: `error: ${msg}\n` });
 
@@ -60,6 +61,8 @@ interface Criterion {
   when: string;
   ifCond: string;
   shalls: string[];
+  /** `while`/`shall` entries read as a mapping (unquoted colon-space): text as written. */
+  stray: string[];
   exampleKeys: string[]; // sorted union of column keys ("" when not an outline)
   exampleRows: Record<string, string>[];
 }
@@ -120,6 +123,10 @@ function parseSpec(records: FlatRecord[]): SpecDoc {
         when: get(`${acPrefix}.when`),
         ifCond: get(`${acPrefix}.if`),
         shalls: listUnder(records, `${acPrefix}.shall`),
+        stray: [
+          ...strayUnder(records, `${acPrefix}.while`),
+          ...strayUnder(records, `${acPrefix}.shall`),
+        ].map((r) => r.value),
         exampleKeys: keys,
         exampleRows: rows,
       });
@@ -377,6 +384,7 @@ export function runTests(args: string[]): CmdResult {
     [];
   const skipped: Skipped[] = [];
   const claimed = new Map<string, string>(); // output path → source spec (collision guard)
+  const unprojectable: string[] = [];
 
   for (const spec of listSpecs(src)) {
     let text: string;
@@ -401,6 +409,19 @@ export function runTests(args: string[]): CmdResult {
       continue;
     }
 
+    // A criterion that states no obligation, or one whose entry parsed as a
+    // mapping, would project to a scenario that asserts less than the spec says
+    // (a `Then` missing, or a `Given` dropped) — refuse rather than emit it.
+    for (const rq of doc.requirements) {
+      for (const ac of rq.criteria) {
+        const id = ac.id || "(criterion without id)";
+        if (ac.shalls.length === 0) unprojectable.push(`${spec}: ${id} has no shall text`);
+        for (const t of ac.stray) {
+          unprojectable.push(`${spec}: ${id} has an entry read as a mapping: ${t}`);
+        }
+      }
+    }
+
     const out = `${target}/${doc.system}/${featureName(spec)}`;
     const prior = claimed.get(out);
     if (prior !== undefined) {
@@ -419,6 +440,13 @@ export function runTests(args: string[]): CmdResult {
       rules: doc.requirements.length,
       scenarios: doc.requirements.reduce((n, rq) => n + rq.criteria.length, 0),
     });
+  }
+
+  if (unprojectable.length > 0) {
+    return die(
+      `criteria that cannot be projected (run \`yamlet verify\`; quote an entry containing ": "):\n` +
+        unprojectable.map((u) => `  ${u}\n`).join(""),
+    );
   }
 
   // TARGET is ours: clear it, then write the fresh tree.
@@ -490,9 +518,11 @@ assert nothing was left unbound.
 
 yamlet emits the feature files and stops there: step definitions, fixtures and
 the runner belong to whoever consumes them. Specs with no requirements are
-skipped. Run \`yamlet verify\` first — files that don't parse are skipped.
+skipped. Run \`yamlet verify\` first — files that don't parse are skipped, and a
+criterion with no shall (or a while/shall entry read as a mapping) stops the run
+before TARGET is touched.
 
-Exit: 0 ok · 2 usage/path/collision error
+Exit: 0 ok · 2 usage/path/collision error, or a criterion that cannot be projected
 `,
   run: runTests,
 };

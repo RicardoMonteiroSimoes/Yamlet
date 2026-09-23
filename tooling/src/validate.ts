@@ -354,6 +354,29 @@ export function validate(
     if (!ok) finding("E109", ln, p, block + ": adrs entry does not resolve to a file: " + v);
   }
 
+  // ── E306: an entry of a string list read as a mapping ──
+  // `while`, `shall` and `adrs` hold plain strings. An unquoted colon-space
+  // makes a list entry a one-key mapping instead, and every reader of the list
+  // (the projection, the trace, the tech spec) then silently skips it.
+  const strayEntries = new Map<string, { line: number; text: string }>();
+  for (const r of records) {
+    const m = r.path.match(
+      /^(requirements\[[0-9]+\](?:\.acceptance-criteria\[[0-9]+\])?\.(?:while|shall|adrs)\[[0-9]+\])\.(.*)$/,
+    );
+    if (m && !strayEntries.has(m[1]!)) {
+      strayEntries.set(m[1]!, { line: r.line, text: m[2]! + ": " + r.value });
+    }
+  }
+  for (const [p, e] of strayEntries) {
+    finding(
+      "E306",
+      e.line,
+      p,
+      p + ": entry is not a plain string (an unquoted colon-space makes it a mapping); quote it: " +
+        e.text,
+    );
+  }
+
   // ── exposes contract (optional top-level) ──
   const declaredInputs = new Map<string, number>();
   const declaredOutputs = new Map<string, number>();
@@ -747,9 +770,14 @@ export function validate(
       }
     }
 
-    // E304: shall required and non-empty
+    // E304: shall required and non-empty. Only plain-string entries count: one
+    // read as a mapping (E306) states no obligation.
     let shallCount = 0;
-    for (const p of byPath.keys()) if (p.startsWith(ab + ".shall[")) shallCount++;
+    for (const p of byPath.keys()) {
+      if (p.startsWith(ab + ".shall[") && /^\[[0-9]+\]$/.test(p.slice(ab.length + 6))) {
+        shallCount++;
+      }
+    }
     if (shallCount === 0) {
       finding(
         "E304",

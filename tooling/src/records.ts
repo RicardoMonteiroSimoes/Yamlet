@@ -57,3 +57,26 @@ export function childKeys(records: readonly FlatRecord[], prefix: string): strin
   }
   return out;
 }
+
+/**
+ * Entries of a string list at `${prefix}[N]` that were read as a mapping
+ * instead: an unquoted colon-space turns `- a: b` into `{a: b}`, which
+ * `itemsUnder` (rightly) does not return — so without this check the entry
+ * would vanish silently. One record per entry, carrying the entry's path and
+ * the text as written.
+ */
+export function strayUnder(records: readonly FlatRecord[], prefix: string): FlatRecord[] {
+  const re = new RegExp(`^(${escRe(prefix)}\\[\\d+\\])\\.(.*)$`);
+  const out = new Map<string, FlatRecord>();
+  for (const r of records) {
+    const m = r.path.match(re);
+    if (m && !out.has(m[1]!)) {
+      out.set(m[1]!, { path: m[1]!, value: `${m[2]}: ${r.value}`, line: r.line });
+    }
+  }
+  return [...out.values()];
+}
+
+/** The finding message for a `strayUnder` entry. */
+export const strayMessage = (r: FlatRecord): string =>
+  `${r.path}: entry is not a plain string (an unquoted colon-space made it a mapping); quote it: ${r.value}`;

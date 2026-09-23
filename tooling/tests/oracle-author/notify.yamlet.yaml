@@ -30,6 +30,6 @@ requirements:
     - reject the notification with a length error
     examples:
     - input.channel: sms
-      max_length: 160
+      max_length: "160"
     - input.channel: push
-      max_length: 240
+      max_length: "240"

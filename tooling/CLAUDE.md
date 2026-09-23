@@ -35,6 +35,7 @@ src/catalog.ts    the rule catalog (source of truth for rule ids/severities)
 src/render.ts     byte-exact human/JSON output
 src/verify.ts     orchestration: extension -> flatten -> composite -> validate
 src/author.ts     correct-by-construction appender; runs verifier as commit gate. `add-adr` is its one in-place mutation
+src/scalar.ts     the one scalar emitter (quote iff standard YAML would misread) + quoted-scalar reader
 src/cmd.ts        command helpers shared by author + techspec (usage error, flag values, path predicates)
 src/records.ts    readers over flattened records by prefix (shared by `tests` and the tech spec)
 src/techspec.ts   the tech spec format (`*.techspec.yaml`): model, reader, canonical serializer, rules E701–E715
