@@ -141,6 +141,16 @@ Deno.test("trace reports unmet criteria and accepted obligations no task covers"
   assertEquals(r.openObligations, [`adr:${dir}/${ADR1}#R-3`, `adr:${dir}/${ADR1}#R-4`]);
 });
 
+Deno.test("trace does not owe a task to an obligation that was cited but never declared", () => {
+  const dir = copyFixtures();
+  // ADR-0002 cites ADR-0001#R-9; ADR-0001 declares only R-1..R-4.
+  const adr2 = Deno.readTextFileSync(`${dir}/${ADR2}`);
+  Deno.writeTextFileSync(`${dir}/${ADR2}`, adr2.replace("ADR-0001#R-4", "ADR-0001#R-9"));
+  const m = model(dir);
+  assertEquals(node(m, `adr:${dir}/${ADR1}#R-9`).missing, true); // still drawn, as missing
+  assertEquals(m.specs[0]!.openObligations, []);
+});
+
 Deno.test("trace marks a criterion the tech spec does not record as unrecorded", () => {
   const dir = copyFixtures();
   const ts = Deno.readTextFileSync(`${dir}/${TECHSPEC}`);

@@ -684,6 +684,8 @@ class Builder {
           if (n.missing || n.adrStatus !== "accepted") continue;
           for (const e of this.edges) {
             if (e.kind !== "has" || e.from !== a) continue;
+            // A missing R-n was only cited, never declared: nothing is owed to it.
+            if (this.nodes.get(e.to)?.missing) continue;
             if (!coveredWithin(e.to, tasks)) openObligations.push(e.to);
           }
         }
