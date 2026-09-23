@@ -8,6 +8,8 @@ import { compareFindings } from "./render.ts";
 import { flatten } from "./flatten.ts";
 import { resolveComposite } from "./composite.ts";
 import { validate } from "./validate.ts";
+import { consumersOf } from "./impact.ts";
+import { listSpecs } from "./systems.ts";
 import { TECHSPEC_EXT, validateTechspec } from "./techspec.ts";
 import { ADR_EXT, validateAdr } from "./adr.ts";
 
@@ -115,6 +117,25 @@ export function verifyText(file: string, text: string): VerifyOutput {
   // Composite member resolution + Phase 2 validate.
   const composite = resolveComposite(file, text, records);
   const { findings, summary } = validate(records, composite, dirname(file));
+
+  // ── W008: a trusted caller claimed but never named ──
+  // `internal` says "a component we deploy and control calls me"; the only place
+  // yamlet names that caller is a composite wiring this spec as a member. The
+  // lookup is reverse (who names *me*?), so it scans the working directory, as
+  // `yamlet impact` does — a consumer outside that tree is one this cannot see.
+  // A warning, not an error: leaves are written before the composite that wires
+  // them, and a root may stay internal until its entry point is specified.
+  const front = records.find((r) => r.path === "front");
+  if (front?.value === "internal" && consumersOf(file, listSpecs(".")).length === 0) {
+    findings.push({
+      rule: "W008",
+      severity: "warning",
+      line: front.line,
+      path: "front",
+      message: "front=internal but no composite under the working directory wires this " +
+        "spec as a member: the trusted caller it claims is unnamed",
+    });
+  }
 
   const sorted = [...findings].sort(compareFindings);
   const errors = sorted.filter((f) => f.severity === "error");

@@ -1,0 +1,34 @@
+system: receipt-intake
+topic: Receipt intake settings
+summary: Supplies the deployment-configured archive and confirmation e-mail settings for receipt intake.
+description: >-
+  The configuration source of the receipt intake: it holds the archive address and the fixed subjects and bodies of the archive and confirmation e-mails, and hands them to whatever wires it. It exists so these values are wired from a component the deployment controls, never supplied by the submitter at the external boundary.
+blast_radius: medium
+front: internal
+exposes:
+  name: intake-settings
+  intent: supply the configured archive and confirmation e-mail settings
+  outputs:
+  - archive_address
+  - archive_subject
+  - archive_body
+  - confirmation_subject
+  - confirmation_body
+
+requirements:
+- id: RQ-1
+  description: >-
+    The configured e-mail settings are supplied to the intake exactly as deployed
+  acceptance-criteria:
+  - id: AC-1
+    pattern: event
+    when: the intake settings are read
+    shall:
+    - return the deployed archive e-mail address as {output.archive_address}
+    - return the deployed archive subject and body as {output.archive_subject} and {output.archive_body}
+    - return the deployed confirmation subject and body as {output.confirmation_subject} and {output.confirmation_body}
+  - id: AC-2
+    pattern: unwanted
+    if: a setting has no deployed value
+    shall:
+    - refuse to supply any setting

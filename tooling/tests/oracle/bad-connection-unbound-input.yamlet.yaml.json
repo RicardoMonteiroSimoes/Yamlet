@@ -1,4 +1,5 @@
 {"file":"bad-connection-unbound-input.yamlet.yaml","valid":false,"errors":[
   {"rule":"E609","severity":"error","line":17,"path":"components.notify","message":"component notify input message is not bound by any connection"}
 ],"warnings":[
+  {"rule":"W008","severity":"warning","line":7,"path":"front","message":"front=internal but no composite under the working directory wires this spec as a member: the trusted caller it claims is unnamed"}
 ],"summary":{"requirements":0,"acceptanceCriteria":0}}

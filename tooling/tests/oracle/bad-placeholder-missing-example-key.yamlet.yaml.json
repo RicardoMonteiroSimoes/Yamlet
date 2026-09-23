@@ -2,4 +2,5 @@
   {"rule":"E402","severity":"error","line":13,"path":"requirements[0].acceptance-criteria[0].examples[0]","message":"AC-1: example row 0 missing binding for {delay_seconds}"},
   {"rule":"E402","severity":"error","line":13,"path":"requirements[0].acceptance-criteria[0].examples[1]","message":"AC-1: example row 1 missing binding for {delay_seconds}"}
 ],"warnings":[
+  {"rule":"W008","severity":"warning","line":8,"path":"front","message":"front=internal but no composite under the working directory wires this spec as a member: the trusted caller it claims is unnamed"}
 ],"summary":{"requirements":1,"acceptanceCriteria":1}}

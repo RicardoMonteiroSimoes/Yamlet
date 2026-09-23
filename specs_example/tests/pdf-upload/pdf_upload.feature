@@ -6,9 +6,9 @@ Feature: PDF upload — pdf-upload
   Rule: The service accepts a valid upload and returns the validated PDF
 
     @AC-1 @event
-    Scenario: When {input.file} named {input.filename} is uploaded, the system shall verify {input.file} is a well-formed PDF within the size limit
+    Scenario: When {input.file} named {input.filename} is uploaded, the system shall verify {input.file} is a well-formed PDF of at most 10 MiB
       When {input.file} named {input.filename} is uploaded
-      Then the system shall verify {input.file} is a well-formed PDF within the size limit
+      Then the system shall verify {input.file} is a well-formed PDF of at most 10 MiB
       And the system shall return {output.pdf_file} to the caller
       And the system shall preserve {input.filename} as the name of the returned PDF
 
