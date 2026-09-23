@@ -473,7 +473,7 @@ specs:                               # relative to this file; each parses, liste
     - id: AC-4
       met: false
 
-obligations:                         # of accepted records the scope links  (E716, E718)
+obligations:                         # of records the scope links; owed for accepted ones (E716, E718)
 - id: ADR-0001#R-1
   met: false
 - id: ADR-0001#R-2
@@ -482,22 +482,22 @@ obligations:                         # of accepted records the scope links  (E71
   - src/main/java/ch/adnovum/pdfservice/verify/Offsets.java:31
 
 tasks:
-- id: T-6                            # the only ids minted here
+- id: T-1                            # the only ids minted here
   title: Assemble a corpus of malformed PDFs
   why: The xref checks cannot be exercised without known-bad input.   # enabler
-- id: T-3
+- id: T-2
   title: Return invalid_xref_trailer when no startxref resolves
   covers:                            # unmet criteria and obligations        (E712)
   - pdf_verify.yamlet.yaml#AC-3      # <spec path, as listed>#AC-n
   - ADR-0001#R-1
-  depends_on:                        # any task, whichever spec it serves
-  - T-6
-- id: T-7
+  depends_on:                        # an earlier task, whichever spec it serves
+  - T-1
+- id: T-3
   title: Accept an upload at exactly max_size_bytes
   covers:
   - pdf_upload.yamlet.yaml#AC-4
   depends_on:
-  - T-3
+  - T-2
 ```
 
 **Why it earns a file rather than prose:** the verifier can check it. Every

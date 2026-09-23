@@ -16,8 +16,9 @@
 //   - `dimensions` are declared before `options`, so a hole in the matrix is
 //     visible rather than absent: every option's `against` must cover exactly
 //     the declared dimensions;
-//   - obligations (`requires`) are addressable as `ADR-nnnn#R-n`, and a tech
-//     spec task discharges one through `covers:` exactly as it covers an AC.
+//   - obligations (`requires`) are addressable as `ADR-nnnn#R-n`; a tech spec
+//     records a verdict on one exactly as on an AC, and an unmet one is
+//     discharged by a task through `covers:`.
 //
 // Deliberately absent, and not to be added back: arithmetic (a cost model rots
 // and the file is frozen — totals live behind `source`); inverse indexes (no

@@ -1,9 +1,9 @@
 ---
 description: >-
   Read-only code research used INSIDE the yamlet-techspec flow. Given a code root, a spec's contract
-  and one requirement with its EARS criteria, it finds where each criterion's behaviour lives and
-  reports facts with `file:line` references — what the code does, deviations from each `shall`,
-  related tests, and what it read. It documents; it does not judge met or unmet, and it plans
+  and one requirement with its EARS criteria (plus the obligations of the ADRs deciding it), it finds
+  where each one's behaviour lives and reports facts with `file:line` references — what the code
+  does, deviations from each `shall`, related tests, and what it read. It documents; it does not judge met or unmet, and it plans
   nothing. Invoked by yamlet-techspec once per requirement; not a standalone tool.
 display_name: Yamlet Code Research
 color: blue

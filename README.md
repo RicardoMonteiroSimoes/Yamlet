@@ -93,8 +93,8 @@ Ten skills, bundled as the `yamlet-skills` plugin under
 | `yamlet-verifier` | runs `yamlet verify`, reports violations by rule ID |
 | `yamlet-tester` | regenerates the Gherkin `.feature` tree |
 | `yamlet-techspec` | one plan per change across a system's specs: verdicts, then tasks; the second entry point |
-| `yamlet-code-research` | finds where each criterion lives in the code; documents, never judges |
-| `yamlet-evidence-challenger` | gate before a criterion is recorded as met |
+| `yamlet-code-research` | finds where each criterion (and ADR obligation) lives in the code; documents, never judges |
+| `yamlet-evidence-challenger` | gate before a criterion or obligation is recorded as met |
 | `yamlet-adr` | records a decision through `yamlet adr` |
 | `yamlet-adr-challenger` | gate inside the ADR flow |
 

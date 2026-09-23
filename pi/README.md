@@ -226,7 +226,7 @@ pi/
 ├── agents/                             # requires @tintinweb/pi-subagents
 │   ├── yamlet-contract-challenger.md   # author: before init freezes the contract
 │   ├── yamlet-criteria-challenger.md   # author: before a requirement is committed
-│   ├── yamlet-code-research.md         # tech spec: where each criterion lives (read/grep/find/ls)
+│   ├── yamlet-code-research.md         # tech spec: where each criterion or obligation lives (read/grep/find/ls)
 │   ├── yamlet-evidence-challenger.md   # tech spec: before a criterion or obligation is recorded as met
 │   └── yamlet-adr-challenger.md        # adr: after the dimensions, before any option
 └── skills/

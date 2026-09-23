@@ -66,7 +66,7 @@ const OWNED_KINDS: ReadonlyArray<{ re: RegExp; kind: string; reason: string }> =
 		re: /\.techspec\.ya?ml\b/i,
 		kind: ".techspec.yaml",
 		reason:
-			"which checks every RQ-/AC- id against the spec and mints every T- id. Use the yamlet_techspec_* " +
+			"which checks every RQ-/AC- id against the specs it lists and mints every T- id. Use the yamlet_techspec_* " +
 			"tools. A verdict is never revised in place: if one was wrong, delete the file and start the tech " +
 			"spec over.",
 	},
@@ -326,7 +326,7 @@ const GUIDE_TOPICS: Record<GuideTopic, string> = {
 	editing: "Changing a spec that ALREADY EXISTS: locating the right file, reading its blast radius, what is possible.",
 	composites: "Declaring members and wiring connections on a composite.",
 	patterns: "The six EARS patterns, the three kinds of {token}, and placeholder examples.",
-	decisions: "The tech spec's decision gate: when a task needs a choice the user owns, write the record, link it, cover what it obliges.",
+	decisions: "The tech spec's decision gate: when a task needs a choice the user owns, write the record, link it, record a verdict on what it obliges.",
 	"contract-challenge": "The contract gate's checklist — only for running it inline when the Agent tool is absent.",
 	"criteria-challenge": "The criteria gate's checklist — only for running it inline when the Agent tool is absent.",
 	"code-research": "The code research procedure — only for running it inline when the Agent tool is absent.",
@@ -1351,7 +1351,8 @@ export default function (pi: ExtensionAPI) {
 	textTool(
 		"yamlet_adr_add_obligation", "add-obligation",
 		"Add what the decision obliges — work, in the imperative — and return its R-n. Addressable as " +
-		"ADR-nnnn#R-n: a tech spec task covers it exactly as it covers a criterion. After decide.",
+		"ADR-nnnn#R-n: a tech spec records a verdict on it as on a criterion, and a task covers it when " +
+		"unmet. After decide.",
 		"Add an obligation to a decision record (returns its R-n)",
 		"Imperative voice: the work the decision requires",
 	);

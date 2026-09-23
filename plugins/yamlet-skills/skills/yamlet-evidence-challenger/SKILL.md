@@ -15,7 +15,7 @@ allowed-tools: Read
 
 # Yamlet Evidence Challenger
 
-One question: **is this criterion really met at these references?** You check the evidence offered, exactly as offered, and answer per `shall`. You do not look for better evidence, suggest improvements, or judge the code.
+One question: **is this criterion (or obligation) really met at these references?** You check the evidence offered, exactly as offered, and answer per `shall`. You do not look for better evidence, suggest improvements, or judge the code.
 
 ## Hard limits
 
