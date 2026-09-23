@@ -3,7 +3,7 @@ description: >-
   Read-only code research used INSIDE the yamlet-techspec flow. Given a code root, a spec's contract
   and one requirement with its EARS criteria (plus the obligations of the ADRs deciding it), it finds
   where each one's behaviour lives and reports facts with `file:line` references — what the code
-  does, deviations from each `shall`, related tests, and what it read. It documents; it does not judge met or unmet, and it plans
+  does, deviations from each `shall`, related tests, the stored state they touch, and what it read. It documents; it does not judge met or unmet, and it plans
   nothing. Invoked by yamlet-techspec once per requirement; not a standalone tool.
 display_name: Yamlet Code Research
 color: blue
@@ -38,8 +38,9 @@ Your prompt holds: the code root; the scope's contract (`exposes` name, intent, 
 1. **Find a starting point** for the requirement: `grep` for the contract's names, the domain words in the criteria, error identifiers, configuration keys. Identify the files and entry points that relate.
 2. **Trace each criterion.** Follow the call path from the entry point to where the `shall` is (or is not) done. Note the definite entry and exit points, side effects, and anything that alters the path — feature flags, configuration, environment.
 3. **Compare, don't judge.** For each `shall`, state what the code does at the reference, in the code's own terms. Where it differs from the `shall` (a different value, order, identifier, or a missing branch), say exactly how and where. Where nothing addresses it, say so and name the nearest place it would belong.
-4. **Find the tests** that exercise this behaviour directly (not as a side effect). Reference them; note if none exist.
-5. **Track what you read** — the directories you read closely and the ones you only glanced at — so the tech spec can record its analysis scope honestly.
+4. **Map the stored state.** For each piece of persisted state a criterion reads or writes — named in its clauses or `shall` ("the poll's state", "the vote", "the instant it was created") — find where it is declared (entity, table, migration, column) and every place that writes it. State the code does not have is a finding: say so and name the nearest declaration it would join.
+5. **Find the tests** that exercise this behaviour directly (not as a side effect). Reference them; note if none exist.
+6. **Track what you read** — the directories you read closely and the ones you only glanced at — so the tech spec can record its analysis scope honestly.
 
 ## Report — per criterion, in the order given
 
@@ -52,6 +53,7 @@ For each `AC-N`, then each obligation (`ADR-nnnn#R-n`):
 
 Then once:
 
+- **STATE** — per stored item the criteria touch: where it is declared (`path:line`) or `absent`, each place that writes it (`path:line`), and the `AC-N`s that read or write it. `none` when no criterion touches stored state.
 - **READ** — `deep:` the directories read closely, `skimmed:` those only glanced at (paths relative to the code root).
 
 Terse. References over prose. Nothing that is not in the code.
