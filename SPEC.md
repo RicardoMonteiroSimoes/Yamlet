@@ -69,11 +69,9 @@ validation lives once, at the boundary that owns the trust decision
 (single-source-of-truth applied to trust). In a composite, `front` marks where
 untrusted input enters the graph.
 
-A `front: external` leaf whose criteria never carry an `if` clause is a warning
-(`W006`): a user-facing thing that never says what it does with bad input is almost
-certainly underspecified. A warning, not an error, because the clause may be owed
-by a sibling scope; and a leaf only, since where a composite's trust boundary sits
-is still open (see [Composition](#composition--a-level-above-the-component)).
+An `external` leaf with no `if` clause in any criterion is a warning (`W006`) — a
+sibling scope may own that behaviour, so not an error. Composites are exempt: their
+trust boundary is undecided.
 
 ### `exposes` — the contract signature
 
@@ -200,19 +198,12 @@ pattern. The pattern dictates which clauses are allowed.
 Enforced by `E301` (missing required clause), `E302` (clause not allowed for the
 pattern), `E303` (optional and complex need exactly one of when/if).
 
-**Every criterion carries exactly one trigger** — a `when` or an `if`. This is a
-deliberate departure from EARS, which also has `ubiquitous` (no clause) and `state`
-(`while` alone), and whose `optional` needs only `where`. Those describe *continuous*
-properties — "while on the ground, thrust reversers are disabled". A component with a
-contract has none: every observation of it is a call, so a criterion without a
-trigger is one of two things that are not behaviours. A **definition** ("the
-normalised form of the URL is …", "a value is blank when …") belongs in prose and is
-pinned by the example rows of the criteria that observe it — a whitespace-only row
-where blankness matters, an astral character where the unit of length does. An
-**invariant** ("at most one project per URL") is a consequence of the `unwanted`
-criterion that maintains it, and that criterion is its test. Projected to Gherkin, a
-trigger-less criterion is a scenario with no `When` step: a step definition can only
-make it a no-op or invent the input itself, and neither tests the system.
+**Every criterion carries exactly one trigger** (`when` or `if`). EARS's `ubiquitous`
+and `state`, and a bare `where`, describe continuous properties; a component with a
+contract has none — every observation is a call, and a trigger-less criterion is a
+Gherkin scenario with no `When` step. What they get used for is a *definition*
+(prose, pinned by example rows on the criteria that observe it) or an *invariant*
+(the `unwanted` criterion that maintains it).
 
 | field | meaning | constraint | enforced by |
 |---|---|---|---|
@@ -285,27 +276,12 @@ anything else `{x}` → placeholder.
 
 ### Word budgets — `E305`
 
-A clause is one trigger or one precondition, a `shall` is one obligation, a
-requirement's description is one capability and the `summary` is one sentence. Each
-has a budget, measured in whitespace-separated words so that a long `{input.NAME}`
-costs one:
-
-| field | budget |
-|---|---|
-| `when`, `if`, `where`, each `while` entry | 20 |
-| each `shall` entry | 20 |
-| a requirement's `description` | 30 |
-| `summary` | 30 |
-
-The top-level `description` is context prose, never projected, and has none.
-
-An error, not a warning, because the count is exact and the way out is the point: a
-`when` that stacks "the project is registered", "no other project carries the URL"
-and "the name is not blank" is carrying preconditions that belong in `while`, one
-entry per line, each its own `Given` step — or is two criteria. Each clause and
-`shall` becomes one Gherkin step, and a 45-word step is one that no step definition
-can bind without re-parsing the sentence. The budgets sit well above the repo's own
-examples (a 9-word `when` is the longest) and below where the stacking starts.
+Each clause and `shall` is one Gherkin step; a 45-word step binds nothing. Budgets,
+in whitespace-separated words (so `{input.NAME}` costs one): `when`/`if`/`where`
+and each `while` entry **20**, each `shall` **20**, a requirement's `description`
+**30**, `summary` **30**. The top-level `description` has none. An error because the
+way out is the point: preconditions move to `while`, one per `Given`, or the
+criterion splits.
 
 ### Lexical warnings — `W003`–`W005`, `W007`
 
@@ -321,16 +297,14 @@ Every rule above is exact. These four are word-list heuristics over clause and
 
 Warnings, never errors: a heuristic that blocks teaches authors to write around the
 list ("the store's cap"). The lists are short on purpose — `timeout` and `within` are
-absent because "an SMTP timeout occurs" is an event, not a bound — an
-`{input.NAME}` does not satisfy `W003`: it names the thing measured, not the bound —
-and a bare *and* does not fire `W007`: "a file and its filename are submitted" is
-one event.
+absent because "an SMTP timeout occurs" is an event, not a bound; a bare *and* is
+absent from `W007` because "a file and its filename" is one event — and an
+`{input.NAME}` does not satisfy `W003`: it names the thing measured, not the bound.
 
 They cannot see a bag input, validation on the wrong side of `front`, a negative
 `shall`, "that maximum length" pointing back into its clause, an example row that
-does not satisfy its own clause, or two `if` clauses that overlap on one input with
-different outcomes. Those stay with the challenger skills; the warnings are a floor
-under them.
+fails its own clause, or two overlapping `if` clauses. Those stay with the
+challenger skills; the warnings are a floor under them.
 
 ---
 
@@ -641,15 +615,12 @@ the *why* isn't lost as the format grows. These are **not** enforced by the veri
 and **not** valid syntax yet. When one ships, its rules move into the tables above
 and its rationale stays here as the record.
 
-Nothing is in flight at the moment; what shipped is recorded below.
+None at the moment.
 
 ---
 
-*Shipped since first draft: the trigger rule (every criterion carries exactly one
-`when`/`if`; `ubiquitous` and `state` retired, `E301`–`E303`), [word budgets](#word-budgets--e305)
-(`E305`), the [`front`](#front--the-trust-boundary-not-who-the-user-is)
-external-without-unwanted warning (`W006`) and the stacked-condition warning
-(`W007`); [decision records](#decision-records--adryaml)
+*Shipped since first draft: the trigger rule (`E301`–`E303`), [word budgets](#word-budgets--e305)
+(`E305`), `W006` and `W007`; [decision records](#decision-records--adryaml)
 (`E801`–`E815`), [`adrs`](#adrs--linking-a-decision) links on requirements and
 criteria (`E109`) and the derived [tech spec](#tech-specs--planning-the-work)
 (`E701`–`E716`); the [`exposes`](#exposes--the-contract-signature) contract
