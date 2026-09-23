@@ -200,7 +200,7 @@
       adrs = adrs.concat(outs(n.id, "decided_by"), ins(n.id, "arises_from"));
     });
     var tasks = M.nodes.filter(function (n) {
-      return n.type === "task" && n.spec === specId;
+      return n.type === "task" && (n.specs || []).indexOf(specId) >= 0;
     });
     tasks.forEach(function (t) {
       outs(t.id, "covers").forEach(function (c) {
@@ -648,7 +648,13 @@
         );
       }
       if (c.unrecorded) gaps.push('<span class="gap warn">' + c.unrecorded + " unrecorded</span>");
-      if (isDone(r)) gaps.push('<span class="gap ok">all criteria met</span>');
+      if (c.outOfScope) gaps.push('<span class="gap">' + c.outOfScope + " out of scope</span>");
+      if (isDone(r)) {
+        gaps.push(
+          '<span class="gap ok">' + (c.outOfScope ? "all in scope met" : "all criteria met") +
+            "</span>",
+        );
+      }
     }
     if (NODES[r.node] && NODES[r.node].outside) {
       gaps.push('<span class="gap warn">outside ' + esc(M.name) + "</span>");
@@ -721,7 +727,9 @@
             "</dd>" +
             (n.commit ? '<dt>analysed at</dt><dd class="mono">' + esc(n.commit) + "</dd>" : "") +
             "<dt>criteria</dt><dd>" + r.criteria.met + " met · " + r.criteria.unmet + " unmet · " +
-            r.criteria.unrecorded + " unrecorded</dd><dt>tasks</dt><dd>" + r.tasks + "</dd></dl>";
+            r.criteria.unrecorded + " unrecorded" +
+            (r.criteria.outOfScope ? " · " + r.criteria.outOfScope + " out of scope" : "") +
+            "</dd><dt>tasks</dt><dd>" + r.tasks + "</dd></dl>";
           h += group("unmet, no task", r.uncovered) +
             group("undischarged obligations", r.openObligations) +
             group("decision records", r.adrs);
@@ -740,7 +748,9 @@
       case "criterion": {
         sub = specBase(n.spec) + " · " + n.rq;
         var v = verdictClass(n.verdict);
-        chips.push(n.verdict ? chip(n.verdict, v) : chip("no tech spec"));
+        chips.push(
+          n.verdict ? chip(n.verdict, v) : chip(n.outOfScope ? "out of scope" : "no tech spec"),
+        );
         if (OPEN[id]) chips.push(chip("no task covers it", "unmet"));
         if (n.pattern) chips.push(chip(n.pattern));
         if (!n.missing) h += earsHtml(n);
@@ -789,13 +799,14 @@
         break;
       case "obligation":
         sub = NODES[n.adrNode] ? NODES[n.adrNode].title : "";
+        if (n.verdict) chips.push(chip(n.verdict, verdictClass(n.verdict)));
         if (OPEN[id]) chips.push(chip("no task discharges it", "unmet"));
-        h += prose("must", n.must);
+        h += prose("must", n.must) + list("evidence", n.evidence) + prose("note", n.note);
         h += group("decision", [n.adrNode]) + group("discharged by", ins(id, "covers")) +
           group("cited by", ins(id, "cites"));
         break;
       case "task":
-        sub = specBase(n.spec) + " · " + base(n.techspec);
+        sub = (n.specs || []).map(specBase).join(", ") + " · " + base(n.techspec);
         h += prose("title", n.title) + prose("why (enabler)", n.why);
         h += group("covers", outs(id, "covers")) + group("depends on", outs(id, "depends_on")) +
           group("needed by", ins(id, "depends_on"));

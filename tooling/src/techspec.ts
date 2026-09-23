@@ -1,23 +1,31 @@
-// The tech spec (`*.techspec.yaml`) — one spec's gap analysis and task list.
+// The tech spec (`*.techspec.yaml`) — one change's gap analysis and task list.
 //
-// A tech spec is *derived* from a finished spec and the code that is supposed
-// to implement it: for every acceptance criterion a verdict (`met: true|false`,
-// with the evidence that backs it), and a task list that covers every unmet
-// criterion. It is deliberately short-lived — generated when work is planned,
-// consumed while it is done, discarded after; the spec and its ADRs are what
-// persist. Nothing in it is a source of truth, which is why it carries no ids of
-// its own except `T-N` for tasks, and why every requirement/criterion id in it
-// must resolve to the spec it names.
+// A tech spec is *derived* from finished specs and the code that is supposed to
+// implement them: for every acceptance criterion in scope a verdict (`met:
+// true|false`, with the evidence that backs it), the same for every obligation
+// of a decision record those criteria are decided by, and a task list that
+// covers every unmet one. It is deliberately short-lived — generated when work
+// is planned, consumed while it is done, discarded after; the specs and their
+// ADRs are what persist. Nothing in it is a source of truth, which is why it
+// carries no ids of its own except `T-N` for tasks, and why every requirement/
+// criterion id in it must resolve to a spec it lists.
+//
+// One tech spec spans every spec a change touches, all of one system. The
+// codebase is shared, so a plan per spec re-plans the same foundation once per
+// spec, and a task in one plan cannot depend on a task in another. `scope`
+// narrows a spec to the criteria a change touches (a diff of an existing spec),
+// so the rest of it is not re-researched.
 //
 // This module owns the *format*: the model, the reader over flattened records,
 // the canonical serializer, and the E7xx rules. The mutating commands live in
 // `techspec_author.ts`; `verify.ts` dispatches here by file extension.
 //
 // The one value the file adds over the agent's prose is that it can be checked:
-// every criterion has exactly one verdict, `met: true` is backed by evidence,
-// every unmet criterion is covered by a task, and the dependency graph resolves
-// and is acyclic. An agent that silently skips a criterion is the failure mode
-// the whole file exists to catch (E706/E715).
+// every criterion in scope has exactly one verdict, `met: true` is backed by
+// evidence, every obligation owed is accounted for, every unmet one is covered
+// by a task, and the dependency graph resolves and is acyclic. An agent that
+// silently skips a criterion is the failure mode the whole file exists to catch
+// (E706/E715).
 
 import type { Finding, FlatRecord, Summary } from "./types.ts";
 import { flatten } from "./flatten.ts";
@@ -38,17 +46,22 @@ export const TECHSPEC_EXT = ".techspec.yaml";
 export const SPEC_EXT = ".yamlet.yaml";
 export const COMMIT_RE = /^[0-9a-f]{7,40}$/;
 export const TASK_ID_RE = /^T-[0-9]+$/;
+/** A criterion as a task covers it: `<spec path>#AC-n`, the path as `specs:` lists it. */
+export const CRITERION_REF_RE = /^(.+\.yamlet\.yaml)#(AC-[0-9]+[a-z]?)$/;
+const AC_ID_RE = /^AC-[0-9]+[a-z]?$/;
 
-const TOP_REQUIRED = ["spec", "system", "analysis"];
-const TOP_ALLOWED = new Set(["spec", "system", "analysis", "requirements", "tasks"]);
+const TOP_REQUIRED = ["system", "analysis", "specs"];
+const TOP_ALLOWED = new Set(["system", "analysis", "specs", "obligations", "tasks"]);
 const ANALYSIS_KEYS = new Set(["commit", "deep", "skimmed"]);
+const SPEC_KEYS = new Set(["path", "scope", "requirements"]);
 const RQ_KEYS = new Set(["id", "acceptance-criteria"]);
-const AC_KEYS = new Set(["id", "met", "evidence", "note"]);
+const VERDICT_KEYS = new Set(["id", "met", "evidence", "note"]);
 const TASK_KEYS = new Set(["id", "title", "covers", "depends_on", "why"]);
 
 // ── the model ──
 
-export interface TsCriterion {
+/** A verdict on a criterion (`AC-N`) or an obligation (`ADR-nnnn#R-n`). */
+export interface TsVerdict {
   id: string;
   /** Raw value; "" when absent. Valid values are exactly "true" and "false". */
   met: string;
@@ -57,7 +70,14 @@ export interface TsCriterion {
 }
 export interface TsRequirement {
   id: string;
-  criteria: TsCriterion[];
+  criteria: TsVerdict[];
+}
+export interface TsSpec {
+  /** The spec, relative to the tech spec's directory. */
+  path: string;
+  /** The criteria in scope; empty means the whole spec. */
+  scope: string[];
+  requirements: TsRequirement[];
 }
 export interface TsTask {
   id: string;
@@ -72,15 +92,15 @@ export interface TsAnalysis {
   skimmed: string[];
 }
 export interface Techspec {
-  spec: string;
   system: string;
   /** `null` until `techspec analysis` records it. */
   analysis: TsAnalysis | null;
-  requirements: TsRequirement[];
+  specs: TsSpec[];
+  obligations: TsVerdict[];
   tasks: TsTask[];
 }
 
-/** What the tech spec needs to know about its spec: the criteria, in order, and their owners. */
+/** What the tech spec needs to know about a spec: the criteria, in order, and their owners. */
 export interface SpecIndex {
   system: string;
   /** Requirement ids in file order. */
@@ -120,11 +140,40 @@ export function decidedBy(spec: SpecIndex, acId: string): Decided {
   return { via, adrs };
 }
 
+/** The criteria a spec entry puts in scope, in the spec's order. */
+export function criteriaInScope(spec: SpecIndex, scope: readonly string[]): string[] {
+  return scope.length === 0 ? [...spec.criteria] : spec.criteria.filter((c) => scope.includes(c));
+}
+
+/**
+ * The records a spec entry's scope reaches: every link in the spec when the
+ * whole spec is in scope, else the links deciding a scoped criterion (on it or
+ * on its requirement). Links as written in the spec, first occurrence order.
+ */
+export function linksInScope(spec: SpecIndex, scope: readonly string[]): string[] {
+  const out: string[] = [];
+  const add = (xs: readonly string[]): void => {
+    for (const x of xs) if (!out.includes(x)) out.push(x);
+  };
+  if (scope.length === 0) {
+    for (const links of spec.adrsOf.values()) add(links);
+  } else {
+    for (const ac of criteriaInScope(spec, scope)) add(decidedBy(spec, ac).adrs);
+  }
+  return out;
+}
+
 // ── reading ──
 
 export function parseTechspec(records: readonly FlatRecord[]): Techspec {
   const val = (p: string): string => recordAt(records, p)?.value ?? "";
   const list = (p: string): string[] => itemsUnder(records, p).map((r) => r.value);
+  const verdict = (p: string): TsVerdict => ({
+    id: val(`${p}.id`),
+    met: val(`${p}.met`),
+    evidence: list(`${p}.evidence`),
+    note: val(`${p}.note`),
+  });
 
   const hasAnalysis = records.some((r) => r.path === "analysis" || r.path.startsWith("analysis."));
   const analysis: TsAnalysis | null = hasAnalysis
@@ -135,21 +184,20 @@ export function parseTechspec(records: readonly FlatRecord[]): Techspec {
     }
     : null;
 
-  const requirements: TsRequirement[] = [];
-  for (const i of indicesUnder(records, "requirements")) {
-    const rp = `requirements[${i}]`;
-    const criteria: TsCriterion[] = [];
-    for (const j of indicesUnder(records, `${rp}.acceptance-criteria`)) {
-      const ap = `${rp}.acceptance-criteria[${j}]`;
-      criteria.push({
-        id: val(`${ap}.id`),
-        met: val(`${ap}.met`),
-        evidence: list(`${ap}.evidence`),
-        note: val(`${ap}.note`),
-      });
+  const specs: TsSpec[] = [];
+  for (const s of indicesUnder(records, "specs")) {
+    const sp = `specs[${s}]`;
+    const requirements: TsRequirement[] = [];
+    for (const i of indicesUnder(records, `${sp}.requirements`)) {
+      const rp = `${sp}.requirements[${i}]`;
+      const criteria = indicesUnder(records, `${rp}.acceptance-criteria`)
+        .map((j) => verdict(`${rp}.acceptance-criteria[${j}]`));
+      requirements.push({ id: val(`${rp}.id`), criteria });
     }
-    requirements.push({ id: val(`${rp}.id`), criteria });
+    specs.push({ path: val(`${sp}.path`), scope: list(`${sp}.scope`), requirements });
   }
+
+  const obligations = indicesUnder(records, "obligations").map((i) => verdict(`obligations[${i}]`));
 
   const tasks: TsTask[] = [];
   for (const i of indicesUnder(records, "tasks")) {
@@ -163,7 +211,7 @@ export function parseTechspec(records: readonly FlatRecord[]): Techspec {
     });
   }
 
-  return { spec: val("spec"), system: val("system"), analysis, requirements, tasks };
+  return { system: val("system"), analysis, specs, obligations, tasks };
 }
 
 /**
@@ -199,7 +247,7 @@ function dirname(p: string): string {
   return slash < 0 ? "" : p.slice(0, slash);
 }
 
-/** A decision record the spec links, with the obligations it places on the work. */
+/** A decision record a spec links, with the obligations it places on the work. */
 export interface LinkedAdr {
   /** The link as written in the spec (relative to the spec). */
   link: string;
@@ -212,68 +260,140 @@ export interface LinkedAdr {
 }
 
 /**
- * Every record the spec links (on any requirement or criterion), read from
- * disk relative to the spec's directory. An unparseable link is returned with
- * an empty id so the caller can report it once.
+ * The records behind `links` (as written in the spec), read from disk relative
+ * to the spec's directory. An unparseable link is returned with an empty id so
+ * the caller can report it once.
  */
-export function linkedAdrs(specFile: string, spec: SpecIndex): LinkedAdr[] {
+export function linkedAdrs(specFile: string, links: readonly string[]): LinkedAdr[] {
   const dir = dirname(specFile);
-  const seen = new Set<string>();
   const out: LinkedAdr[] = [];
-  for (const links of spec.adrsOf.values()) {
-    for (const link of links) {
-      if (seen.has(link)) continue;
-      seen.add(link);
-      const path = link.startsWith("/") ? link : dir === "" ? link : `${dir}/${link}`;
-      const loaded = loadAdr(path);
-      if (loaded === null) {
-        out.push({ link, path, id: "", status: "", obligations: [] });
-        continue;
-      }
-      out.push({
-        link,
-        path,
-        id: loaded.adr.id,
-        status: loaded.adr.status,
-        obligations: loaded.adr.requires.map((r) => `${loaded.adr.id}#${r.id}`),
-      });
+  for (const link of links) {
+    if (out.some((l) => l.link === link)) continue;
+    const path = link.startsWith("/") ? link : dir === "" ? link : `${dir}/${link}`;
+    const loaded = loadAdr(path);
+    if (loaded === null) {
+      out.push({ link, path, id: "", status: "", obligations: [] });
+      continue;
     }
+    out.push({
+      link,
+      path,
+      id: loaded.adr.id,
+      status: loaded.adr.status,
+      obligations: loaded.adr.requires.map((r) => `${loaded.adr.id}#${r.id}`),
+    });
   }
   return out;
 }
 
-/** `spec` resolved against the tech spec's own directory. */
+/** A spec path in a tech spec, resolved against the tech spec's own directory. */
 export function specPathOf(techspecFile: string, spec: string): string {
   if (spec.startsWith("/")) return spec;
   const dir = dirname(techspecFile);
   return dir === "" ? spec : `${dir}/${spec}`;
 }
 
+/** The identity of a file on disk (its real path), or the path itself when it does not exist. */
+export function fileKey(p: string): string {
+  try {
+    return Deno.realPathSync(p);
+  } catch {
+    return p;
+  }
+}
+
+/** A spec the tech spec lists, resolved and read. */
+export interface ResolvedSpec {
+  /** As `specs[].path` writes it. */
+  path: string;
+  /** Resolved against the tech spec's directory. */
+  file: string;
+  index: SpecIndex;
+  scope: string[];
+}
+
+/** An obligation the listed specs reach, and whether it is owed (its record is accepted). */
+export interface ReachedObligation {
+  ref: string;
+  record: string;
+  owed: boolean;
+}
+
+/**
+ * Every obligation the specs' scopes reach through their links, keyed by
+ * `ADR-nnnn#R-n`. `problems` names links that do not parse and ids declared by
+ * two different records — either leaves the obligations ambiguous.
+ */
+export function reachedObligations(
+  specs: readonly ResolvedSpec[],
+): { obligations: Map<string, ReachedObligation>; problems: string[] } {
+  const obligations = new Map<string, ReachedObligation>();
+  const problems: string[] = [];
+  const recordOf = new Map<string, string>(); // ADR id → file key
+  for (const s of specs) {
+    for (const l of linkedAdrs(s.file, linksInScope(s.index, s.scope))) {
+      if (l.id === "") {
+        const p =
+          `record ${l.link} linked from ${s.path} does not parse, so its obligations are unknown`;
+        if (!problems.includes(p)) problems.push(p);
+        continue;
+      }
+      const key = fileKey(l.path);
+      const prior = recordOf.get(l.id);
+      if (prior !== undefined && prior !== key) {
+        const p =
+          `${l.id} is declared by two records (${prior} and ${key}); keep one system's records in one directory`;
+        if (!problems.includes(p)) problems.push(p);
+        continue;
+      }
+      recordOf.set(l.id, key);
+      for (const o of l.obligations) {
+        obligations.set(o, { ref: o, record: l.path, owed: l.status === "accepted" });
+      }
+    }
+  }
+  return { obligations, problems };
+}
+
 // ── serializing ──
 
 const taskNum = (id: string): number => Number(id.match(/^T-([0-9]+)$/)?.[1] ?? 0);
+const obligationKey = (id: string): [string, number] => {
+  const m = id.match(OBLIGATION_RE);
+  return m ? [m[1]!, Number(m[2]!.slice(2))] : [id, 0];
+};
+
+function verdictText(v: TsVerdict, indent: string): string {
+  let out = "";
+  out += `${indent}- id: ${v.id}\n`;
+  out += `${indent}  met: ${v.met}\n`;
+  if (v.evidence.length > 0) {
+    out += `${indent}  evidence:\n`;
+    for (const e of v.evidence) out += `${indent}  - ${scalar(e)}\n`;
+  }
+  if (v.note !== "") out += `${indent}  note: ${scalar(v.note)}\n`;
+  return out;
+}
 
 /**
- * The canonical text of a tech spec. Requirements and criteria come out in the
- * spec's order (whatever order they were recorded in), tasks by number, and a
+ * The canonical text of a tech spec. Specs come out as listed, their
+ * requirements and criteria in each spec's order (whatever order they were
+ * recorded in), obligations by record then number, tasks by number, and a
  * section that is empty is omitted — an enabler has no `covers:`, an unmet
  * criterion with nothing to point at has no `evidence:`. The whole file is
  * rewritten on every mutation, which is what makes the ordering free.
+ * `indexes` maps `specs[].path` to its index; a spec missing from it keeps the
+ * recorded order.
  */
-export function serializeTechspec(ts: Techspec, spec: SpecIndex | null): string {
-  const rqPos = (id: string): number => {
-    const i = spec?.requirements.indexOf(id) ?? -1;
-    return i < 0 ? Number.MAX_SAFE_INTEGER : i;
-  };
-  const acPos = (id: string): number => {
-    const i = spec?.criteria.indexOf(id) ?? -1;
-    return i < 0 ? Number.MAX_SAFE_INTEGER : i;
-  };
+export function serializeTechspec(ts: Techspec, indexes: Map<string, SpecIndex>): string {
   const stable = <T>(xs: T[], key: (x: T) => number): T[] =>
     xs.map((x, i) => ({ x, i })).sort((a, b) => key(a.x) - key(b.x) || a.i - b.i).map((p) => p.x);
+  const pos = (list: string[] | undefined, id: string): number => {
+    const i = list?.indexOf(id) ?? -1;
+    return i < 0 ? Number.MAX_SAFE_INTEGER : i;
+  };
 
   let out = "";
-  out += `spec: ${scalar(ts.spec)}\n`;
   out += `system: ${ts.system}\n`;
 
   if (ts.analysis !== null) {
@@ -289,21 +409,36 @@ export function serializeTechspec(ts: Techspec, spec: SpecIndex | null): string 
     }
   }
 
-  if (ts.requirements.length > 0) {
-    out += "\nrequirements:\n";
-    for (const rq of stable(ts.requirements, (r) => rqPos(r.id))) {
-      out += `- id: ${rq.id}\n`;
-      out += "  acceptance-criteria:\n";
-      for (const ac of stable(rq.criteria, (c) => acPos(c.id))) {
-        out += `  - id: ${ac.id}\n`;
-        out += `    met: ${ac.met}\n`;
-        if (ac.evidence.length > 0) {
-          out += "    evidence:\n";
-          for (const e of ac.evidence) out += `    - ${scalar(e)}\n`;
+  if (ts.specs.length > 0) {
+    out += "\nspecs:\n";
+    for (const s of ts.specs) {
+      const idx = indexes.get(s.path);
+      out += `- path: ${scalar(s.path)}\n`;
+      if (s.scope.length > 0) {
+        out += "  scope:\n";
+        for (const c of stable(s.scope, (c) => pos(idx?.criteria, c))) out += `  - ${c}\n`;
+      }
+      if (s.requirements.length > 0) {
+        out += "  requirements:\n";
+        for (const rq of stable(s.requirements, (r) => pos(idx?.requirements, r.id))) {
+          out += `  - id: ${rq.id}\n`;
+          out += "    acceptance-criteria:\n";
+          for (const ac of stable(rq.criteria, (c) => pos(idx?.criteria, c.id))) {
+            out += verdictText(ac, "    ");
+          }
         }
-        if (ac.note !== "") out += `    note: ${scalar(ac.note)}\n`;
       }
     }
+  }
+
+  if (ts.obligations.length > 0) {
+    out += "\nobligations:\n";
+    const sorted = [...ts.obligations].sort((a, b) => {
+      const [ra, na] = obligationKey(a.id);
+      const [rb, nb] = obligationKey(b.id);
+      return ra < rb ? -1 : ra > rb ? 1 : na - nb;
+    });
+    for (const o of sorted) out += verdictText(o, "");
   }
 
   if (ts.tasks.length > 0) {
@@ -313,7 +448,7 @@ export function serializeTechspec(ts: Techspec, spec: SpecIndex | null): string 
       out += `  title: ${scalar(t.title)}\n`;
       if (t.covers.length > 0) {
         out += "  covers:\n";
-        for (const c of t.covers) out += `  - ${c}\n`;
+        for (const c of t.covers) out += `  - ${scalar(c)}\n`;
       }
       if (t.why !== "") out += `  why: ${scalar(t.why)}\n`;
       if (t.dependsOn.length > 0) {
@@ -330,8 +465,10 @@ export function serializeTechspec(ts: Techspec, spec: SpecIndex | null): string 
 export interface TechspecValidation {
   findings: Finding[];
   summary: Summary;
-  /** The spec's index when it resolved; null under E703. */
-  spec: SpecIndex | null;
+  /** The specs that resolved, in listed order; one that did not is E703 and absent here. */
+  specs: ResolvedSpec[];
+  /** True when every listed spec resolved — only then are E706/E712/E716 complete. */
+  complete: boolean;
 }
 
 function readSpec(path: string): SpecIndex | null {
@@ -345,9 +482,9 @@ function readSpec(path: string): SpecIndex | null {
 }
 
 /**
- * Apply E701–E715 to a tech spec's records. `file` is needed to resolve `spec`
- * relative to the tech spec's own directory, exactly as a composite resolves
- * its members.
+ * Apply E701–E719 to a tech spec's records. `file` is needed to resolve each
+ * `specs[].path` relative to the tech spec's own directory, exactly as a
+ * composite resolves its members.
  */
 export function validateTechspec(file: string, records: readonly FlatRecord[]): TechspecValidation {
   const findings: Finding[] = [];
@@ -366,35 +503,6 @@ export function validateTechspec(file: string, records: readonly FlatRecord[]): 
   }
 
   const ts = parseTechspec(records);
-
-  // ── E703: the spec must resolve and parse ──
-  let spec: SpecIndex | null = null;
-  if (seenTop.has("spec")) {
-    if (ts.spec === "" || !ts.spec.endsWith(SPEC_EXT)) {
-      finding("E703", lineOf("spec"), "spec", `spec must name a ${SPEC_EXT} file, got: ${ts.spec}`);
-    } else {
-      const path = specPathOf(file, ts.spec);
-      spec = readSpec(path);
-      if (spec === null) {
-        finding(
-          "E703",
-          lineOf("spec"),
-          "spec",
-          `spec does not resolve to a parseable file: ${path}`,
-        );
-      }
-    }
-  }
-
-  // ── E704: system agrees with the spec ──
-  if (spec !== null && seenTop.has("system") && ts.system !== spec.system) {
-    finding(
-      "E704",
-      lineOf("system"),
-      "system",
-      `system is ${ts.system} but the spec says ${spec.system}`,
-    );
-  }
 
   // ── E705: analysis ──
   if (ts.analysis !== null) {
@@ -440,117 +548,210 @@ export function validateTechspec(file: string, records: readonly FlatRecord[]): 
     }
   }
 
-  // ── requirements / criteria: E706–E710 ──
+  // Structural checks shared by a criterion verdict and an obligation verdict (E708–E710).
+  const checkVerdict = (p: string, label: string, unknownKey: string): string => {
+    for (const k of childKeys(records, p)) {
+      if (!VERDICT_KEYS.has(k)) {
+        finding(unknownKey, lineOf(`${p}.${k}`), `${p}.${k}`, `unknown key under ${p}: ${k}`);
+      }
+    }
+    const idLine = lineOf(`${p}.id`);
+    const met = recordAt(records, `${p}.met`);
+    if (met === undefined) {
+      finding("E708", idLine, p, `${label}: missing required field: met`);
+    } else if (met.value !== "true" && met.value !== "false") {
+      finding("E708", met.line, `${p}.met`, `${label}: met must be true|false, got: ${met.value}`);
+    }
+    const evidence = itemsUnder(records, `${p}.evidence`);
+    for (const r of strayUnder(records, `${p}.evidence`)) {
+      finding("E710", r.line, r.path, strayMessage(r));
+    }
+    for (const r of evidence) {
+      if (r.value === "") finding("E710", r.line, r.path, `${label}: evidence entry is empty`);
+    }
+    if (met?.value === "true" && evidence.length === 0) {
+      finding("E709", idLine, p, `${label}: met: true must cite at least one piece of evidence`);
+    }
+    const note = recordAt(records, `${p}.note`);
+    if (note !== undefined && note.value === "") {
+      finding("E710", note.line, `${p}.note`, `${label}: note is empty`);
+    }
+    return met?.value ?? "";
+  };
+
+  // ── specs: E703/E704/E717, then their verdicts E706–E710 ──
+  const resolved: ResolvedSpec[] = [];
+  const specIdx = indicesUnder(records, "specs");
+  let complete = true;
+  if (seenTop.has("specs") && specIdx.length === 0) {
+    finding("E703", lineOf("specs"), "specs", "specs lists no spec");
+  }
+  const seenSpec = new Map<string, string>(); // file key → path as written
+  /** `<path>#AC-n` → its verdict, for every criterion recorded under a resolved spec. */
   const recorded = new Map<string, { met: string; line: number; path: string }>();
   let nAc = 0;
-  for (const i of indicesUnder(records, "requirements")) {
-    const rp = `requirements[${i}]`;
-    const rqId = recordAt(records, `${rp}.id`)?.value ?? "";
-    const rqLine = lineOf(`${rp}.id`);
-    for (const k of childKeys(records, rp)) {
-      if (!RQ_KEYS.has(k)) {
-        finding("E710", lineOf(`${rp}.${k}`), `${rp}.${k}`, `unknown key under ${rp}: ${k}`);
+  let nRq = 0;
+  for (const s of specIdx) {
+    const sp = `specs[${s}]`;
+    for (const k of childKeys(records, sp)) {
+      if (!SPEC_KEYS.has(k)) {
+        finding("E703", lineOf(`${sp}.${k}`), `${sp}.${k}`, `unknown key under ${sp}: ${k}`);
       }
     }
-    if (rqId === "") {
-      finding("E710", 0, rp, `${rp}: missing required field: id`);
-    } else if (spec !== null && !spec.requirements.includes(rqId)) {
-      finding("E707", rqLine, `${rp}.id`, `requirement ${rqId} is not in the spec`);
-    }
-
-    for (const j of indicesUnder(records, `${rp}.acceptance-criteria`)) {
-      const ap = `${rp}.acceptance-criteria[${j}]`;
-      const acId = recordAt(records, `${ap}.id`)?.value ?? "";
-      const acLine = lineOf(`${ap}.id`);
-      nAc++;
-      for (const k of childKeys(records, ap)) {
-        if (!AC_KEYS.has(k)) {
-          finding("E710", lineOf(`${ap}.${k}`), `${ap}.${k}`, `unknown key under ${ap}: ${k}`);
-        }
-      }
-      if (acId === "") {
-        finding("E710", 0, ap, `${ap}: missing required field: id`);
-      } else if (recorded.has(acId)) {
-        finding("E707", acLine, `${ap}.id`, `criterion ${acId} is recorded twice`);
-      } else if (spec !== null && !spec.criteria.includes(acId)) {
-        finding("E707", acLine, `${ap}.id`, `criterion ${acId} is not in the spec`);
-      } else if (spec !== null && rqId !== "" && spec.ownerOf.get(acId) !== rqId) {
-        finding(
-          "E707",
-          acLine,
-          `${ap}.id`,
-          `criterion ${acId} belongs to ${spec.ownerOf.get(acId)} in the spec, not ${rqId}`,
-        );
-      }
-
-      const met = recordAt(records, `${ap}.met`);
-      if (met === undefined) {
-        finding("E708", acLine, ap, `${acId || ap}: missing required field: met`);
-      } else if (met.value !== "true" && met.value !== "false") {
-        finding(
-          "E708",
-          met.line,
-          `${ap}.met`,
-          `${acId || ap}: met must be true|false, got: ${met.value}`,
-        );
-      }
-      const evidence = itemsUnder(records, `${ap}.evidence`);
-      for (const r of strayUnder(records, `${ap}.evidence`)) {
-        finding("E710", r.line, r.path, strayMessage(r));
-      }
-      for (const r of evidence) {
-        if (r.value === "") {
-          finding("E710", r.line, r.path, `${acId || ap}: evidence entry is empty`);
-        }
-      }
-      if (met?.value === "true" && evidence.length === 0) {
-        finding(
-          "E709",
-          acLine,
-          ap,
-          `${acId || ap}: met: true must cite at least one piece of evidence`,
-        );
-      }
-      const note = recordAt(records, `${ap}.note`);
-      if (note !== undefined && note.value === "") {
-        finding("E710", note.line, `${ap}.note`, `${acId || ap}: note is empty`);
-      }
-      if (acId !== "" && !recorded.has(acId)) {
-        recorded.set(acId, { met: met?.value ?? "", line: acLine, path: ap });
-      }
-    }
-  }
-
-  // E706: every criterion of the spec has a verdict.
-  if (spec !== null) {
-    for (const acId of spec.criteria) {
-      if (!recorded.has(acId)) {
-        finding("E706", 0, "requirements", `criterion ${acId} of the spec has no verdict`);
-      }
-    }
-  }
-
-  // Obligations a task may cover: every linked record's; those it must cover: an accepted one's.
-  const linked = spec === null ? [] : linkedAdrs(specPathOf(file, ts.spec), spec);
-  const obligations = new Set<string>();
-  const required = new Set<string>();
-  for (const l of linked) {
-    if (l.id === "") {
+    const path = recordAt(records, `${sp}.path`)?.value ?? "";
+    const pathLine = lineOf(`${sp}.path`);
+    let index: SpecIndex | null = null;
+    if (path === "" || !path.endsWith(SPEC_EXT)) {
       finding(
-        "E716",
-        0,
-        "spec",
-        `linked record ${l.link} does not parse, so its obligations are unknown`,
+        "E703",
+        pathLine,
+        `${sp}.path`,
+        `${sp}: path must name a ${SPEC_EXT} file, got: ${path}`,
       );
-      continue;
+    } else {
+      const f = specPathOf(file, path);
+      const key = fileKey(f);
+      const prior = seenSpec.get(key);
+      if (prior !== undefined) {
+        finding("E703", pathLine, `${sp}.path`, `${path} is listed twice (as ${prior} before)`);
+      } else {
+        seenSpec.set(key, path);
+        index = readSpec(f);
+        if (index === null) {
+          finding("E703", pathLine, `${sp}.path`, `${path} does not resolve to a parseable file`);
+        }
+      }
     }
-    for (const o of l.obligations) {
-      obligations.add(o);
-      if (l.status === "accepted") required.add(o);
+    if (index === null) complete = false;
+
+    // E704: every spec is of the tech spec's system.
+    if (index !== null && seenTop.has("system") && ts.system !== index.system) {
+      finding(
+        "E704",
+        pathLine,
+        `${sp}.path`,
+        `system is ${ts.system} but ${path} says ${index.system}`,
+      );
+    }
+
+    // E717: scope names criteria of this spec, once each.
+    const scopeItems = itemsUnder(records, `${sp}.scope`);
+    for (const r of strayUnder(records, `${sp}.scope`)) {
+      finding("E717", r.line, r.path, strayMessage(r));
+    }
+    const scope: string[] = [];
+    for (const r of scopeItems) {
+      if (scope.includes(r.value)) {
+        finding("E717", r.line, r.path, `${path}: scope names ${r.value} twice`);
+      } else if (!AC_ID_RE.test(r.value)) {
+        finding(
+          "E717",
+          r.line,
+          r.path,
+          `${path}: scope entries are criteria (AC-N), got: ${r.value}`,
+        );
+      } else if (index !== null && !index.criteria.includes(r.value)) {
+        finding(
+          "E717",
+          r.line,
+          r.path,
+          `${path}: scope names ${r.value}, which is not in the spec`,
+        );
+      }
+      scope.push(r.value);
+    }
+    if (index !== null) resolved.push({ path, file: specPathOf(file, path), index, scope });
+    const inScope = index === null ? [] : criteriaInScope(index, scope);
+
+    for (const i of indicesUnder(records, `${sp}.requirements`)) {
+      const rp = `${sp}.requirements[${i}]`;
+      nRq++;
+      const rqId = recordAt(records, `${rp}.id`)?.value ?? "";
+      for (const k of childKeys(records, rp)) {
+        if (!RQ_KEYS.has(k)) {
+          finding("E710", lineOf(`${rp}.${k}`), `${rp}.${k}`, `unknown key under ${rp}: ${k}`);
+        }
+      }
+      if (rqId === "") {
+        finding("E710", 0, rp, `${rp}: missing required field: id`);
+      } else if (index !== null && !index.requirements.includes(rqId)) {
+        finding("E707", lineOf(`${rp}.id`), `${rp}.id`, `requirement ${rqId} is not in ${path}`);
+      }
+
+      for (const j of indicesUnder(records, `${rp}.acceptance-criteria`)) {
+        const ap = `${rp}.acceptance-criteria[${j}]`;
+        nAc++;
+        const acId = recordAt(records, `${ap}.id`)?.value ?? "";
+        const acLine = lineOf(`${ap}.id`);
+        const ref = `${path}#${acId}`;
+        if (acId === "") {
+          finding("E710", 0, ap, `${ap}: missing required field: id`);
+        } else if (recorded.has(ref)) {
+          finding("E707", acLine, `${ap}.id`, `criterion ${ref} is recorded twice`);
+        } else if (index !== null && !index.criteria.includes(acId)) {
+          finding("E707", acLine, `${ap}.id`, `criterion ${acId} is not in ${path}`);
+        } else if (index !== null && rqId !== "" && index.ownerOf.get(acId) !== rqId) {
+          finding(
+            "E707",
+            acLine,
+            `${ap}.id`,
+            `criterion ${acId} belongs to ${index.ownerOf.get(acId)} in ${path}, not ${rqId}`,
+          );
+        } else if (index !== null && !inScope.includes(acId)) {
+          finding("E707", acLine, `${ap}.id`, `criterion ${ref} is outside the scope`);
+        }
+        const met = checkVerdict(ap, acId === "" ? ap : ref, "E710");
+        if (acId !== "" && index !== null && !recorded.has(ref)) {
+          recorded.set(ref, { met, line: acLine, path: ap });
+        }
+      }
+    }
+
+    // E706: every criterion in scope has a verdict.
+    for (const acId of inScope) {
+      if (!recorded.has(`${path}#${acId}`)) {
+        finding("E706", pathLine, sp, `criterion ${path}#${acId} has no verdict`);
+      }
+    }
+  }
+
+  // ── obligations: E716/E718/E719 ──
+  const reached = reachedObligations(resolved);
+  for (const p of reached.problems) finding("E719", 0, "specs", p);
+  const obligationVerdict = new Map<string, { met: string; line: number; path: string }>();
+  for (const i of indicesUnder(records, "obligations")) {
+    const op = `obligations[${i}]`;
+    const id = recordAt(records, `${op}.id`)?.value ?? "";
+    const idLine = lineOf(`${op}.id`);
+    if (id === "") {
+      finding("E710", 0, op, `${op}: missing required field: id`);
+    } else if (!OBLIGATION_RE.test(id)) {
+      finding("E718", idLine, `${op}.id`, `${op}: id must be ADR-nnnn#R-n, got: ${id}`);
+    } else if (obligationVerdict.has(id)) {
+      finding("E718", idLine, `${op}.id`, `obligation ${id} is recorded twice`);
+    } else if (complete && !reached.obligations.has(id)) {
+      finding(
+        "E718",
+        idLine,
+        `${op}.id`,
+        `obligation ${id} is declared by no record the scope links`,
+      );
+    }
+    const met = checkVerdict(op, id || op, "E710");
+    if (id !== "" && !obligationVerdict.has(id)) {
+      obligationVerdict.set(id, { met, line: idLine, path: op });
+    }
+  }
+  if (complete) {
+    for (const o of reached.obligations.values()) {
+      if (o.owed && !obligationVerdict.has(o.ref)) {
+        finding("E716", 0, "obligations", `obligation ${o.ref} has no verdict`);
+      }
     }
   }
 
   // ── tasks: E711–E714 ──
+  const listed = new Set(resolved.map((s) => s.path));
   const taskIds = new Set<string>();
   const covered = new Set<string>();
   const deps = new Map<string, string[]>();
@@ -586,24 +787,22 @@ export function validateTechspec(file: string, records: readonly FlatRecord[]): 
     }
     const seenCov = new Set<string>();
     for (const c of covers) {
-      const v = recorded.get(c.value);
+      const at = (msg: string): void => finding("E712", c.line, c.path, `${label}: ${msg}`);
+      const crit = c.value.match(CRITERION_REF_RE);
       if (seenCov.has(c.value)) {
-        finding("E712", c.line, c.path, `${label}: covers ${c.value} twice`);
+        at(`covers ${c.value} twice`);
       } else if (OBLIGATION_RE.test(c.value)) {
-        if (spec !== null && !obligations.has(c.value)) {
-          finding(
-            "E712",
-            c.line,
-            c.path,
-            `${label}: covers ${c.value}, which no record linked from the spec declares`,
-          );
-        }
-      } else if (spec !== null && !spec.criteria.includes(c.value)) {
-        finding("E712", c.line, c.path, `${label}: covers ${c.value}, which is not in the spec`);
-      } else if (v === undefined) {
-        finding("E712", c.line, c.path, `${label}: covers ${c.value}, which has no verdict`);
-      } else if (v.met === "true") {
-        finding("E712", c.line, c.path, `${label}: covers ${c.value}, which is already met`);
+        const v = obligationVerdict.get(c.value);
+        if (v === undefined) at(`covers ${c.value}, which has no verdict`);
+        else if (v.met === "true") at(`covers ${c.value}, which is already met`);
+      } else if (crit === null) {
+        at(`covers ${c.value}; expected <spec>#AC-N or ADR-nnnn#R-n`);
+      } else if (!listed.has(crit[1]!)) {
+        if (complete) at(`covers ${c.value}, but ${crit[1]} is not a spec this tech spec lists`);
+      } else {
+        const v = recorded.get(c.value);
+        if (v === undefined) at(`covers ${c.value}, which has no verdict`);
+        else if (v.met === "true") at(`covers ${c.value}, which is already met`);
       }
       seenCov.add(c.value);
       covered.add(c.value);
@@ -611,13 +810,13 @@ export function validateTechspec(file: string, records: readonly FlatRecord[]): 
 
     const why = recordAt(records, `${tp}.why`);
     if (covers.length === 0 && (why === undefined || why.value === "")) {
-      finding("E713", idLine, tp, `${label}: covers no criterion, so it needs a why`);
+      finding("E713", idLine, tp, `${label}: covers nothing, so it needs a why`);
     } else if (covers.length > 0 && why !== undefined) {
       finding(
         "E713",
         why.line,
         `${tp}.why`,
-        `${label}: covers criteria; drop the why (the criteria justify it)`,
+        `${label}: covers criteria or obligations; drop the why (they justify it)`,
       );
     }
 
@@ -667,25 +866,17 @@ export function validateTechspec(file: string, records: readonly FlatRecord[]): 
   };
   for (const id of [...taskIds].sort((a, b) => taskNum(a) - taskNum(b))) visit(id, []);
 
-  // ── E715: every unmet criterion is covered ──
-  for (const [acId, v] of recorded) {
-    if (v.met === "false" && !covered.has(acId)) {
-      finding("E715", v.line, v.path, `${acId} is unmet and no task covers it`);
+  // ── E715: every unmet criterion and obligation is covered ──
+  for (const [ref, v] of [...recorded, ...obligationVerdict]) {
+    if (v.met === "false" && !covered.has(ref)) {
+      finding("E715", v.line, v.path, `${ref} is unmet and no task covers it`);
     }
-  }
-
-  // ── E716: every obligation of an accepted linked record is covered ──
-  for (const o of required) {
-    if (!covered.has(o)) finding("E716", 0, "tasks", `obligation ${o} is covered by no task`);
   }
 
   return {
     findings,
-    summary: {
-      requirements: ts.requirements.length,
-      acceptanceCriteria: nAc,
-      tasks: ts.tasks.length,
-    },
-    spec,
+    summary: { requirements: nRq, acceptanceCriteria: nAc, tasks: ts.tasks.length },
+    specs: resolved,
+    complete,
   };
 }

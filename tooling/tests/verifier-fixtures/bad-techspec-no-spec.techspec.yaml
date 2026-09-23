@@ -1,2 +1,4 @@
-spec: does-not-exist.yamlet.yaml
 system: e-mail-sending-service
+
+specs:
+- path: does-not-exist.yamlet.yaml

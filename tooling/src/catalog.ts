@@ -182,24 +182,29 @@ export const CATALOG: Rule[] = [
     severity: "error",
     description: "a declared composite output is not fed by any connection",
   },
-  // ── tech spec (.techspec.yaml): the gap analysis + task list projected from one spec ──
+  // ── tech spec (.techspec.yaml): one change's gap analysis + task list over the specs it touches ──
   {
     id: "E701",
     severity: "error",
-    description: "tech spec is missing a required top-level key (spec, system, analysis)",
+    description: "tech spec is missing a required top-level key (system, analysis, specs)",
   },
   {
     id: "E702",
     severity: "error",
     description:
-      "unknown top-level key in a tech spec (allowed: spec, system, analysis, requirements, tasks)",
+      "unknown top-level key in a tech spec (allowed: system, analysis, specs, obligations, tasks)",
   },
   {
     id: "E703",
     severity: "error",
-    description: "tech spec's `spec` does not resolve to a parseable .yamlet.yaml next to it",
+    description:
+      "a specs entry is malformed: its path must resolve to a parseable .yamlet.yaml, listed once (keys: path, scope, requirements)",
   },
-  { id: "E704", severity: "error", description: "tech spec's system differs from its spec's" },
+  {
+    id: "E704",
+    severity: "error",
+    description: "a listed spec's system differs from the tech spec's",
+  },
   {
     id: "E705",
     severity: "error",
@@ -209,25 +214,25 @@ export const CATALOG: Rule[] = [
   {
     id: "E706",
     severity: "error",
-    description: "a criterion of the spec has no verdict in the tech spec",
+    description: "a criterion in scope has no verdict in the tech spec",
   },
   {
     id: "E707",
     severity: "error",
     description:
-      "a recorded requirement or criterion is not in the spec, sits under the wrong requirement, or is recorded twice",
+      "a recorded requirement or criterion is not in its spec, sits under the wrong requirement, is outside the scope, or is recorded twice",
   },
   {
     id: "E708",
     severity: "error",
-    description: "criterion verdict `met` is missing or not true|false",
+    description: "a verdict's `met` is missing or not true|false",
   },
-  { id: "E709", severity: "error", description: "a criterion marked met: true cites no evidence" },
+  { id: "E709", severity: "error", description: "a verdict marked met: true cites no evidence" },
   {
     id: "E710",
     severity: "error",
     description:
-      "requirement or criterion entry is malformed (missing id, unknown key, empty evidence or note)",
+      "requirement, criterion or obligation entry is malformed (missing id, unknown key, empty evidence or note)",
   },
   {
     id: "E711",
@@ -239,24 +244,46 @@ export const CATALOG: Rule[] = [
     id: "E712",
     severity: "error",
     description:
-      "task covers a criterion that is unknown, has no verdict, is already met, or is listed twice",
+      "task covers something that is not <spec>#AC-N of a listed spec or ADR-nnnn#R-n, has no verdict, is already met, or is listed twice",
   },
   {
     id: "E713",
     severity: "error",
-    description: "a task covering nothing needs `why`; a task covering criteria must not carry one",
+    description: "a task covering nothing needs `why`; a task covering anything must not carry one",
   },
   {
     id: "E714",
     severity: "error",
     description: "depends_on names an unknown task, the task itself, a duplicate, or forms a cycle",
   },
-  { id: "E715", severity: "error", description: "an unmet criterion is covered by no task" },
+  {
+    id: "E715",
+    severity: "error",
+    description: "an unmet criterion or obligation is covered by no task",
+  },
   {
     id: "E716",
     severity: "error",
     description:
-      "an obligation (ADR-nnnn#R-n) of an accepted record linked from the spec is covered by no task",
+      "an obligation (ADR-nnnn#R-n) of an accepted record the scope links has no verdict",
+  },
+  {
+    id: "E717",
+    severity: "error",
+    description:
+      "a spec's scope names something that is not one of its criteria, or names it twice",
+  },
+  {
+    id: "E718",
+    severity: "error",
+    description:
+      "an obligation verdict names an id that is not ADR-nnnn#R-n of a record the scope links, or is recorded twice",
+  },
+  {
+    id: "E719",
+    severity: "error",
+    description:
+      "a record the scope links does not parse, or two linked records declare the same ADR id",
   },
   // ── decision records (.adr.yaml, format adr/v1) ──
   {

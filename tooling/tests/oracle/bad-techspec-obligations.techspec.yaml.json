@@ -1,5 +1,11 @@
 {"file":"bad-techspec-obligations.techspec.yaml","valid":false,"errors":[
-  {"rule":"E716","severity":"error","line":0,"path":"tasks","message":"obligation ADR-0001#R-4 is covered by no task"},
-  {"rule":"E712","severity":"error","line":80,"path":"tasks[3].covers[2]","message":"T-4: covers ADR-0077#R-1, which no record linked from the spec declares"}
+  {"rule":"E716","severity":"error","line":0,"path":"obligations","message":"obligation ADR-0001#R-4 has no verdict"},
+  {"rule":"E709","severity":"error","line":24,"path":"obligations[1]","message":"ADR-0001#R-2: met: true must cite at least one piece of evidence"},
+  {"rule":"E715","severity":"error","line":26,"path":"obligations[2]","message":"ADR-0001#R-3 is unmet and no task covers it"},
+  {"rule":"E715","severity":"error","line":28,"path":"obligations[3]","message":"ADR-0077#R-1 is unmet and no task covers it"},
+  {"rule":"E718","severity":"error","line":28,"path":"obligations[3].id","message":"obligation ADR-0077#R-1 is declared by no record the scope links"},
+  {"rule":"E718","severity":"error","line":30,"path":"obligations[4].id","message":"obligation ADR-0001#R-1 is recorded twice"},
+  {"rule":"E712","severity":"error","line":39,"path":"tasks[0].covers[2]","message":"T-1: covers ADR-0001#R-2, which is already met"},
+  {"rule":"E712","severity":"error","line":44,"path":"tasks[1].covers[1]","message":"T-2: covers ADR-0002#R-1, which has no verdict"}
 ],"warnings":[
-],"summary":{"requirements":6,"acceptanceCriteria":10,"tasks":4}}
+],"summary":{"requirements":2,"acceptanceCriteria":2,"tasks":2}}

@@ -1,5 +1,5 @@
-// `yamlet techspec` end to end: a tech spec is built from a finished spec by
-// the four subcommands, comes out in canonical order whatever order it was
+// `yamlet techspec` end to end: a tech spec is built from finished specs by
+// the five subcommands, comes out in canonical order whatever order it was
 // recorded in, and every rejection is a usage error that writes nothing.
 // `verify` on the result is the closing gate the skill relies on.
 
@@ -10,6 +10,7 @@ import {
   runTechspecAnalysis,
   runTechspecCriterion,
   runTechspecInit,
+  runTechspecObligation,
   runTechspecTask,
 } from "../src/techspec_author.ts";
 import { verifyFile } from "../src/verify.ts";
@@ -17,12 +18,12 @@ import { renderHuman, renderJson } from "../src/render.ts";
 import type { CmdResult } from "../src/types.ts";
 
 /** A finished spec: two requirements, AC-1/AC-2 under RQ-1 and AC-3 under RQ-2. */
-function seedSpec(dir: string): string {
-  const file = `${dir}/svc.yamlet.yaml`;
+function seedSpec(dir: string, name = "svc", system = "svc"): string {
+  const file = `${dir}/${name}.yamlet.yaml`;
   runInit([
     file,
     "--system",
-    "svc",
+    system,
     "--topic",
     "T",
     "--summary",
@@ -88,7 +89,7 @@ function refused(r: CmdResult, needle: string): void {
   assertStringIncludes(r.stderr, needle);
 }
 
-Deno.test("init writes spec + system next to the spec and prints the path", () => {
+Deno.test("init writes system + specs next to the spec and prints the path", () => {
   const dir = Deno.makeTempDirSync();
   const spec = seedSpec(dir);
   const r = runTechspecInit([spec]);
@@ -96,7 +97,7 @@ Deno.test("init writes spec + system next to the spec and prints the path", () =
   assertEquals(r.stdout, `${dir}/svc.techspec.yaml\n`);
   assertEquals(
     Deno.readTextFileSync(`${dir}/svc.techspec.yaml`),
-    "spec: svc.yamlet.yaml\nsystem: svc\n",
+    "system: svc\n\nspecs:\n- path: svc.yamlet.yaml\n",
   );
 
   // A fresh tech spec carries only in-progress findings: no analysis, no verdicts.
@@ -111,7 +112,7 @@ Deno.test("init --out elsewhere records the spec relative to the tech spec's dir
   Deno.mkdirSync(`${dir}/plan/deep`, { recursive: true });
   ok(runTechspecInit([spec, "--out", `${dir}/plan/deep/x.techspec.yaml`]), "init --out");
   const text = Deno.readTextFileSync(`${dir}/plan/deep/x.techspec.yaml`);
-  assertEquals(text, "spec: ../../svc.yamlet.yaml\nsystem: svc\n");
+  assertEquals(text, "system: svc\n\nspecs:\n- path: ../../svc.yamlet.yaml\n");
   // And the recorded path resolves: verify finds the spec through it.
   const rules = verifyFile(`${dir}/plan/deep/x.techspec.yaml`).result.errors.map((e) => e.rule);
   assertEquals(rules.includes("E703"), false);
@@ -202,8 +203,7 @@ Deno.test("the full flow: verdicts in any order come out in spec order, tasks ar
 
   assertEquals(
     Deno.readTextFileSync(ts),
-    `spec: svc.yamlet.yaml
-system: svc
+    `system: svc
 
 analysis:
   commit: 9f3c1ab
@@ -213,22 +213,24 @@ analysis:
   skimmed:
   - src/res
 
-requirements:
-- id: RQ-1
-  acceptance-criteria:
-  - id: AC-1
-    met: true
-    evidence:
-    - src/main/A.java:12
-  - id: AC-2
-    met: false
-    evidence:
-    - src/main/B.java:40
-- id: RQ-2
-  acceptance-criteria:
-  - id: AC-3
-    met: false
-    note: not there
+specs:
+- path: svc.yamlet.yaml
+  requirements:
+  - id: RQ-1
+    acceptance-criteria:
+    - id: AC-1
+      met: true
+      evidence:
+      - src/main/A.java:12
+    - id: AC-2
+      met: false
+      evidence:
+      - src/main/B.java:40
+  - id: RQ-2
+    acceptance-criteria:
+    - id: AC-3
+      met: false
+      note: not there
 
 tasks:
 - id: T-1
@@ -237,13 +239,13 @@ tasks:
 - id: T-2
   title: Do b
   covers:
-  - AC-2
+  - svc.yamlet.yaml#AC-2
   depends_on:
   - T-1
 - id: T-3
   title: "Do c: the rest"
   covers:
-  - AC-3
+  - svc.yamlet.yaml#AC-3
   depends_on:
   - T-1
   - T-2
@@ -390,7 +392,7 @@ Deno.test("decided behaviour: verdict and task print the linked ADRs; unlinked s
   ok(a1, "AC-1");
   assertEquals(
     a1.stderr,
-    "DECIDED: AC-1 is decided by an ADR (via RQ-1).\n  adr/ADR-0001.adr.yaml\n" +
+    "DECIDED: svc.yamlet.yaml#AC-1 is decided by an ADR (via RQ-1).\n  adr/ADR-0001.adr.yaml\n" +
       "The evidence for AC-1 must fit these decisions.\n",
   );
   // AC-2: via the requirement and itself; the shared record appears once.
@@ -398,7 +400,8 @@ Deno.test("decided behaviour: verdict and task print the linked ADRs; unlinked s
   ok(a2, "AC-2");
   assertEquals(
     a2.stderr,
-    "DECIDED: AC-2 is decided by an ADR (via RQ-1 and itself).\n  adr/ADR-0001.adr.yaml\n  adr/ADR-0002.adr.yaml\n" +
+    "DECIDED: svc.yamlet.yaml#AC-2 is decided by an ADR (via RQ-1 and itself).\n" +
+      "  adr/ADR-0001.adr.yaml\n  adr/ADR-0002.adr.yaml\n" +
       "The task covering AC-2 must fit these decisions, or state that one no longer holds.\n",
   );
   // AC-3: nothing linked.
@@ -413,7 +416,167 @@ Deno.test("decided behaviour: verdict and task print the linked ADRs; unlinked s
   assertEquals(t2.stdout, "T-2\n");
   assertEquals(
     t2.stderr,
-    "DECIDED: T-2 covers behaviour an ADR decides.\n  AC-2: adr/ADR-0001.adr.yaml, adr/ADR-0002.adr.yaml\n",
+    "DECIDED: T-2 covers behaviour an ADR decides.\n" +
+      "  svc.yamlet.yaml#AC-2: adr/ADR-0001.adr.yaml, adr/ADR-0002.adr.yaml\n",
   );
   assertEquals(verifyFile(ts).exitCode, 0);
+});
+
+// ── one plan across specs ──
+
+/** An accepted record with two obligations, in `dir/adr/`. */
+function seedAdr(dir: string, id = "ADR-0001"): string {
+  Deno.mkdirSync(`${dir}/adr`, { recursive: true });
+  const rel = `adr/${id}.adr.yaml`;
+  Deno.writeTextFileSync(
+    `${dir}/${rel}`,
+    `adr: ${id}\nstatus: accepted\nrequires:\n- id: R-1\n  must: a\n- id: R-2\n  must: b\n`,
+  );
+  return rel;
+}
+
+Deno.test("init lists every spec of one system; a task depends across them", () => {
+  const dir = Deno.makeTempDirSync();
+  const a = seedSpec(dir, "a", "svc");
+  const b = seedSpec(dir, "b", "svc");
+  const r = runTechspecInit([a, b]);
+  ok(r, "init");
+  // Named after the system, beside the first spec.
+  const ts = `${dir}/svc.techspec.yaml`;
+  assertEquals(r.stdout, `${ts}\n`);
+  assertEquals(
+    Deno.readTextFileSync(ts),
+    "system: svc\n\nspecs:\n- path: a.yamlet.yaml\n- path: b.yamlet.yaml\n",
+  );
+  assertEquals(verifyFile(ts).result.errors.filter((e) => e.rule === "E706").length, 6);
+
+  ok(runTechspecAnalysis([ts, "--commit", "9f3c1ab"]), "analysis");
+  // With two specs a bare AC-N is ambiguous; a path reaching the file is written as listed.
+  refused(runTechspecCriterion([ts, "--ac", "AC-1", "--met", "false"]), "ambiguous");
+  refused(runTechspecCriterion([ts, "--ac", "c.yamlet.yaml#AC-1", "--met", "false"]), "not a spec");
+  for (const spec of ["a", "b"]) {
+    for (const ac of ["AC-1", "AC-2", "AC-3"]) {
+      const met = ac === "AC-1" ? ["--met", "true", "--evidence", "x:1"] : ["--met", "false"];
+      ok(runTechspecCriterion([ts, "--ac", `${dir}/${spec}.yamlet.yaml#${ac}`, ...met]), ac);
+    }
+  }
+  ok(runTechspecTask([ts, "--title", "Shared foundation", "--why", "both need it"]), "T-1");
+  for (const spec of ["a", "b"]) {
+    ok(
+      runTechspecTask([
+        ts,
+        "--title",
+        `Finish ${spec}`,
+        "--covers",
+        `${spec}.yamlet.yaml#AC-2`,
+        "--covers",
+        `${dir}/${spec}.yamlet.yaml#AC-3`,
+        "--depends-on",
+        "T-1",
+      ]),
+      spec,
+    );
+  }
+  const text = Deno.readTextFileSync(ts);
+  assertStringIncludes(text, "  covers:\n  - b.yamlet.yaml#AC-2\n  - b.yamlet.yaml#AC-3\n");
+  assertEquals(verifyFile(ts).exitCode, 0, JSON.stringify(verifyFile(ts).result.errors));
+});
+
+Deno.test("init refuses mixed systems, a spec named twice, and a second plan for a system", () => {
+  const dir = Deno.makeTempDirSync();
+  const a = seedSpec(dir, "a", "svc");
+  const other = seedSpec(dir, "o", "other");
+  refused(runTechspecInit([a, other]), "one tech spec plans one system");
+  refused(runTechspecInit([a, `${dir}/./a.yamlet.yaml`]), "named twice");
+
+  ok(runTechspecInit([a, "--out", `${dir}/first.techspec.yaml`]), "first plan");
+  const b = seedSpec(dir, "b", "svc");
+  refused(runTechspecInit([b]), "already plans svc");
+  // Another system in the same directory is its own plan.
+  ok(runTechspecInit([other]), "other system");
+});
+
+Deno.test("scope: --scope narrows a spec to the criteria a change touches", () => {
+  const dir = Deno.makeTempDirSync();
+  const a = seedSpec(dir, "a", "svc");
+  const b = seedSpec(dir, "b", "svc");
+  refused(runTechspecInit([a, b, "--scope", `${a}#AC-9`]), "has no AC-9");
+  refused(runTechspecInit([a, b, "--scope", "AC-1"]), "must name one of the specs");
+  // RQ-N expands to its criteria; a scope naming every criterion is the whole spec.
+  ok(
+    runTechspecInit([
+      a,
+      b,
+      "--scope",
+      `${a}#AC-3`,
+      "--scope",
+      `${b}#RQ-1`,
+      "--scope",
+      `${b}#RQ-2`,
+    ]),
+    "init",
+  );
+  const ts = `${dir}/svc.techspec.yaml`;
+  assertEquals(
+    Deno.readTextFileSync(ts),
+    "system: svc\n\nspecs:\n- path: a.yamlet.yaml\n  scope:\n  - AC-3\n- path: b.yamlet.yaml\n",
+  );
+  // Only the scoped criterion of a is owed a verdict; the rest of it is refused.
+  assertEquals(verifyFile(ts).result.errors.filter((e) => e.rule === "E706").length, 4);
+  refused(
+    runTechspecCriterion([ts, "--ac", "a.yamlet.yaml#AC-1", "--met", "false"]),
+    "outside the scope",
+  );
+  ok(runTechspecCriterion([ts, "--ac", "a.yamlet.yaml#AC-3", "--met", "false"]), "a#AC-3");
+});
+
+Deno.test("obligation: owed ones need a verdict; met ones cite evidence and need no task", () => {
+  const dir = Deno.makeTempDirSync();
+  const spec = seedSpec(dir);
+  ok(runAddAdr([spec, seedAdr(dir), "--rq", "RQ-1"]), "link");
+  const ts = `${dir}/svc.techspec.yaml`;
+  ok(runTechspecInit([spec]), "init");
+  const owed = verifyFile(ts).result.errors.filter((e) => e.rule === "E716");
+  assertEquals(owed.map((e) => e.message), [
+    "obligation ADR-0001#R-1 has no verdict",
+    "obligation ADR-0001#R-2 has no verdict",
+  ]);
+
+  refused(
+    runTechspecObligation([ts, "--of", "ADR-0009#R-1", "--met", "false"]),
+    "not an obligation",
+  );
+  refused(runTechspecObligation([ts, "--of", "R-1", "--met", "false"]), "expected ADR-nnnn#R-n");
+  refused(runTechspecObligation([ts, "--of", "ADR-0001#R-1", "--met", "true"]), "--evidence");
+  ok(
+    runTechspecObligation([ts, "--of", "ADR-0001#R-1", "--met", "true", "--evidence", "src/A:3"]),
+    "R-1 met",
+  );
+  refused(runTechspecObligation([ts, "--of", "ADR-0001#R-1", "--met", "false"]), "already has");
+
+  for (const ac of ["AC-1", "AC-2", "AC-3"]) {
+    ok(runTechspecCriterion([ts, "--ac", ac, "--met", "true", "--evidence", "x:1"]), ac);
+  }
+  refused(runTechspecTask([ts, "--title", "x", "--covers", "ADR-0001#R-2"]), "no verdict yet");
+  ok(runTechspecObligation([ts, "--of", "ADR-0001#R-2", "--met", "false"]), "R-2 unmet");
+  refused(runTechspecTask([ts, "--title", "x", "--covers", "ADR-0001#R-1"]), "already met");
+  ok(runTechspecAnalysis([ts, "--commit", "9f3c1ab"]), "analysis");
+  assertEquals(verifyFile(ts).result.errors.map((e) => e.rule), ["E715"]);
+  ok(runTechspecTask([ts, "--title", "Discharge R-2", "--covers", "ADR-0001#R-2"]), "T-1");
+  assertEquals(verifyFile(ts).exitCode, 0);
+  assertStringIncludes(
+    Deno.readTextFileSync(ts),
+    "obligations:\n- id: ADR-0001#R-1\n  met: true\n  evidence:\n  - src/A:3\n" +
+      "- id: ADR-0001#R-2\n  met: false\n",
+  );
+});
+
+Deno.test("obligation: a scope reaches only the records deciding what it scopes", () => {
+  const dir = Deno.makeTempDirSync();
+  const spec = seedSpec(dir);
+  ok(runAddAdr([spec, seedAdr(dir), "--ac", "AC-2"]), "link AC-2");
+  const ts = `${dir}/svc.techspec.yaml`;
+  ok(runTechspecInit([spec, "--scope", `${spec}#AC-3`]), "init");
+  assertEquals(verifyFile(ts).result.errors.some((e) => e.rule === "E716"), false);
+  refused(runTechspecObligation([ts, "--of", "ADR-0001#R-1", "--met", "false"]), "known: none");
 });

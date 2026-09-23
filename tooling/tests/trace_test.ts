@@ -2,7 +2,7 @@
 // and tasks their tech specs record, and the decision records that decide them.
 //
 // `tests/trace-fixtures/` is one verified set — `pdf-verify` with a tech spec that
-// covers ADR-0001's obligations, ADR-0002 assuming ADR-0001, and ADR-0093 superseded
+// accounts for ADR-0001's obligations (R-4 already met, the rest covered by tasks), ADR-0002 assuming ADR-0001, and ADR-0093 superseded
 // by ADR-0094. Tests that need a variation copy it to a temp dir and change one file,
 // so every assertion traces back to a single, named difference.
 
@@ -121,7 +121,7 @@ Deno.test("trace carries each criterion's verdict, evidence and EARS clauses", (
 Deno.test("trace rolls each spec up: verdict counts, tasks, ADRs, nothing left open", () => {
   const [r] = model(FIXTURES).specs;
   assert(r);
-  assertEquals(r.criteria, { met: 7, unmet: 3, unrecorded: 0, total: 10 });
+  assertEquals(r.criteria, { met: 7, unmet: 3, unrecorded: 0, total: 10, outOfScope: 0 });
   assertEquals(r.tasks, 4);
   assertEquals(r.adrs.length, 2);
   assertEquals(r.uncovered, []);
@@ -130,15 +130,69 @@ Deno.test("trace rolls each spec up: verdict counts, tasks, ADRs, nothing left o
 
 Deno.test("trace reports unmet criteria and accepted obligations no task covers", () => {
   const dir = copyFixtures();
-  // Drop T-4, the only task covering AC-10 and ADR-0001#R-3/#R-4.
+  // Drop T-4, the only task covering AC-10 and ADR-0001#R-3.
   const ts = Deno.readTextFileSync(`${dir}/${TECHSPEC}`);
   Deno.writeTextFileSync(`${dir}/${TECHSPEC}`, ts.slice(0, ts.indexOf("- id: T-4")));
   const [r] = model(dir).specs;
   assert(r);
   assertEquals(r.tasks, 3);
   assertEquals(r.uncovered, [`spec:${dir}/${SPEC}#AC-10`]);
-  // ADR-0002 is proposed: its obligations are not yet owed (the E716 rule).
-  assertEquals(r.openObligations, [`adr:${dir}/${ADR1}#R-3`, `adr:${dir}/${ADR1}#R-4`]);
+  // ADR-0002 is proposed: its obligations are not yet owed (the E716 rule). R-4 is met.
+  assertEquals(r.openObligations, [`adr:${dir}/${ADR1}#R-3`]);
+});
+
+Deno.test("trace carries an obligation's verdict; a met one is owed no task", () => {
+  const m = model(FIXTURES);
+  const r4 = node(m, `adr:${FIXTURES}/${ADR1}#R-4`);
+  assert(r4.type === "obligation");
+  assertEquals(r4.verdict, "met");
+  assertEquals(r4.evidence, ["src/Verify.java:55"]);
+  const r1 = node(m, `adr:${FIXTURES}/${ADR1}#R-1`);
+  assert(r1.type === "obligation");
+  assertEquals(r1.verdict, "unmet");
+  // ADR-0002's obligations are recorded by nobody.
+  const b1 = node(m, `adr:${FIXTURES}/${ADR2}#R-1`);
+  assert(b1.type === "obligation");
+  assertEquals(b1.verdict, null);
+});
+
+Deno.test("trace pairs one tech spec with every spec it lists, scope and all", () => {
+  const dir = copyFixtures();
+  const OTHER = "pdf-verify-copy.yamlet.yaml";
+  Deno.copyFileSync(`${dir}/${SPEC}`, `${dir}/${OTHER}`);
+  const ts = Deno.readTextFileSync(`${dir}/${TECHSPEC}`);
+  const second = `- path: ${OTHER}\n  scope:\n  - AC-1\n  requirements:\n  - id: RQ-1\n` +
+    "    acceptance-criteria:\n    - id: AC-1\n      met: false\n\nobligations:\n";
+  const task = `- id: T-5\n  title: Fix the copy\n  covers:\n  - ${OTHER}#AC-1\n` +
+    "  depends_on:\n  - T-1\n";
+  Deno.writeTextFileSync(
+    `${dir}/${TECHSPEC}`,
+    ts.replace("\nobligations:\n", second) + task,
+  );
+
+  const m = model(dir);
+  const [a, b] = [...m.specs].sort((x, y) => (x.file < y.file ? -1 : 1));
+  assertEquals(b!.file, `${dir}/${SPEC}`);
+  assertEquals(a!.file, `${dir}/${OTHER}`);
+  assertEquals(a!.techspec, `${dir}/${TECHSPEC}`);
+  assertEquals(b!.techspec, `${dir}/${TECHSPEC}`);
+  // The scoped spec: one criterion in scope, the other nine counted apart.
+  assertEquals(a!.criteria, { met: 0, unmet: 1, unrecorded: 0, total: 1, outOfScope: 9 });
+  assertEquals(a!.uncovered, []);
+  assertEquals(a!.tasks, 2); // T-5, and the enabler T-1
+  const out = node(m, `spec:${dir}/${OTHER}#AC-2`);
+  assert(out.type === "criterion");
+  assertEquals(out.verdict, null);
+  assertEquals(out.outOfScope, true);
+  // A task names the specs it covers; it depends across them freely.
+  const t5 = node(m, `task:${dir}/${TECHSPEC}#T-5`);
+  assert(t5.type === "task");
+  assertEquals(t5.specs, [`spec:${dir}/${OTHER}`]);
+  assert(edges(m, "depends_on").includes(`${t5.id} -> task:${dir}/${TECHSPEC}#T-1`));
+  // The enabler belongs to every spec the tech spec pairs with.
+  const t1 = node(m, `task:${dir}/${TECHSPEC}#T-1`);
+  assert(t1.type === "task");
+  assertEquals(t1.specs.length, 2);
 });
 
 Deno.test("trace does not owe a task to an obligation that was cited but never declared", () => {
@@ -155,7 +209,7 @@ Deno.test("trace marks a criterion the tech spec does not record as unrecorded",
   const dir = copyFixtures();
   const ts = Deno.readTextFileSync(`${dir}/${TECHSPEC}`);
   const cut = ts.replace(
-    "  - id: AC-7\n    met: true\n    evidence:\n    - src/Header.java:31\n",
+    "    - id: AC-7\n      met: true\n      evidence:\n      - src/Header.java:31\n",
     "",
   );
   assert(cut !== ts);
@@ -172,7 +226,7 @@ Deno.test("trace leaves verdicts null for a spec with no tech spec", () => {
   assertEquals(verdict(m, `spec:${dir}/${SPEC}#AC-1`), null);
   const [r] = m.specs;
   assertEquals(r!.techspec, null);
-  assertEquals(r!.criteria, { met: 0, unmet: 0, unrecorded: 10, total: 10 });
+  assertEquals(r!.criteria, { met: 0, unmet: 0, unrecorded: 10, total: 10, outOfScope: 0 });
   assertEquals(r!.uncovered, []); // nothing is judged, so nothing is owed a task
   assertEquals(m.nodes.filter((n) => n.type === "task").length, 0);
 });
@@ -232,7 +286,10 @@ Deno.test("trace uses neither of two tech specs naming one spec, and says why", 
   const dir = copyFixtures();
   Deno.mkdirSync(`${dir}/old`);
   const ts = Deno.readTextFileSync(`${dir}/${TECHSPEC}`);
-  Deno.writeTextFileSync(`${dir}/old/${TECHSPEC}`, ts.replace(`spec: ${SPEC}`, `spec: ../${SPEC}`));
+  Deno.writeTextFileSync(
+    `${dir}/old/${TECHSPEC}`,
+    ts.replace(`- path: ${SPEC}`, `- path: ../${SPEC}`),
+  );
 
   const m = model(dir);
   const [r] = m.specs;
@@ -257,7 +314,7 @@ Deno.test("trace --techspec pairs a tech spec that lives outside DIR", () => {
   const ts = Deno.readTextFileSync(`${FIXTURES}/${TECHSPEC}`);
   Deno.writeTextFileSync(
     `${elsewhere}/${TECHSPEC}`,
-    ts.replace(`spec: ${SPEC}`, `spec: ${dir}/${SPEC}`),
+    ts.replace(`- path: ${SPEC}`, `- path: ${dir}/${SPEC}`),
   );
 
   const m = model(dir, [`--techspec=${elsewhere}/${TECHSPEC}`]);
@@ -274,7 +331,7 @@ Deno.test("trace refuses a --techspec it cannot use", () => {
   const lost = `${Deno.makeTempDirSync()}/lost.techspec.yaml`;
   Deno.writeTextFileSync(
     lost,
-    "spec: nowhere.yamlet.yaml\nsystem: x\nanalysis:\n  commit: 9f3c1ab\n",
+    "system: x\nanalysis:\n  commit: 9f3c1ab\nspecs:\n- path: nowhere.yamlet.yaml\n",
   );
   r = trace([dir, `--techspec=${lost}`]);
   assertEquals(r.exitCode, 2);
