@@ -95,14 +95,20 @@ const REQUIRED_COMMANDS = [
 ] as const;
 
 /**
- * Subcommands the planning tools need (`yamlet_add_adr`, `yamlet_techspec_*`,
- * `yamlet_adr_*`). These arrived after the authoring set, so a CLI that has the
- * required commands but not these is *older*, not broken: the authoring tools
- * keep working, and only a planning tool call fails — with the upgrade hint,
- * not a raw usage error — so a user on the previous release loses nothing they
- * had. Every tool checks its own top-level command against this list.
+ * Subcommands that arrived after the authoring set, each with the tools that
+ * need it: the planning tools (`yamlet_add_adr`, `yamlet_techspec_*`,
+ * `yamlet_adr_*`) and `yamlet_trace`. A CLI that has the required commands but
+ * not these is *older*, not broken: the authoring tools keep working, and only
+ * a tool call that needs a missing command fails — with the upgrade hint, not a
+ * raw usage error — so a user on a previous release loses nothing they had.
+ * Every tool checks its own top-level command against this list.
  */
-const PLANNING_COMMANDS = ["add-adr", "techspec", "adr"] as const;
+const OPTIONAL_COMMANDS: Record<string, string> = {
+	"add-adr": "decision record",
+	techspec: "tech spec",
+	adr: "decision record",
+	trace: "traceability",
+};
 
 /** Some models prefix path arguments with `@`; built-in tools strip it, so do we. */
 const cleanPath = (p: string): string => (p.startsWith("@") ? p.slice(1) : p);
@@ -202,7 +208,7 @@ function makeProbe(pi: ExtensionAPI): (cwd: string) => Promise<Probe> {
 							`${missing.join(", ")}.\n${UPGRADE_HINT}`,
 					};
 				}
-				return { ok: true, version, missing: PLANNING_COMMANDS.filter((c) => !has(c)) };
+				return { ok: true, version, missing: Object.keys(OPTIONAL_COMMANDS).filter((c) => !has(c)) };
 			}
 			return { ok: true, version, missing: [] };
 		})();
@@ -485,11 +491,15 @@ export default function (pi: ExtensionAPI) {
 		if (!probe.ok) {
 			ctx.ui.notify(`yamlet tools unavailable — ${probe.reason}`, "error");
 		} else if (probe.missing.length > 0) {
-			// Older CLI: authoring works, planning does not. Say which, and how to
-			// fix it, now — not at step 2 of a tech spec.
+			// Older CLI: authoring works, some later tools do not. Say which, and
+			// how to fix it, now — not at step 2 of a tech spec.
+			const features = [...new Set(probe.missing.map((c) => OPTIONAL_COMMANDS[c]))];
+			const what = features.length === 1
+				? features[0]
+				: `${features.slice(0, -1).join(", ")} and ${features.at(-1)}`;
 			ctx.ui.notify(
-				`yamlet: ${probe.version} has no ${probe.missing.join("/")} command, so the tech spec and ` +
-				`decision record tools will fail until you upgrade; the authoring tools work. ${UPGRADE_HINT}`,
+				`yamlet: ${probe.version} has no ${probe.missing.join("/")} command, so the ${what} ` +
+				`tools will fail until you upgrade; the authoring tools work. ${UPGRADE_HINT}`,
 				"warning",
 			);
 		}
@@ -746,6 +756,39 @@ export default function (pi: ExtensionAPI) {
 			if (params.format) args.push(`--format=${params.format}`);
 			if (params.libs) args.push(`--libs=${params.libs}`);
 			if (params.recursive) args.push("--recursive");
+			return run(ctx, args, signal);
+		},
+	});
+
+	pi.registerTool({
+		name: "yamlet_trace",
+		label: "yamlet trace",
+		description:
+			"Write the traceability page (or json model) of a directory to `out`: each spec's criteria with " +
+			"the verdicts its tech spec records, the ADRs that decide them, and the tasks that close them. " +
+			"Returns only a summary line: hand the user that path and never read the file back.",
+		promptSnippet: "Write a traceability page (specs → criteria → ADRs → tasks) to a file",
+		promptGuidelines: [
+			"yamlet_trace writes to `out` and returns only a summary — hand the user the path, never read the trace file back into context.",
+		],
+		parameters: Type.Object({
+			dir: Type.Optional(Type.String({ description: "Directory holding specs, tech specs and ADRs (default: .)" })),
+			out: Type.String({
+				description: "Where to write the trace (e.g. trace.html); never a .yamlet.yaml/.techspec.yaml/.adr.yaml path.",
+			}),
+			format: Type.Optional(StringEnum(["html", "json"] as const)),
+			libs: Type.Optional(StringEnum(["cdn", "embed"] as const)),
+			techspec: Type.Optional(Type.Array(Type.String(), {
+				description: "Tech specs to pair with their specs ahead of discovery (outside dir, or to settle two naming one spec)",
+			})),
+		}),
+		async execute(_id, params, signal, _onUpdate, ctx) {
+			const args = ["trace"];
+			if (params.dir) args.push(cleanPath(params.dir));
+			args.push(`--out=${cleanPath(params.out)}`);
+			if (params.format) args.push(`--format=${params.format}`);
+			if (params.libs) args.push(`--libs=${params.libs}`);
+			for (const t of params.techspec ?? []) args.push(`--techspec=${cleanPath(t)}`);
 			return run(ctx, args, signal);
 		},
 	});

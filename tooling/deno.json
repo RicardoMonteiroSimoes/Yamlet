@@ -6,7 +6,7 @@
     "run": "deno run --allow-read --allow-write main.ts",
     "test": "deno test --allow-read --allow-write",
     "check": "deno check main.ts",
-    "compile": "deno compile --allow-read --allow-write --include src/viewer/template.html --include src/viewer/viewer.css --include src/viewer/viewer.js --include src/viewer/vendor/elk.bundled.js --output dist/yamlet main.ts"
+    "compile": "deno compile --allow-read --allow-write --include src/viewer/template.html --include src/viewer/viewer.css --include src/viewer/viewer.js --include src/viewer/common.js --include src/viewer/trace.html --include src/viewer/trace.css --include src/viewer/trace.js --include src/viewer/vendor/elk.bundled.js --output dist/yamlet main.ts"
   },
   "exclude": [
     "dist/",
@@ -14,6 +14,7 @@
     "tests/oracle-author/",
     "tests/oracle-gherkin/",
     "tests/verifier-fixtures/",
+    "tests/trace-fixtures/",
     "src/viewer/vendor/"
   ],
   "fmt": {
@@ -25,7 +26,9 @@
   },
   "lint": {
     "exclude": [
-      "src/viewer/viewer.js"
+      "src/viewer/viewer.js",
+      "src/viewer/common.js",
+      "src/viewer/trace.js"
     ],
     "rules": {
       "tags": ["recommended"]

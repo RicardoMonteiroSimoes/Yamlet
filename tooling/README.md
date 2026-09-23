@@ -76,6 +76,15 @@ yamlet graph FILE|DIR --out=FILE [--format=dot|json|html] [--libs=cdn|embed] [--
                                                       (--format=html is a whole viewer — tens of KB, ~1.6 MB with
                                                       --libs=embed — which would swamp an agent's context). A
                                                       *.yamlet.yaml --out is refused
+yamlet trace [DIR] --out=FILE [--format=html|json] [--libs=cdn|embed] [--techspec=FILE ...]
+                                                   -> the traceability model of a directory: every spec's criteria,
+                                                      the verdicts and tasks its tech spec records, and the ADRs that
+                                                      decide them — as an interactive page (default) or the
+                                                      yamlet.trace/v1 JSON. A tech spec is paired with the spec its
+                                                      `spec:` names; --techspec pins one (outside DIR, or to settle
+                                                      two naming one spec). Parses, never validates: dangling
+                                                      references become missing nodes. --out as for graph; a
+                                                      .yamlet/.techspec/.adr --out is refused
 yamlet tests SRC TARGET                            -> project every scope's acceptance criteria into Gherkin: one
                                                       TARGET/<system>/<scope>.feature per scope (Feature=scope,
                                                       Rule=RQ-N, Scenario=AC-N; criteria with examples become Scenario
@@ -273,6 +282,47 @@ The payload is written to `--out`, never printed; stdout carries one summary lin
 wrote graph.html — html, 56 KB, 2 roots, 7 members, 23 wires
 ```
 
+### The traceability page (`yamlet trace`)
+
+`graph` answers "how is this wired?"; `trace` answers "what is decided, what is done, what is
+left?". It reads every `*.yamlet.yaml`, `*.techspec.yaml` and `*.adr.yaml` under DIR — and follows
+references out of it: an ADR a spec links, assumes or is superseded by; a spec an ADR arises from —
+into one `yamlet.trace/v1` model:
+
+| node          | from                                            | edges out                                                                                        |
+| ------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `spec`        | a `.yamlet.yaml`                                | `has` → RQ                                                                                       |
+| `requirement` | `RQ-N`                                          | `has` → AC, `decided_by` → ADR (its `adrs:`)                                                     |
+| `criterion`   | `AC-N`, plus the tech spec's verdict + evidence | `decided_by` → ADR                                                                               |
+| `adr`         | an `.adr.yaml`                                  | `has` → R-n, `arises_from`, `assumes`, `superseded_by`, `cites` (a force quoting `ADR-nnnn#R-n`) |
+| `obligation`  | an ADR's `requires` entry, `ADR-nnnn#R-n`       | —                                                                                                |
+| `task`        | a tech spec's `T-N`                             | `covers` → AC or R-n, `depends_on` → task                                                        |
+
+Plus a per-spec rollup, computed in TS so the page and the JSON agree: verdict counts, task count,
+linked ADRs, **unmet criteria no task covers**, and **obligations of accepted linked ADRs no task
+discharges** (the E715/E716 questions, asked across the whole directory rather than one file).
+
+A tech spec names its spec, not the reverse, so pairing is by the spec its `spec:` resolves to. Two
+tech specs naming one spec are ambiguous: neither is used, both are listed in `skipped[]`, until
+`--techspec=FILE` pins one. The same flag pairs a tech spec that lives outside DIR — they are
+disposable, and often do.
+
+Parse, never validate: an unparseable file lands in `skipped[]` and a reference that resolves to
+nothing becomes a node with `missing: true`. `yamlet verify` stays the judge.
+
+The page shows a progress card per spec (a met/unmet/unrecorded bar and its gaps), then a trace
+graph at three levels — the **overview** (specs and the ADRs that bind them, with the `assumes` /
+`superseded_by` record graph), **one spec** (RQ → AC → ADR → obligation → task, in columns) and
+**one ADR** (what it arises from, what it assumes, what discharges it). Hover a node to light its
+upstream and downstream trace; click to inspect it; a spec or ADR also drills in. "Open work only"
+hides met criteria and retired records. `--libs` works as for `graph`.
+
+```sh
+yamlet trace specs --out=trace.html
+yamlet trace specs --format=json --out=trace.json
+yamlet trace specs --techspec=/tmp/pdf_upload.techspec.yaml --out=trace.html
+```
+
 ### The Gherkin projection (`yamlet tests`)
 
 An acceptance criterion is already Given/When/Then in disguise, so `yamlet tests SRC TARGET` makes
@@ -350,8 +400,10 @@ src/systems.ts         `yamlet systems` — group spec files by shared `system:`
 src/impact.ts          `yamlet impact` — the reverse dependency index: which composites consume a spec (read-only)
 src/blocks.ts          address an existing RQ-N/AC-N by id and know its line extent (the primitive editing needs)
 src/graph.ts           `yamlet graph` — write DOT, the JSON graph model, or the HTML viewer to --out
+src/trace.ts           `yamlet trace` — the traceability model (specs, verdicts, ADRs, tasks) as JSON or the HTML viewer
 src/tests.ts           `yamlet tests` — project criteria into Gherkin `.feature` files + a binding manifest (wipes + rebuilds TARGET)
-src/viewer/            the `--format=html` viewer: template + CSS + JS + `html.ts` assembler; elk vendored
+src/viewer/            the HTML viewers (graph: template.html + viewer.js; trace: trace.html + trace.js/.css),
+                       their shared `common.js` helpers + `viewer.css`, the `html.ts` assembler; elk vendored
 src/types.ts           shared shapes (Finding, FlatRecord, Result, Command, CmdResult, …)
 src/catalog.ts         the rule catalog — source of truth for rule ids and severities (E0xx–E8xx, W00x)
 src/flatten.ts         Phase 1: constrained-YAML → tab-free leaf records

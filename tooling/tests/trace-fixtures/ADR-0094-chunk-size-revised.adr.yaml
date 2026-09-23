@@ -1,0 +1,33 @@
+adr: ADR-0094
+title: Chunk size for streaming uploads, revised
+status: accepted
+date: 2026-09-07
+kind: policy
+assumes:
+- ADR-0093
+
+question: >-
+  How large is one streamed chunk, now that uploads are bounded?
+
+dimensions:
+- id: D-1
+  matters: >-
+    Memory per concurrent upload
+
+options:
+- id: OPT-1
+  summary: >-
+    64 KiB
+  reversibility: reversible
+  against:
+    D-1: >-
+      Small
+- id: OPT-2
+  summary: >-
+    256 KiB
+  reversibility: reversible
+  against:
+    D-1: >-
+      Bounded by the size cap anyway
+
+decision: OPT-2

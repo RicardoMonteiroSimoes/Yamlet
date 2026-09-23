@@ -45,8 +45,8 @@ export interface SystemGroup {
 
 const die = (msg: string): CmdResult => ({ exitCode: 2, stdout: "", stderr: `error: ${msg}\n` });
 
-// Recursively collect *.yamlet.yaml paths, skipping dotfiles and build dirs.
-function walk(dir: string, acc: string[]): void {
+// Recursively collect paths ending in `ext`, skipping dotfiles and build dirs.
+function walk(dir: string, ext: string, acc: string[]): void {
   let entries: Deno.DirEntry[];
   try {
     entries = [...Deno.readDirSync(dir)];
@@ -59,18 +59,23 @@ function walk(dir: string, acc: string[]): void {
     const p = dir === "." ? e.name : `${dir}/${e.name}`;
     if (e.isDirectory) {
       if (e.name === "node_modules" || e.name === "dist") continue;
-      walk(p, acc);
-    } else if (e.isFile && e.name.endsWith(".yamlet.yaml")) {
+      walk(p, ext, acc);
+    } else if (e.isFile && e.name.endsWith(ext)) {
       acc.push(p);
     }
   }
 }
 
+/** Every path under `root` ending in `ext` (pre-order, deterministic). Shared with `yamlet trace`. */
+export function listFiles(root: string, ext: string): string[] {
+  const files: string[] = [];
+  walk(root, ext, files);
+  return files;
+}
+
 /** Every `*.yamlet.yaml` path under `root` (pre-order, deterministic). Shared with `yamlet graph`. */
 export function listSpecs(root: string): string[] {
-  const files: string[] = [];
-  walk(root, files);
-  return files;
+  return listFiles(root, ".yamlet.yaml");
 }
 
 // Ordered values of an indexed exposes list (`exposes.inputs[0]`, `[1]`, …).

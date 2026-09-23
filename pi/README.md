@@ -84,7 +84,7 @@ ones need a restart or `/reload`.
 | --- | --- | --- | --- | --- |
 | `yamlet_systems` | `yamlet_init` | `yamlet_tests` | `yamlet_techspec_init` | `yamlet_adr_init` |
 | `yamlet_verify` | `yamlet_add_component` | `yamlet_graph` | `yamlet_techspec_analysis` | `yamlet_adr_add_force` |
-| `yamlet_impact` | `yamlet_add_connection` | | `yamlet_techspec_criterion` | `yamlet_adr_add_basis` |
+| `yamlet_impact` | `yamlet_add_connection` | `yamlet_trace` | `yamlet_techspec_criterion` | `yamlet_adr_add_basis` |
 | `yamlet_guide` | `yamlet_add_requirement` | | `yamlet_techspec_task` | `yamlet_adr_add_dimension` |
 | | `yamlet_add_criterion` | | | `yamlet_adr_add_option` |
 | | `yamlet_add_adr` | | | `yamlet_adr_decide` |
@@ -103,9 +103,9 @@ one of `rq`/`ac` before running. One tool reads outside the CLI:
 code root, so the SHA is what git says and never a remembered string; pass
 `commit` only to pin a different one.
 
-The **project** column writes yamlet-owned artifacts — a Gherkin tree, a graph —
-and never a spec. Both take their destination as a required argument and return
-only a summary of what they wrote. For `yamlet_graph` that is the whole point:
+The **project** column writes yamlet-owned artifacts — a Gherkin tree, a graph, a
+trace page — and never a spec. All three take their destination as a required argument and return
+only a summary of what they wrote. For `yamlet_graph` and `yamlet_trace` that is the whole point:
 `--format=html` is a whole viewer before the first spec (tens of KB, ~1.6 MB
 with `--libs=embed`), so returning the payload as a tool result would burn the
 session's context for nothing. Hand the user the path; never read the file back.

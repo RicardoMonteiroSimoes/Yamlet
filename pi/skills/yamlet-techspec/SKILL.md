@@ -71,6 +71,8 @@ A `DECIDED:` notice lists the records behind a criterion and, for an accepted on
 
 In prose, in dependency order: each task, what it delivers, which criteria it covers; the criteria found met; every ADR written or read. Name the file, say it is disposable and belongs in `.gitignore`.
 
+To show the plan in context — criteria, verdicts, ADRs and tasks in one navigable page — offer `yamlet_trace({ dir: <specs dir>, out: "trace.html" })` (add `techspec: [TS]` if TS lies outside that dir). Hand the user the path; **never `read` it back**.
+
 ## When the spec changes later
 
 A changed spec means a new tech spec: delete the old file and run this skill again. `yamlet-author` relays a `WARNING` when it adds a criterion under a decided requirement; that warning names this skill as the step that accounts for the decision.

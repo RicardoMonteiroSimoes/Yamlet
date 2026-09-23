@@ -46,6 +46,7 @@ Commands:
   systems           list existing systems grouped by their scope files
   impact            list the composites that consume a spec (reverse dependency index)
   graph             write a DOT, JSON, or HTML graph model of a spec or a directory to a file
+  trace             write a traceability model (specs → criteria → ADRs → tasks) of a directory
   tests             project spec acceptance criteria into Gherkin feature files
   init              create a new spec, correct by construction
   add-component     declare a composite member (echoes its contract)
@@ -59,7 +60,11 @@ Commands:
 
 // The release before tech specs and decision records: every authoring command,
 // none of the planning ones.
-const HELP_0_2_3 = HELP.replace(/  add-adr .*\n/, "").replace(/  techspec .*\n/, "").replace(/  adr .*\n/, "");
+const HELP_0_2_3 = HELP.replace(/  add-adr .*\n/, "").replace(/  techspec .*\n/, "").replace(/  adr .*\n/, "")
+	.replace(/  trace .*\n/, "");
+
+// The release before `trace`: everything else is there.
+const HELP_0_4_0 = HELP.replace(/  trace .*\n/, "");
 
 // A directory holding an executable `yamlet`, so findOnPath() resolves it.
 const BIN = mkdtempSync(join(tmpdir(), "yamlet-smoke-"));
@@ -124,7 +129,7 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 {
 	const { tools } = makePi();
 	const names = [...tools.keys()].sort();
-	ok("28 tools registered", names.length === 28, names.join(","));
+	ok("29 tools registered", names.length === 29, names.join(","));
 	ok("impact and guide are registered",
 		names.includes("yamlet_impact") && names.includes("yamlet_guide"), names.join(","));
 	const planning = [
@@ -207,6 +212,20 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
 	ok("graph schema requires out", tools.get("yamlet_graph").parameters.required?.includes("out") === true,
 		JSON.stringify(tools.get("yamlet_graph").parameters.required));
+
+	// trace: same contract, plus a repeatable --techspec that must keep every entry.
+	await tools.get("yamlet_trace").execute("id", {
+		dir: "@specs", out: "@build/trace.html", format: "html", libs: "embed",
+		techspec: ["@a.techspec.yaml", "b.techspec.yaml"],
+	}, undefined, undefined, ctx);
+	const expectedTrace = [
+		"yamlet", "trace", "specs", "--out=build/trace.html", "--format=html", "--libs=embed",
+		"--techspec=a.techspec.yaml", "--techspec=b.techspec.yaml",
+	];
+	ok("trace argv (always passes --out, keeps every --techspec)", same(calls.at(-1), expectedTrace),
+		JSON.stringify(calls.at(-1)));
+	ok("trace schema requires out", tools.get("yamlet_trace").parameters.required?.includes("out") === true,
+		JSON.stringify(tools.get("yamlet_trace").parameters.required));
 }
 
 // ── 2b. yamlet_guide serves the skills' procedures ─────────────────────────
@@ -581,6 +600,24 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 	const r = await tools.get("yamlet_techspec_init").execute("id", { spec: "a.yamlet.yaml" }, undefined, undefined, ctx);
 	ok("upgrade mid-session: after it, the planning tool runs without a restart",
 		r.details.command[1] === "techspec", JSON.stringify(r));
+}
+{
+	// The release before `trace` must keep loading: one warning naming it, every
+	// other tool runs, and yamlet_trace fails with the upgrade hint before running.
+	resetNotes();
+	const { handlers, tools, calls } = makePi({ help: HELP_0_4_0 });
+	await handlers.session_start({}, ctx);
+	ok("pre-trace CLI: one startup warning naming trace, not the planning tools",
+		notes.length === 1 && notes[0][0] === "warning" && notes[0][1].includes("no trace command") &&
+		notes[0][1].includes("traceability") && !notes[0][1].includes("tech spec"), JSON.stringify(notes));
+	const r = await tools.get("yamlet_techspec_init").execute("id", { spec: "a.yamlet.yaml" }, undefined, undefined, ctx);
+	ok("pre-trace CLI: planning tools still run", r.details.command[1] === "techspec", JSON.stringify(r));
+	const before = calls.length;
+	let msg = "";
+	try { await tools.get("yamlet_trace").execute("id", { out: "t.html" }, undefined, undefined, ctx); } catch (e) { msg = e.message; }
+	ok("pre-trace CLI: yamlet_trace fails with the upgrade hint, before running",
+		msg.includes("needs: trace.") && msg.includes("brew upgrade yamlet") &&
+		!calls.slice(before).some((c) => c[1] === "trace"), msg || JSON.stringify(calls.slice(before)));
 }
 {
 	// A killed `help` yields empty stdout; concluding "every command missing"
