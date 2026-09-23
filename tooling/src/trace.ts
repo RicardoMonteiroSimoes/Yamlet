@@ -139,7 +139,10 @@ export interface ObligationNode extends NodeBase {
 export interface TaskNode extends NodeBase {
   type: "task";
   techspec: string;
-  /** The spec nodes whose criteria it covers; every spec its tech spec pairs with when none. */
+  /**
+   * The paired spec nodes whose criteria it covers; every spec its tech spec pairs with when it
+   * covers no criterion; none when it covers only criteria of specs the tech spec lost.
+   */
   specs: string[];
   task: string;
   title: string;
@@ -583,10 +586,10 @@ class Builder {
   applyTechspec(t: { path: string; ts: Techspec }, paired: SpecCtx[]): void {
     const verdictOf = (met: string): Verdict =>
       met === "true" ? "met" : met === "false" ? "unmet" : "unrecorded";
-    const specIdOf = new Map<string, string>(); // `specs[].path` → spec node id
-    for (const e of t.ts.specs) {
-      specIdOf.set(e.path, this.specRef(joinNorm("", specPathOf(t.path, e.path))));
-    }
+    // `specs[].path` → spec node id, for the specs this tech spec is paired with only: a spec it
+    // lists but lost (ambiguous, or not found) is not its to draw verdicts, covers or tasks on.
+    const specIdOf = new Map<string, string>();
+    for (const s of paired) specIdOf.set(s.techspec!.entry.path, s.node.id);
 
     for (const s of paired) {
       const entry = s.techspec!.entry;
@@ -633,17 +636,22 @@ class Builder {
     const all = paired.map((s) => s.node.id);
     for (const task of t.ts.tasks) {
       if (task.id === "") continue;
+      // The paired specs whose criteria it covers. A task covering criteria only of specs this
+      // tech spec is not paired with belongs to none; one covering no criterion, to all of them.
       const specs: string[] = [];
+      let coversCriteria = false;
       for (const cover of task.covers) {
         const c = cover.match(CRITERION_REF_RE);
-        const specId = c ? specIdOf.get(c[1]!) : undefined;
-        if (specId && all.includes(specId) && !specs.includes(specId)) specs.push(specId);
+        if (!c) continue;
+        coversCriteria = true;
+        const specId = specIdOf.get(c[1]!);
+        if (specId && !specs.includes(specId)) specs.push(specId);
       }
       this.node<TaskNode>({
         id: taskId(task.id),
         type: "task",
         techspec: t.path,
-        specs: specs.length > 0 ? specs : all,
+        specs: coversCriteria ? specs : all,
         task: task.id,
         title: task.title,
         why: task.why,

@@ -233,6 +233,38 @@ Deno.test("trace leaves verdicts null for a spec with no tech spec", () => {
   assertEquals(m.nodes.filter((n) => n.type === "task").length, 0);
 });
 
+Deno.test("trace draws nothing of a tech spec on a spec it lists but is not paired with", () => {
+  const dir = copyFixtures();
+  const OTHER = "pdf-verify-copy.yamlet.yaml";
+  Deno.copyFileSync(`${dir}/${SPEC}`, `${dir}/${OTHER}`);
+  // The fixture's tech spec also lists OTHER, and T-5 covers only OTHER#AC-1.
+  const ts = Deno.readTextFileSync(`${dir}/${TECHSPEC}`);
+  const second = `- path: ${OTHER}\n  requirements:\n  - id: RQ-1\n` +
+    "    acceptance-criteria:\n    - id: AC-1\n      met: false\n\nobligations:\n";
+  const task = `- id: T-5\n  title: Fix the copy\n  covers:\n  - ${OTHER}#AC-1\n`;
+  Deno.writeTextFileSync(`${dir}/${TECHSPEC}`, ts.replace("\nobligations:\n", second) + task);
+  // A second tech spec also names OTHER, so neither is used for it.
+  Deno.writeTextFileSync(
+    `${dir}/rival.techspec.yaml`,
+    `system: pdf-service\nanalysis:\n  commit: 9f3c1ab\nspecs:\n- path: ${OTHER}\n`,
+  );
+
+  const m = model(dir);
+  const other = m.specs.find((r) => r.file === `${dir}/${OTHER}`)!;
+  const main = m.specs.find((r) => r.file === `${dir}/${SPEC}`)!;
+  assertEquals(other.techspec, null);
+  assertEquals(main.techspec, `${dir}/${TECHSPEC}`);
+  const t5 = node(m, `task:${dir}/${TECHSPEC}#T-5`);
+  assert(t5.type === "task");
+  assertEquals(t5.specs, []); // not pinned on the one spec the tech spec is paired with
+  assertEquals(main.tasks, 4);
+  assertEquals(other.tasks, 0);
+  assertEquals(edges(m, "covers").filter((e) => e.startsWith(`${t5.id} `)), []);
+  const ac1 = node(m, `spec:${dir}/${OTHER}#AC-1`);
+  assert(ac1.type === "criterion");
+  assertEquals(ac1.verdict, null);
+});
+
 // ── dangling references and unreadable files ───────────────────────────────
 
 Deno.test("trace draws a reference that resolves to nothing as a missing node", () => {
