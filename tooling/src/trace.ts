@@ -927,7 +927,8 @@ function summaryParts(m: TraceModel): string[] {
   const count = (t: TraceNode["type"]): number =>
     m.nodes.filter((n) => n.type === t && !n.missing).length;
   const specs = m.specs.length;
-  const techspecs = m.specs.filter((s) => s.techspec !== null).length;
+  // One tech spec may pair with several specs; count the files.
+  const techspecs = new Set(m.specs.map((s) => s.techspec).filter((t) => t !== null)).size;
   // Only a spec with a tech spec has verdicts; the rest would dilute the ratio.
   const judged = m.specs.filter((s) => s.techspec !== null);
   const met = judged.reduce((a, s) => a + s.criteria.met, 0);

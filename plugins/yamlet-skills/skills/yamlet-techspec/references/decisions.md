@@ -19,9 +19,9 @@ yamlet add-adr SPEC adr/ADR-0007-parser.adr.yaml --ac AC-8
 
 `--rq` when the decision covers every criterion of the requirement, `--ac` when it is specific to one. Then `yamlet verify SPEC` must print `OK`.
 
-## 4. Cover what it obliges
+## 4. Account for what it obliges
 
-An accepted record's obligations (`ADR-nnnn#R-n`) are work: the tasks you write next must cover each one (`--covers ADR-0007#R-1`), or `yamlet verify` on the tech spec reports E716. The `DECIDED:` notice on a verdict lists them.
+An accepted record's obligations (`ADR-nnnn#R-n`) are work, judged like criteria: record a verdict for each (`yamlet techspec obligation TS --of ADR-0007#R-1 --met true|false ...`), or `yamlet verify` on the tech spec reports E716. One the code already discharges is met, with evidence; every unmet one is covered by the tasks you write next (`--covers ADR-0007#R-1`). The `DECIDED:` notice on a verdict lists the ones still without a verdict.
 
 ## 5. Superseding
 

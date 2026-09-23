@@ -1,11 +1,11 @@
 ---
 name: yamlet-evidence-challenger
 description: >-
-  Adversarial gate used INSIDE the yamlet-techspec flow, before a criterion is recorded as met. Given
-  one EARS criterion and the exact `file:line` references offered as evidence, it opens those
-  references and nothing else, and says whether each `shall` is really satisfied there. Invoked by
-  yamlet-techspec before every `met: true`; not a standalone tool.
-argument-hint: <one criterion verbatim + its evidence references>
+  Adversarial gate used INSIDE the yamlet-techspec flow, before a criterion or an ADR obligation is
+  recorded as met. Given one EARS criterion (or obligation) and the exact `file:line` references
+  offered as evidence, it opens those references and nothing else, and says whether each `shall` is
+  really satisfied there. Invoked by yamlet-techspec before every `met: true`; not a standalone tool.
+argument-hint: <one criterion or obligation verbatim + its evidence references>
 context: fork
 background: false
 model: opus
@@ -25,7 +25,7 @@ One question: **is this criterion really met at these references?** You check th
 
 ## Input
 
-`$ARGUMENTS` holds: the criterion (`AC-N`, pattern, clauses, each `shall`, any examples) verbatim; and the evidence — one or more `path:line` references. A `shall` with no reference offered for it is unsupported.
+`$ARGUMENTS` holds: the criterion (`AC-N`, pattern, clauses, each `shall`, any examples) verbatim — or an obligation (`ADR-nnnn#R-n` and its `must`, which you check as its one `shall`); and the evidence — one or more `path:line` references. A `shall` with no reference offered for it is unsupported.
 
 ## Check — each `shall`, in order
 

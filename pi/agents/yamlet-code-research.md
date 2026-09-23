@@ -31,7 +31,7 @@ You are a specialist in understanding how code works and how calls traverse a co
 
 ## Input
 
-Your prompt holds: the code root; the scope's contract (`exposes` name, intent, inputs, outputs); and one requirement — its `RQ-N`, description, and each `AC-N` with pattern, clauses and `shall` items, verbatim. Work criterion by criterion; a criterion whose behaviour you cannot locate is a finding, not a gap to paper over.
+Your prompt holds: the code root; the scope's contract (`exposes` name, intent, inputs, outputs); and one requirement — its `RQ-N`, description, and each `AC-N` with pattern, clauses and `shall` items, verbatim. It may add the obligations of the decision records behind that requirement (`ADR-nnnn#R-n` and its `must`); research each exactly like a criterion whose one `shall` is the `must`. Work item by item; one whose behaviour you cannot locate is a finding, not a gap to paper over.
 
 ## Procedure
 
@@ -43,7 +43,7 @@ Your prompt holds: the code root; the scope's contract (`exposes` name, intent, 
 
 ## Report — per criterion, in the order given
 
-For each `AC-N`:
+For each `AC-N`, then each obligation (`ADR-nnnn#R-n`):
 
 - **EVIDENCE** — `path:line` + one line of what the code does there, one per `shall`, in `shall` order. `none` when nothing addresses it.
 - **DEVIATIONS** — each fact where the code differs from a `shall`, with its reference. `none` when every `shall` is done as written.

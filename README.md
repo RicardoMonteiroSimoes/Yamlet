@@ -27,10 +27,13 @@ flowchart LR
    contract is frozen and before each requirement is committed, a challenger
    skill argues against it; you adjudicate. The author ends with `yamlet verify`
    clean and the Gherkin features regenerated.
-2. **Spec → tech spec.** `/yamlet-techspec <spec>` reads your code, records one
-   verdict per criterion with `file:line` evidence, and writes a task list
-   covering every unmet criterion. Where a task needs a decision, `/yamlet-adr`
-   records it as an ADR and links it into the spec.
+2. **Spec → tech spec.** `/yamlet-techspec <spec>...` plans one change across
+   every spec it touches (one system): it reads your code, records one verdict
+   per criterion — and per obligation of a linked decision — with `file:line`
+   evidence, and writes one task list covering every unmet one, so a shared
+   foundation is planned once. For a change to an existing spec, `--since REF`
+   plans only the criteria the diff touches. Where a task needs a decision,
+   `/yamlet-adr` records it as an ADR and links it into the spec.
 3. **Then it is your setup again.** Steps, code, pipeline: yamlet stops here.
 
 The tech spec is disposable; the spec and its ADRs persist. Keep
@@ -39,7 +42,7 @@ The tech spec is disposable; the spec and its ADRs persist. Keep
 ```
 /yamlet-author I want the system to send emails over a single TLS SMTP server
 /yamlet-author the email service should also retry a failed send twice
-/yamlet-techspec specs/email_service.yamlet.yaml
+/yamlet-techspec specs/email_service.yamlet.yaml specs/email_service_plain.yamlet.yaml
 ```
 
 ## Install
@@ -89,7 +92,7 @@ Ten skills, bundled as the `yamlet-skills` plugin under
 | `yamlet-criteria-challenger` | gate before each requirement is committed |
 | `yamlet-verifier` | runs `yamlet verify`, reports violations by rule ID |
 | `yamlet-tester` | regenerates the Gherkin `.feature` tree |
-| `yamlet-techspec` | verdicts per criterion, then tasks; the second entry point |
+| `yamlet-techspec` | one plan per change across a system's specs: verdicts, then tasks; the second entry point |
 | `yamlet-code-research` | finds where each criterion lives in the code; documents, never judges |
 | `yamlet-evidence-challenger` | gate before a criterion is recorded as met |
 | `yamlet-adr` | records a decision through `yamlet adr` |

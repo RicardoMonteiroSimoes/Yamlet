@@ -12,7 +12,7 @@ source: pi's model differs enough that a symlink would lie.
 
 | | |
 | --- | --- |
-| **`yamlet` CLI** (required) | `brew tap RicardoMonteiroSimoes/yamlet && brew trust --tap RicardoMonteiroSimoes/yamlet && brew install yamlet` (Homebrew 6+ gates non-official taps behind the trust step) — the extension shells out to it and is inert without it. It is checked at session start, and again on every tool call, with an actionable message either way. A CLI from before tech specs and decision records (0.2.3) still loads: the authoring tools work, the planning tools fail with an upgrade hint, and the session says so once at startup. |
+| **`yamlet` CLI** (required) | `brew tap RicardoMonteiroSimoes/yamlet && brew trust --tap RicardoMonteiroSimoes/yamlet && brew install yamlet` (Homebrew 6+ gates non-official taps behind the trust step) — the extension shells out to it and is inert without it. It is checked at session start, and again on every tool call, with an actionable message either way. A CLI from before tech specs and decision records (0.2.3) still loads: the authoring tools work, the planning tools fail with an upgrade hint, and the session says so once at startup. So does one whose `techspec` still plans a single spec (0.4.x): its tech spec tools count as missing. |
 | **`@tintinweb/pi-subagents`** (required for the agents) | `pi install npm:@tintinweb/pi-subagents` — provides the `Agent` tool the four adversarial gates and the code researcher run in. Without it the skills degrade loudly rather than skipping those steps. |
 
 The binary is **not** bundled. Keeping it out preserves the rule the Claude Code
@@ -85,8 +85,8 @@ ones need a restart or `/reload`.
 | `yamlet_systems` | `yamlet_init` | `yamlet_tests` | `yamlet_techspec_init` | `yamlet_adr_init` |
 | `yamlet_verify` | `yamlet_add_component` | `yamlet_graph` | `yamlet_techspec_analysis` | `yamlet_adr_add_force` |
 | `yamlet_impact` | `yamlet_add_connection` | `yamlet_trace` | `yamlet_techspec_criterion` | `yamlet_adr_add_basis` |
-| `yamlet_guide` | `yamlet_add_requirement` | | `yamlet_techspec_task` | `yamlet_adr_add_dimension` |
-| | `yamlet_add_criterion` | | | `yamlet_adr_add_option` |
+| `yamlet_guide` | `yamlet_add_requirement` | | `yamlet_techspec_obligation` | `yamlet_adr_add_dimension` |
+| | `yamlet_add_criterion` | | `yamlet_techspec_task` | `yamlet_adr_add_option` |
 | | `yamlet_add_adr` | | | `yamlet_adr_decide` |
 | | | | | `yamlet_adr_add_obligation` |
 | | | | | `yamlet_adr_add_accept` |
@@ -227,7 +227,7 @@ pi/
 │   ├── yamlet-contract-challenger.md   # author: before init freezes the contract
 │   ├── yamlet-criteria-challenger.md   # author: before a requirement is committed
 │   ├── yamlet-code-research.md         # tech spec: where each criterion lives (read/grep/find/ls)
-│   ├── yamlet-evidence-challenger.md   # tech spec: before a criterion is recorded as met
+│   ├── yamlet-evidence-challenger.md   # tech spec: before a criterion or obligation is recorded as met
 │   └── yamlet-adr-challenger.md        # adr: after the dimensions, before any option
 └── skills/
     ├── yamlet-author/
@@ -240,7 +240,7 @@ pi/
     ├── yamlet-verifier/SKILL.md
     ├── yamlet-tester/SKILL.md
     ├── yamlet-techspec/
-    │   ├── SKILL.md                    # verdicts per criterion, then tasks, through yamlet_techspec_*
+    │   ├── SKILL.md                    # one plan per change: verdicts, then tasks, through yamlet_techspec_*
     │   └── references/decisions.md     # the decision gate (served as `decisions`)
     └── yamlet-adr/SKILL.md             # the decision record interview, through yamlet_adr_*
 ```
@@ -332,15 +332,18 @@ regenerate the Gherkin feature tree.
 Once a spec is finished, plan the work against the code:
 
 ```
-/skill:yamlet-techspec specs/pdf_upload.yamlet.yaml [code-root]
+/skill:yamlet-techspec specs/pdf_upload.yamlet.yaml specs/pdf_verify.yamlet.yaml [--since REF] [code-root]
 ```
 
-It opens a disposable `.techspec.yaml` (`yamlet_techspec_init`, pinned to the commit
-`git` reports), runs **code research** once per requirement, records a verdict per
-criterion — every `met: true` through the **evidence challenge** first — then a task
-list covering every unmet criterion, and closes with `yamlet_verify` on the tech
+It opens one disposable `.techspec.yaml` for the whole change — every spec it
+touches, all of one system, so a shared foundation is planned once
+(`yamlet_techspec_init`, pinned to the commit `git` reports). With `--since REF` it
+scopes each spec to the criteria changed since that ref. It runs **code research**
+once per requirement, records a verdict per criterion and per obligation of the
+linked ADRs — every `met: true` through the **evidence challenge** first — then one
+task list covering every unmet one, and closes with `yamlet_verify` on the tech
 spec. A task that needs a choice the user owns stops for one: the `yamlet-adr` skill
 interviews you (**ADR challenge** after the dimensions, before any option), the
 record is accepted and frozen, and `yamlet_add_adr` links it into the spec so the
-tasks must cover what it obliges. `/skill:yamlet-adr adr` runs that interview on its
+plan must account for what it obliges. `/skill:yamlet-adr adr` runs that interview on its
 own.

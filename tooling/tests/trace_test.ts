@@ -170,6 +170,8 @@ Deno.test("trace pairs one tech spec with every spec it lists, scope and all", (
     ts.replace("\nobligations:\n", second) + task,
   );
 
+  const summary = trace([dir, "--format=json"]).summary;
+  assertStringIncludes(summary, "2 specs, 1 tech spec,");
   const m = model(dir);
   const [a, b] = [...m.specs].sort((x, y) => (x.file < y.file ? -1 : 1));
   assertEquals(b!.file, `${dir}/${SPEC}`);
