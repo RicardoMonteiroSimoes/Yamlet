@@ -1,0 +1,8 @@
+{"file":"bad-word-budget.yamlet.yaml","valid":false,"errors":[
+  {"rule":"E305","severity":"error","line":4,"path":"summary","message":"summary is 31 words, budget 30 (one sentence)"},
+  {"rule":"E305","severity":"error","line":10,"path":"requirements[0].description","message":"requirements[0]: description is 32 words, budget 30 (one capability)"},
+  {"rule":"E305","severity":"error","line":15,"path":"requirements[0].acceptance-criteria[0].while[0]","message":"AC-1: while entry is 25 words, budget 20 (one trigger or precondition)"},
+  {"rule":"E305","severity":"error","line":16,"path":"requirements[0].acceptance-criteria[0].when","message":"AC-1: when is 27 words, budget 20 (one trigger or precondition)"},
+  {"rule":"E305","severity":"error","line":18,"path":"requirements[0].acceptance-criteria[0].shall[0]","message":"AC-1: shall entry is 23 words, budget 20 (one obligation)"}
+],"warnings":[
+],"summary":{"requirements":1,"acceptanceCriteria":2}}

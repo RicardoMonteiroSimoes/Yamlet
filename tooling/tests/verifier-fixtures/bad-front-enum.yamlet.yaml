@@ -9,6 +9,7 @@ requirements:
   description: Test
   acceptance-criteria:
   - id: AC-1
-    pattern: ubiquitous
+    pattern: event
+    when: a request is received
     shall:
     - do something

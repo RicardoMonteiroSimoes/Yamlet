@@ -1,0 +1,26 @@
+# W007: a trigger that stacks conditions which belong in while entries or separate criteria
+system: registry
+topic: Registry
+summary: Records projects
+description: A service.
+blast_radius: low
+front: internal
+requirements:
+- id: RQ-1
+  description: Amends a project
+  acceptance-criteria:
+  - id: AC-1
+    pattern: event
+    when: an amendment is submitted naming a registered project, and carrying a display name
+    shall:
+    - store the display name
+  - id: AC-2
+    pattern: unwanted
+    if: a blank display name is submitted together with a malformed repository URL
+    shall:
+    - reject the amendment
+  - id: AC-3
+    pattern: event
+    when: a file and its filename are submitted
+    shall:
+    - store the file

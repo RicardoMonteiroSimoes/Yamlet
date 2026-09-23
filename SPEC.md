@@ -69,10 +69,9 @@ validation lives once, at the boundary that owns the trust decision
 (single-source-of-truth applied to trust). In a composite, `front` marks where
 untrusted input enters the graph.
 
-> **Proposed, not yet enforced:** a `W`-class warning when a `front: external`
-> component has zero unwanted-condition criteria — a user-facing thing that never
-> says what it does with bad input is almost certainly underspecified. Tracked in
-> [Decisions in flight](#decisions-in-flight); not in the verifier yet.
+An `external` leaf with no `if` clause in any criterion is a warning (`W006`) — a
+sibling scope may own that behaviour, so not an error. Composites are exempt: their
+trust boundary is undecided.
 
 ### `exposes` — the contract signature
 
@@ -191,20 +190,25 @@ pattern. The pattern dictates which clauses are allowed.
 
 | pattern | required clause(s) | forbidden clauses |
 |---|---|---|
-| `ubiquitous` | none (always-on) | all clauses |
-| `state` | `while` (a list) | `when`, `if`, `where` |
-| `event` | `when` | — |
-| `optional` | `where` | — |
-| `unwanted` | `if` | — |
-| `complex` | `while` + **exactly one** of `when`/`if` | — |
+| `event` | `when` | `while`, `if`, `where` |
+| `unwanted` | `if` | `while`, `when`, `where` |
+| `optional` | `where` + **exactly one** of `when`/`if` | `while` |
+| `complex` | `while` (a list) + **exactly one** of `when`/`if` | `where` |
 
 Enforced by `E301` (missing required clause), `E302` (clause not allowed for the
-pattern), `E303` (complex needs exactly one of when/if).
+pattern), `E303` (optional and complex need exactly one of when/if).
+
+**Every criterion carries exactly one trigger** (`when` or `if`). EARS's `ubiquitous`
+and `state`, and a bare `where`, describe continuous properties; a component with a
+contract has none — every observation is a call, and a trigger-less criterion is a
+Gherkin scenario with no `When` step. What they get used for is a *definition*
+(prose, pinned by example rows on the criteria that observe it) or an *invariant*
+(the `unwanted` criterion that maintains it).
 
 | field | meaning | constraint | enforced by |
 |---|---|---|---|
 | `id` | criterion id | `^AC-[0-9]+[a-z]?$`, unique file-wide | `E203`, `E204` |
-| `pattern` | one of the six EARS patterns | see table | `E301`–`E303` |
+| `pattern` | one of the four accepted EARS patterns | see table | `E301`–`E303` |
 | clause(s) | `while`/`when`/`if`/`where` per pattern | — | `E301`, `E302` |
 | `shall` | the concrete, verifiable obligations | non-empty list | `E304` |
 | `adrs` *(optional)* | decision records this behaviour is decided by | see [`adrs`](#adrs--linking-a-decision) | `E109` |
@@ -270,9 +274,18 @@ a table (an input may optionally be tabulated as an `input.NAME` column). The
 classification is purely by shape: `{input.x}` → input, `{output.x}` → output,
 anything else `{x}` → placeholder.
 
-### Lexical warnings — `W003`–`W005`
+### Word budgets — `E305`
 
-Every rule above is exact. These three are word-list heuristics over clause and
+Each clause and `shall` is one Gherkin step; a 45-word step binds nothing. Budgets,
+in whitespace-separated words (so `{input.NAME}` costs one): `when`/`if`/`where`
+and each `while` entry **20**, each `shall` **20**, a requirement's `description`
+**30**, `summary` **30**. The top-level `description` has none. An error because the
+way out is the point: preconditions move to `while`, one per `Given`, or the
+criterion splits.
+
+### Lexical warnings — `W003`–`W005`, `W007`
+
+Every rule above is exact. These four are word-list heuristics over clause and
 `shall` prose, each naming one way a criterion leaves a value for the test to invent:
 
 | rule | fires on | satisfy it by |
@@ -280,14 +293,17 @@ Every rule above is exact. These three are word-list heuristics over clause and
 | `W003` | a quantity word — *exceeds, maximum, minimum, limit, at most/least, more/less/longer/… than* — in a criterion with **no digit and no `{placeholder}`** | a `{placeholder}` with examples, or a literal (`10 MiB`) |
 | `W004` | an `{output.NAME}` whose value is *described* — "set `{output.outcome}` to **indicate** the record was created" | the literal: "set `{output.outcome}` to `created`" |
 | `W005` | an open list — *such as, e.g., etc., including, and so on* | the closed set |
+| `W007` | a trigger (`when`/`if`/`where`) that stacks conditions — *, and*; *together with*; *as well as* | a `while` entry per precondition, or a criterion per condition |
 
 Warnings, never errors: a heuristic that blocks teaches authors to write around the
 list ("the store's cap"). The lists are short on purpose — `timeout` and `within` are
-absent because "an SMTP timeout occurs" is an event, not a bound — and an
+absent because "an SMTP timeout occurs" is an event, not a bound; a bare *and* is
+absent from `W007` because "a file and its filename" is one event — and an
 `{input.NAME}` does not satisfy `W003`: it names the thing measured, not the bound.
 
 They cannot see a bag input, validation on the wrong side of `front`, a negative
-`shall`, or "that maximum length" pointing back into its clause. Those stay with the
+`shall`, "that maximum length" pointing back into its clause, an example row that
+fails its own clause, or two overlapping `if` clauses. Those stay with the
 challenger skills; the warnings are a floor under them.
 
 ---
@@ -599,15 +615,12 @@ the *why* isn't lost as the format grows. These are **not** enforced by the veri
 and **not** valid syntax yet. When one ships, its rules move into the tables above
 and its rationale stays here as the record.
 
-### `front` external-without-unwanted warning
-
-The `W`-class nudge described under [`front`](#front--the-trust-boundary-not-who-the-user-is):
-warn when a `front: external` component specifies no unwanted-condition behaviour.
-Not yet implemented.
+None at the moment.
 
 ---
 
-*Shipped since first draft: [decision records](#decision-records--adryaml)
+*Shipped since first draft: the trigger rule (`E301`–`E303`), [word budgets](#word-budgets--e305)
+(`E305`), `W006` and `W007`; [decision records](#decision-records--adryaml)
 (`E801`–`E815`), [`adrs`](#adrs--linking-a-decision) links on requirements and
 criteria (`E109`) and the derived [tech spec](#tech-specs--planning-the-work)
 (`E701`–`E716`); the [`exposes`](#exposes--the-contract-signature) contract

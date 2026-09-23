@@ -1,3 +1,4 @@
+# pattern: ubiquitous is no longer accepted — every criterion carries a trigger
 system: audit-service
 topic: Audit Service
 summary: A service that records all operations for compliance

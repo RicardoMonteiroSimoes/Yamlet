@@ -152,7 +152,7 @@ Deno.test("tests: manifest scenario keys order a suffixed id after its base", ()
   // An inserted criterion carries a letter suffix (AC-1a). Ordering the manifest
   // by digits alone would tie it with AC-1 and leave the key order incidental.
   const ac = (id: string, shall: string) =>
-    `  - id: ${id}\n    pattern: ubiquitous\n    shall:\n    - ${shall} {input.thing}\n`;
+    `  - id: ${id}\n    pattern: event\n    when: a request is handled\n    shall:\n    - ${shall} {input.thing}\n`;
   Deno.writeTextFileSync(
     `${src}/s.yamlet.yaml`,
     "system: svc\ntopic: T\nsummary: s\ndescription: d\n" +

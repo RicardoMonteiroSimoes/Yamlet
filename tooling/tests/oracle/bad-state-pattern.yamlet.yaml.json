@@ -1,0 +1,4 @@
+{"file":"bad-state-pattern.yamlet.yaml","valid":false,"errors":[
+  {"rule":"E107","severity":"error","line":14,"path":"requirements[0].acceptance-criteria[0].pattern","message":"requirements[0].acceptance-criteria[0]: pattern must be event|optional|unwanted|complex, got: state"}
+],"warnings":[
+],"summary":{"requirements":1,"acceptanceCriteria":1}}

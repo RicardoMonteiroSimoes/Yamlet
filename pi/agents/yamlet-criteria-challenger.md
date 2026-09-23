@@ -36,14 +36,12 @@ Your prompt holds: the requirement description; each criterion (EARS pattern, cl
 
 1. **One capability.** One capability, or two smuggled together with "and"? If bundled, it must be split now — committed, it stays a bundle.
 2. **Vagueness.** Hunt soft words — "handles errors" (*which*, and what behaviour?), "properly", "as needed", "gracefully", "safely", "durably". Each must resolve to a concrete, observable obligation or it isn't testable.
-3. **EARS pattern fit.** Right pattern for the trigger/condition?
-   - `ubiquitous` — always-on, no trigger.
-   - `state` — while a state holds (`while`).
+3. **EARS pattern fit.** Every criterion carries exactly one trigger (`when` or `if`); `ubiquitous` and `state` do not exist here. Right pattern for it?
    - `event` — a discrete event (`when`).
-   - `optional` — a configuration/feature (`where`).
    - `unwanted` — an error/undesired condition (`if`).
+   - `optional` — a configuration/feature (`where`) plus one of `when`/`if`.
    - `complex` — a state **and** a trigger (`while` + one of `when`/`if`).
-   A clear trigger written `ubiquitous`, or an error response not written `unwanted`, is mis-patterned.
+   An error response not written `unwanted` is mis-patterned. A proposal with no trigger is a definition (prose, pinned by example rows on the criteria that observe it) or an invariant (the `unwanted` criterion that maintains it) — say which, and where it goes instead.
 4. **`shall` atomicity.** Each `shall` is a single, verifiable obligation. Split compound shalls; reject any that can't be observed.
 5. **Bindability.** Could a step definition be written from each line alone? Flag what a test would have to invent: an input's *field* in prose ("the identity's email"); an unbound value ("the store's maximum length"); a result described, not stated ("indicates a conflict"); an open list ("such as"); a negative `shall` hiding a precondition ("not fail for that reason alone"); "that"/"this" pointing back into the clause.
 6. **Front fit.** `external`: malformed/hostile input **must** be covered by `unwanted`/`if` — name the missing cases (empty, oversized, wrong-type, malicious). `internal`: an `if` validating an input's *shape* (format, length, allowed values) re-litigates the boundary — presence checks are fine, more is a QUESTION.

@@ -10,13 +10,15 @@ requirements:
   description: First requirement
   acceptance-criteria:
   - id: AC-1
-    pattern: ubiquitous
+    pattern: event
+    when: a request is received
     shall:
     - do something
 - id: RQ-1
   description: Duplicate requirement id
   acceptance-criteria:
   - id: AC-2
-    pattern: ubiquitous
+    pattern: event
+    when: a request is received
     shall:
     - do something else

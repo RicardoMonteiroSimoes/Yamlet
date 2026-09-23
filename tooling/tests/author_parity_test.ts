@@ -42,7 +42,7 @@ function golden(name: string): string {
   return Deno.readTextFileSync(new URL(name, ORACLE));
 }
 
-Deno.test("svc: no exposed contract, all EARS patterns, quoting edge cases", () => {
+Deno.test("svc: no exposed contract, all accepted EARS patterns, quoting edge cases", () => {
   const dir = Deno.makeTempDirSync();
   const F = `${dir}/svc.yamlet.yaml`;
 
@@ -83,7 +83,9 @@ Deno.test("svc: no exposed contract, all EARS patterns, quoting edge cases", () 
       "--rq",
       "RQ-1",
       "--pattern",
-      "ubiquitous",
+      "event",
+      "--when",
+      "a request is handled",
       "--shall",
       "log the actor identity",
     ])
@@ -95,9 +97,11 @@ Deno.test("svc: no exposed contract, all EARS patterns, quoting edge cases", () 
       "--rq",
       "RQ-1",
       "--pattern",
-      "state",
+      "complex",
       "--while",
       "the connection is established",
+      "--when",
+      "the keepalive interval elapses",
       "--shall",
       "send a keepalive every 30s",
     ]).exitCode,
@@ -111,6 +115,8 @@ Deno.test("svc: no exposed contract, all EARS patterns, quoting edge cases", () 
       "optional",
       "--where",
       "the account is premium",
+      "--when",
+      "funnel analytics are requested",
       "--shall",
       "expose funnel analytics",
     ]).exitCode,
@@ -156,7 +162,9 @@ Deno.test("svc: no exposed contract, all EARS patterns, quoting edge cases", () 
       "--rq",
       "RQ-2",
       "--pattern",
-      "ubiquitous",
+      "event",
+      "--when",
+      "a request is handled",
       "--shall",
       "record every bounce event",
     ])
@@ -457,7 +465,9 @@ Deno.test("adrs: decision links on a requirement and a criterion reproduce the f
     "--rq",
     "RQ-1",
     "--pattern",
-    "ubiquitous",
+    "event",
+    "--when",
+    "a request is handled",
     "--shall",
     "check the header",
   ]);
@@ -466,7 +476,9 @@ Deno.test("adrs: decision links on a requirement and a criterion reproduce the f
     "--rq",
     "RQ-2",
     "--pattern",
-    "ubiquitous",
+    "event",
+    "--when",
+    "a request is handled",
     "--shall",
     "resolve startxref",
   ]);
@@ -474,7 +486,9 @@ Deno.test("adrs: decision links on a requirement and a criterion reproduce the f
     "--rq",
     "RQ-2",
     "--pattern",
-    "ubiquitous",
+    "event",
+    "--when",
+    "a request is handled",
     "--shall",
     "balance obj/endobj",
   ]);
@@ -489,7 +503,9 @@ Deno.test("adrs: decision links on a requirement and a criterion reproduce the f
       "--after",
       "AC-2",
       "--pattern",
-      "ubiquitous",
+      "event",
+      "--when",
+      "a request is handled",
       "--shall",
       "read the trailer",
     ]).stdout,
@@ -716,7 +732,16 @@ Deno.test("rejection paths: same inputs rejected with exit 2, nothing written", 
   // add-criterion rejections against F (RQ-1 and RQ-2 both exist and are both
   // valid targets now — an earlier requirement is no longer refused).
   assertEquals(
-    reject("add-criterion", F, ["--rq", "RQ-9", "--pattern", "ubiquitous", "--shall", "x"]),
+    reject("add-criterion", F, [
+      "--rq",
+      "RQ-9",
+      "--pattern",
+      "event",
+      "--when",
+      "a request is handled",
+      "--shall",
+      "x",
+    ]),
     2,
     "criterion on a requirement that does not exist",
   );
@@ -727,7 +752,9 @@ Deno.test("rejection paths: same inputs rejected with exit 2, nothing written", 
       "--after",
       "AC-1",
       "--pattern",
-      "ubiquitous",
+      "event",
+      "--when",
+      "a request is handled",
       "--shall",
       "x",
     ]),
@@ -735,18 +762,55 @@ Deno.test("rejection paths: same inputs rejected with exit 2, nothing written", 
     "--after names a criterion that does not exist",
   );
   assertEquals(
+    reject("add-criterion", F, ["--rq", "RQ-2", "--pattern", "ubiquitous", "--shall", "y"]),
+    2,
+    "ubiquitous is no longer a pattern (no trigger)",
+  );
+  assertEquals(
     reject("add-criterion", F, [
       "--rq",
       "RQ-2",
       "--pattern",
-      "ubiquitous",
-      "--when",
+      "state",
+      "--while",
       "x",
       "--shall",
       "y",
     ]),
     2,
-    "ubiquitous with a clause",
+    "state is no longer a pattern (no trigger)",
+  );
+  assertEquals(
+    reject("add-criterion", F, [
+      "--rq",
+      "RQ-2",
+      "--pattern",
+      "optional",
+      "--where",
+      "x",
+      "--shall",
+      "y",
+    ]),
+    2,
+    "optional without a trigger",
+  );
+  assertEquals(
+    reject("add-criterion", F, [
+      "--rq",
+      "RQ-2",
+      "--pattern",
+      "optional",
+      "--where",
+      "x",
+      "--when",
+      "w",
+      "--if",
+      "i",
+      "--shall",
+      "y",
+    ]),
+    2,
+    "optional with both triggers",
   );
   assertEquals(
     reject("add-criterion", F, ["--rq", "RQ-2", "--pattern", "event", "--shall", "y"]),
@@ -820,7 +884,9 @@ Deno.test("rejection paths: same inputs rejected with exit 2, nothing written", 
       "--rq",
       "RQ-2",
       "--pattern",
-      "ubiquitous",
+      "event",
+      "--when",
+      "a request is handled",
       "--shall",
       "x",
       "--example",
@@ -835,7 +901,7 @@ Deno.test("rejection paths: same inputs rejected with exit 2, nothing written", 
     "unknown pattern",
   );
   assertEquals(
-    reject("add-criterion", F, ["--rq", "RQ-2", "--pattern", "ubiquitous"]),
+    reject("add-criterion", F, ["--rq", "RQ-2", "--pattern", "event", "--when", "x"]),
     2,
     "no --shall",
   );

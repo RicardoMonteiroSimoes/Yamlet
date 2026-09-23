@@ -35,7 +35,7 @@ Deno.mkdirSync(OUT, { recursive: true });
 
 const work = Deno.makeTempDirSync();
 
-// ── svc: no exposed contract, every EARS pattern, quoting edge cases ──
+// ── svc: no exposed contract, every accepted EARS pattern, quoting edge cases ──
 const svc = `${work}/svc.yamlet.yaml`;
 must(runInit([
   svc,
@@ -63,14 +63,25 @@ ac(svc, [
   "--shall",
   "authenticate over TLS",
 ]);
-ac(svc, ["--rq", "RQ-1", "--pattern", "ubiquitous", "--shall", "log the actor identity"]);
 ac(svc, [
   "--rq",
   "RQ-1",
   "--pattern",
-  "state",
+  "event",
+  "--when",
+  "a request is handled",
+  "--shall",
+  "log the actor identity",
+]);
+ac(svc, [
+  "--rq",
+  "RQ-1",
+  "--pattern",
+  "complex",
   "--while",
   "the connection is established",
+  "--when",
+  "the keepalive interval elapses",
   "--shall",
   "send a keepalive every 30s",
 ]);
@@ -81,6 +92,8 @@ ac(svc, [
   "optional",
   "--where",
   "the account is premium",
+  "--when",
+  "funnel analytics are requested",
   "--shall",
   "expose funnel analytics",
 ]);
@@ -111,7 +124,16 @@ ac(svc, [
   "n=1;delay_seconds=30",
 ]);
 rq(svc, ["--description", "Handles bounces"]);
-ac(svc, ["--rq", "RQ-2", "--pattern", "ubiquitous", "--shall", "record every bounce event"]);
+ac(svc, [
+  "--rq",
+  "RQ-2",
+  "--pattern",
+  "event",
+  "--when",
+  "a request is handled",
+  "--shall",
+  "record every bounce event",
+]);
 ac(svc, [
   "--rq",
   "RQ-2",
@@ -351,10 +373,37 @@ must(runInit([
   "internal",
 ]));
 rq(adrs, ["--description", "Verifies the header"]);
-ac(adrs, ["--rq", "RQ-1", "--pattern", "ubiquitous", "--shall", "check the header"]);
+ac(adrs, [
+  "--rq",
+  "RQ-1",
+  "--pattern",
+  "event",
+  "--when",
+  "a request is handled",
+  "--shall",
+  "check the header",
+]);
 rq(adrs, ["--description", "Verifies the cross-reference table and objects"]);
-ac(adrs, ["--rq", "RQ-2", "--pattern", "ubiquitous", "--shall", "resolve startxref"]);
-ac(adrs, ["--rq", "RQ-2", "--pattern", "ubiquitous", "--shall", "balance obj/endobj"]);
+ac(adrs, [
+  "--rq",
+  "RQ-2",
+  "--pattern",
+  "event",
+  "--when",
+  "a request is handled",
+  "--shall",
+  "resolve startxref",
+]);
+ac(adrs, [
+  "--rq",
+  "RQ-2",
+  "--pattern",
+  "event",
+  "--when",
+  "a request is handled",
+  "--shall",
+  "balance obj/endobj",
+]);
 must(runAddAdr([adrs, "adr/ADR-0001-parser.adr.yaml", "--rq", "RQ-2"]));
 must(runAddAdr([adrs, "adr/ADR-0001-parser.adr.yaml", "--ac", "AC-2"]));
 must(runAddAdr([adrs, "adr/ADR-0002-isolation.adr.yaml", "--ac", "AC-2"]));
@@ -366,7 +415,9 @@ ac(adrs, [
   "--after",
   "AC-2",
   "--pattern",
-  "ubiquitous",
+  "event",
+  "--when",
+  "a request is handled",
   "--shall",
   "read the trailer",
 ]);

@@ -171,7 +171,7 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 	// a usage error rather than an append.
 	const { tools, calls } = makePi();
 	await tools.get("yamlet_add_criterion").execute("id", {
-		file: "specs/e.yamlet.yaml", rq: "RQ-1", pattern: "ubiquitous", shall: ["do a thing"],
+		file: "specs/e.yamlet.yaml", rq: "RQ-1", pattern: "event", when: "a thing happens", shall: ["do a thing"],
 	}, undefined, undefined, ctx);
 	ok("add_criterion omits --after when not given", !calls.at(-1).includes("--after"),
 		JSON.stringify(calls.at(-1)));

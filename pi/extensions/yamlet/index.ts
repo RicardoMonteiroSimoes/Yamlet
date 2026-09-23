@@ -887,10 +887,11 @@ export default function (pi: ExtensionAPI) {
 		name: "yamlet_add_criterion",
 		label: "yamlet add-criterion",
 		description:
-			"Add one EARS acceptance criterion and return its AC-N. The pattern picks the clauses: ubiquitous " +
-			"(none), state (while), event (when), optional (where), unwanted (if), complex (while + exactly " +
-			"one of when/if). {input.X}/{output.X} need no examples; any other {placeholder} does, with every " +
-			"row binding every placeholder.",
+			"Add one EARS acceptance criterion and return its AC-N. Every criterion carries exactly one " +
+			"trigger; the pattern picks the clauses: event (when), unwanted (if), optional (where + exactly " +
+			"one of when/if), complex (while + exactly one of when/if). A clause or a shall is at most 20 words. " +
+			"{input.X}/{output.X} need no examples; any other {placeholder} does, with every row binding " +
+			"every placeholder.",
 		promptSnippet: "Add an EARS acceptance criterion (returns its AC-N)",
 		parameters: Type.Object({
 			file: Type.String(),
@@ -900,11 +901,15 @@ export default function (pi: ExtensionAPI) {
 					"Insert after this criterion (must belong to rq); the new id takes a letter suffix, " +
 					"AC-3 -> AC-3a. Omit to append.",
 			})),
-			pattern: StringEnum(["ubiquitous", "state", "event", "optional", "unwanted", "complex"] as const),
-			when: Type.Optional(Type.String({ description: "event / complex: the discrete trigger" })),
-			if: Type.Optional(Type.String({ description: "unwanted / complex: the error or undesired condition" })),
-			while: Type.Optional(Type.Array(Type.String(), { description: "state / complex: the state(s) that hold" })),
-			where: Type.Optional(Type.String({ description: "optional: the configuration or feature" })),
+			pattern: StringEnum(["event", "optional", "unwanted", "complex"] as const),
+			when: Type.Optional(Type.String({ description: "event / optional / complex: the discrete trigger" })),
+			if: Type.Optional(Type.String({
+				description: "unwanted / optional / complex: the error or undesired condition",
+			})),
+			while: Type.Optional(Type.Array(Type.String(), { description: "complex: the state(s) that hold" })),
+			where: Type.Optional(Type.String({
+				description: "optional: the configuration or feature (plus exactly one of when/if)",
+			})),
 			shall: Type.Array(Type.String(), { minItems: 1, description: "One atomic, verifiable obligation each" }),
 			examples: Type.Optional(Type.Array(Type.String(), {
 				description: "Rows binding every placeholder, e.g. 'n=0;delay_seconds=10'",

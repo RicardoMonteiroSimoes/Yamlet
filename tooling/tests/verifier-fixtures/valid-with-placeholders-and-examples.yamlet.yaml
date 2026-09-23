@@ -26,7 +26,8 @@ requirements:
     - attempt_count: 3
       backoff_seconds: 20
   - id: AC-2
-    pattern: ubiquitous
+    pattern: event
+    when: a request is received
     shall:
     - encrypt all notification payloads in transit
     - validate the recipient address before sending

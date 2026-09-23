@@ -14,13 +14,15 @@ requirements:
   - ADR-0001-structural-pdf-parsing.adr.yaml
   acceptance-criteria:
   - id: AC-1
-    pattern: ubiquitous
+    pattern: event
+    when: a request is received
     shall:
     - parse the document
     adrs:
     - ADR-0001-structural-pdf-parsing.adr.yaml
     - ADR-0002-isolation-of-structural-parsing.adr.yaml
   - id: AC-2
-    pattern: ubiquitous
+    pattern: event
+    when: a request is received
     shall:
     - report a parse failure

@@ -12,7 +12,8 @@ requirements:
     Long obligations fold
   acceptance-criteria:
   - id: AC-1
-    pattern: ubiquitous
+    pattern: event
+    when: a request is received
     shall:
     - >-
       reject the upload with a reason: the file is not a PDF, stated in the

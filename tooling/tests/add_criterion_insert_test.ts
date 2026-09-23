@@ -27,9 +27,29 @@ function seed(): { file: string; read: () => string } {
     "internal",
   ]);
   runAddRequirement([file, "--description", "first"]);
-  runAddCriterion([file, "--rq", "RQ-1", "--pattern", "ubiquitous", "--shall", "a"]);
+  runAddCriterion([
+    file,
+    "--rq",
+    "RQ-1",
+    "--pattern",
+    "event",
+    "--when",
+    "a request is handled",
+    "--shall",
+    "a",
+  ]);
   runAddRequirement([file, "--description", "second"]);
-  runAddCriterion([file, "--rq", "RQ-2", "--pattern", "ubiquitous", "--shall", "b"]);
+  runAddCriterion([
+    file,
+    "--rq",
+    "RQ-2",
+    "--pattern",
+    "event",
+    "--when",
+    "a request is handled",
+    "--shall",
+    "b",
+  ]);
   return { file, read: () => Deno.readTextFileSync(file) };
 }
 
@@ -41,7 +61,17 @@ function ids(text: string): string[] {
 Deno.test("a criterion can be added to an earlier requirement", () => {
   const { file, read } = seed();
 
-  const r = runAddCriterion([file, "--rq", "RQ-1", "--pattern", "ubiquitous", "--shall", "c"]);
+  const r = runAddCriterion([
+    file,
+    "--rq",
+    "RQ-1",
+    "--pattern",
+    "event",
+    "--when",
+    "a request is handled",
+    "--shall",
+    "c",
+  ]);
   assertEquals(r.exitCode, 0);
   assertEquals(r.stdout, "AC-3\n");
 
@@ -53,7 +83,17 @@ Deno.test("a criterion can be added to an earlier requirement", () => {
 
 Deno.test("--after inserts directly behind the named criterion with a suffixed id", () => {
   const { file, read } = seed();
-  runAddCriterion([file, "--rq", "RQ-2", "--pattern", "ubiquitous", "--shall", "c"]); // AC-3
+  runAddCriterion([
+    file,
+    "--rq",
+    "RQ-2",
+    "--pattern",
+    "event",
+    "--when",
+    "a request is handled",
+    "--shall",
+    "c",
+  ]); // AC-3
 
   const r = runAddCriterion([
     file,
@@ -84,7 +124,9 @@ Deno.test("repeated inserts after one anchor walk the suffix, renumbering nothin
       "--after",
       "AC-1",
       "--pattern",
-      "ubiquitous",
+      "event",
+      "--when",
+      "a request is handled",
       "--shall",
       shall,
     ]);
@@ -98,7 +140,17 @@ Deno.test("repeated inserts after one anchor walk the suffix, renumbering nothin
 Deno.test("appending to the file's last requirement is still a plain append", () => {
   const { file, read } = seed();
   const before = read();
-  const r = runAddCriterion([file, "--rq", "RQ-2", "--pattern", "ubiquitous", "--shall", "c"]);
+  const r = runAddCriterion([
+    file,
+    "--rq",
+    "RQ-2",
+    "--pattern",
+    "event",
+    "--when",
+    "a request is handled",
+    "--shall",
+    "c",
+  ]);
 
   assertEquals(r.exitCode, 0);
   // Byte-for-byte: the previous content is untouched and the new block follows it.
@@ -110,7 +162,17 @@ Deno.test("an unknown requirement is refused, and the message names the real one
   const { file, read } = seed();
   const before = read();
 
-  const r = runAddCriterion([file, "--rq", "RQ-9", "--pattern", "ubiquitous", "--shall", "a"]);
+  const r = runAddCriterion([
+    file,
+    "--rq",
+    "RQ-9",
+    "--pattern",
+    "event",
+    "--when",
+    "a request is handled",
+    "--shall",
+    "a",
+  ]);
   assertEquals(r.exitCode, 2);
   assertStringIncludes(r.stderr, "no such requirement: RQ-9");
   assertStringIncludes(r.stderr, "RQ-1, RQ-2");
@@ -128,7 +190,9 @@ Deno.test("--after must name a criterion of --rq, and says where it actually liv
     "--after",
     "AC-2", // AC-2 belongs to RQ-2
     "--pattern",
-    "ubiquitous",
+    "event",
+    "--when",
+    "a request is handled",
     "--shall",
     "a",
   ]);
@@ -144,7 +208,9 @@ Deno.test("--after must name a criterion of --rq, and says where it actually liv
     "--after",
     "AC-99",
     "--pattern",
-    "ubiquitous",
+    "event",
+    "--when",
+    "a request is handled",
     "--shall",
     "a",
   ]);
@@ -171,7 +237,17 @@ Deno.test("a criterion still cannot be added before any requirement exists", () 
     "internal",
   ]);
 
-  const r = runAddCriterion([file, "--rq", "RQ-1", "--pattern", "ubiquitous", "--shall", "a"]);
+  const r = runAddCriterion([
+    file,
+    "--rq",
+    "RQ-1",
+    "--pattern",
+    "event",
+    "--when",
+    "a request is handled",
+    "--shall",
+    "a",
+  ]);
   assertEquals(r.exitCode, 2);
   assertStringIncludes(r.stderr, "no requirements yet");
 });

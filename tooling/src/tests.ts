@@ -187,7 +187,7 @@ function stepLines(c: Criterion): string[] {
   for (const w of c.whiles) givens.push(w);
   givens.forEach((g, i) => lines.push(`${i === 0 ? "Given" : "And"} ${subst(g, keys)}`));
 
-  const trigger = c.when || c.ifCond; // event/unwanted/complex carry exactly one
+  const trigger = c.when || c.ifCond; // every pattern carries exactly one (E301/E303)
   if (trigger) lines.push(`When ${subst(trigger, keys)}`);
 
   c.shalls.forEach((s, i) =>

@@ -2,5 +2,6 @@
   {"rule":"E002","severity":"error","line":12,"path":"","message":"tabs are not allowed; use spaces only"},
   {"rule":"E002","severity":"error","line":13,"path":"","message":"tabs are not allowed; use spaces only"},
   {"rule":"E002","severity":"error","line":14,"path":"","message":"tabs are not allowed; use spaces only"},
-  {"rule":"E002","severity":"error","line":15,"path":"","message":"tabs are not allowed; use spaces only"}
+  {"rule":"E002","severity":"error","line":15,"path":"","message":"tabs are not allowed; use spaces only"},
+  {"rule":"E002","severity":"error","line":16,"path":"","message":"tabs are not allowed; use spaces only"}
 ],"warnings":[],"summary":{"requirements":0,"acceptanceCriteria":0}}

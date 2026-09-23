@@ -15,6 +15,7 @@ requirements:
   description: The service does its job
   acceptance-criteria:
   - id: AC-1
-    pattern: ubiquitous
+    pattern: event
+    when: a request is received
     shall:
     - do the thing

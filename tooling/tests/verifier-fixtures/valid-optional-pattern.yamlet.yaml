@@ -12,6 +12,7 @@ requirements:
   - id: AC-1
     pattern: optional
     where: the account has a premium subscription
+    when: funnel analytics are requested
     shall:
     - expose detailed funnel analytics
     - provide export to CSV

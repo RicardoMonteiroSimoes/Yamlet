@@ -2,4 +2,5 @@
   {"rule":"E508","severity":"error","line":14,"path":"exposes.outputs[0]","message":"exposes output name must match ^[a-z][a-z0-9_]*$, got: Bad-Output"},
   {"rule":"E510","severity":"error","line":24,"path":"requirements[0].acceptance-criteria[0].shall[0]","message":"reference {output.pdf_file} does not resolve to a declared exposes output"}
 ],"warnings":[
+  {"rule":"W006","severity":"warning","line":7,"path":"front","message":"front=external but no criterion carries an if clause: an untrusted caller's malformed or hostile input is unspecified"}
 ],"summary":{"requirements":1,"acceptanceCriteria":1}}

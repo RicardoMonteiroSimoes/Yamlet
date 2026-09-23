@@ -1,5 +1,4 @@
-{"file":"bad-exposes-undeclared-input.yamlet.yaml","valid":false,"errors":[
-  {"rule":"E505","severity":"error","line":23,"path":"requirements[0].acceptance-criteria[0].shall[0]","message":"reference {input.message} does not resolve to a declared exposes input"}
+{"file":"warn-external-no-unwanted.yamlet.yaml","valid":true,"errors":[
 ],"warnings":[
   {"rule":"W006","severity":"warning","line":7,"path":"front","message":"front=external but no criterion carries an if clause: an untrusted caller's malformed or hostile input is unspecified"}
 ],"summary":{"requirements":1,"acceptanceCriteria":1}}

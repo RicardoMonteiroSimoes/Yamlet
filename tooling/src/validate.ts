@@ -20,7 +20,10 @@ const REQUIRED_TOP = [
 const OPTIONAL_TOP = new Set(["exposes", "components", "connections"]);
 const BLAST_OK = new Set(["low", "medium", "high"]);
 const FRONT_OK = new Set(["internal", "external"]);
-const PATTERN_OK = new Set(["ubiquitous", "state", "event", "optional", "unwanted", "complex"]);
+// Every criterion carries exactly one trigger (`when` or `if`): a component with a
+// contract has no continuous behaviour, so EARS's trigger-less `ubiquitous` and
+// `state` patterns are not accepted (SPEC.md, "acceptance-criteria").
+const PATTERN_OK = new Set(["event", "optional", "unwanted", "complex"]);
 
 // Word-lists behind W003–W005. Short on purpose: an entry must be right far more
 // often than wrong. SPEC.md ("Lexical warnings") says why each word is in or out.
@@ -31,21 +34,39 @@ const OUTPUT_REF = /\{output\.[a-z][a-z0-9_]*\}/;
 const OPEN_LIST = /\b(?:such as|e\.g\.|etc\.?|including|and so on)(?=\s|$|[,.;:])/i;
 
 const PAT_REQ: Record<string, string> = {
-  ubiquitous: "",
-  state: "while",
   event: "when",
   optional: "where",
   unwanted: "if",
   complex: "while",
 };
 const PAT_ALLOWED: Record<string, string[]> = {
-  ubiquitous: [],
-  state: ["while"],
   event: ["when"],
-  optional: ["where"],
+  optional: ["where", "when", "if"],
   unwanted: ["if"],
   complex: ["while", "when", "if"],
 };
+// Patterns whose required clause is a precondition, so the trigger is a second,
+// separately required clause: exactly one of when/if (E303).
+const PAT_TRIGGER_CHOICE = new Set(["optional", "complex"]);
+
+// E305: word budgets. A clause is one trigger or one precondition, a shall one
+// obligation, a requirement description one capability, a summary one sentence.
+// Measured in whitespace-separated words so a long `{input.NAME}` costs one.
+export const WORD_BUDGET = {
+  clause: 20, // when / if / where / each while entry
+  shall: 20,
+  requirement: 30, // a requirement's description
+  summary: 30,
+} as const;
+
+function words(s: string): number {
+  const t = s.trim();
+  return t === "" ? 0 : t.split(/\s+/).length;
+}
+
+// W007: a trigger that stacks conditions. Bare "and" is deliberately absent —
+// "a file and its filename are submitted" is one event.
+const STACKED_CONDITION = /,\s*and\b|\btogether with\b|\bas well as\b/i;
 
 export interface ValidateOutput {
   findings: Finding[];
@@ -179,6 +200,23 @@ export function validate(
     }
   }
 
+  // ── E305: summary is one sentence ──
+  if (byPath.has("summary")) {
+    const n = words(byPath.get("summary")!);
+    if (n > WORD_BUDGET.summary) {
+      finding(
+        "E305",
+        byLine.get("summary")!,
+        "summary",
+        "summary is " + n + " words, budget " + WORD_BUDGET.summary + " (one sentence)",
+      );
+    }
+  }
+
+  // W006 needs to know, once every criterion is seen, whether any carried an `if`.
+  let nCriteria = 0;
+  let anyIfClause = false;
+
   // ── Discover requirement indices ──
   const rqIdxs: number[] = [];
   for (const p of byPath.keys()) {
@@ -214,6 +252,18 @@ export function validate(
 
     if (!byPath.has(rb + ".description")) {
       finding("E107", 0, rb, rb + ": missing required field: description");
+    } else {
+      // E305: a requirement is one capability.
+      const n = words(byPath.get(rb + ".description")!);
+      if (n > WORD_BUDGET.requirement) {
+        finding(
+          "E305",
+          byLine.get(rb + ".description")!,
+          rb + ".description",
+          rb + ": description is " + n + " words, budget " + WORD_BUDGET.requirement +
+            " (one capability)",
+        );
+      }
     }
 
     // Discover acceptance-criteria items for this requirement.
@@ -238,6 +288,19 @@ export function validate(
         validateAc(rb + ".acceptance-criteria[" + ai + "]");
       }
     }
+  }
+
+  // ── W006: an untrusted boundary that never says what it does with bad input ──
+  // A leaf only: where the trust boundary of a composite sits is undecided
+  // (SPEC.md, "Composition"), and a composite may hold no criteria at all.
+  if (!isComposite && byPath.get("front") === "external" && nCriteria > 0 && !anyIfClause) {
+    finding(
+      "W006",
+      byLine.get("front")!,
+      "front",
+      "front=external but no criterion carries an if clause: an untrusted caller's " +
+        "malformed or hostile input is unspecified",
+    );
   }
 
   // E204: file-wide duplicate AC id check.
@@ -678,7 +741,7 @@ export function validate(
           "E107",
           acPatLn,
           patP,
-          ab + ": pattern must be ubiquitous|state|event|optional|unwanted|complex, got: " + acPat,
+          ab + ": pattern must be event|optional|unwanted|complex, got: " + acPat,
         );
         acPat = "";
       }
@@ -770,17 +833,22 @@ export function validate(
         finding("E301", acidLn, ab, acid + ": pattern=" + acPat + " requires clause: if");
       }
 
-      // E303: complex requires exactly one of when/if
-      if (acPat === "complex") {
+      // E303: optional/complex require exactly one of when/if beside their precondition
+      if (PAT_TRIGGER_CHOICE.has(acPat)) {
         if (hasWhen && hasIf) {
           finding(
             "E303",
             acidLn,
             ab,
-            acid + ": pattern=complex must have exactly one of (when/if), not both",
+            acid + ": pattern=" + acPat + " must have exactly one of (when/if), not both",
           );
         } else if (!hasWhen && !hasIf) {
-          finding("E303", acidLn, ab, acid + ": pattern=complex requires exactly one of (when/if)");
+          finding(
+            "E303",
+            acidLn,
+            ab,
+            acid + ": pattern=" + acPat + " requires exactly one of (when/if)",
+          );
         }
       }
     }
@@ -971,6 +1039,43 @@ export function validate(
         );
       }
     }
+
+    // ── E305: word budgets — a clause is one trigger or one precondition, a shall one obligation ──
+    for (const l of proseLines) {
+      const isShall = l.path.includes(".shall[");
+      const cap = isShall ? WORD_BUDGET.shall : WORD_BUDGET.clause;
+      const n = words(l.text);
+      if (n > cap) {
+        const field = l.path.slice(ab.length + 1).replace(/\[[0-9]+\]$/, " entry");
+        finding(
+          "E305",
+          l.line,
+          l.path,
+          acid + ": " + field + " is " + n + " words, budget " + cap +
+            (isShall ? " (one obligation)" : " (one trigger or precondition)"),
+        );
+      }
+    }
+
+    // ── W007: a trigger that stacks conditions ──
+    // Each stacked condition is a precondition (a `while` entry) or a criterion
+    // of its own; in one clause they all land in a single Gherkin step.
+    for (const l of proseLines) {
+      if (!/\.(when|if|where)$/.test(l.path)) continue;
+      const m = l.text.match(STACKED_CONDITION);
+      if (m) {
+        finding(
+          "W007",
+          l.line,
+          l.path,
+          acid + ': trigger stacks conditions ("' + m[0].trim() +
+            '"); split them into while entries or criteria: ' + l.text,
+        );
+      }
+    }
+
+    nCriteria++;
+    if (hasIf) anyIfClause = true;
 
     void acPatLn;
     void outrefs;
