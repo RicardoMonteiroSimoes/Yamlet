@@ -7,7 +7,8 @@
 //   yamlet verify --list-rules [--format=human|json]
 //   yamlet systems [DIR] [--format=human|json]
 //   yamlet impact FILE [DIR] [--format=human|json]
-//   yamlet graph FILE|DIR [--format=dot|json] [--recursive]
+//   yamlet graph FILE|DIR --out=FILE [--format=dot|json|html] [--recursive]
+//   yamlet trace [DIR] --out=FILE [--format=html|json] [--techspec=FILE ...]
 //   yamlet init FILE ...
 //   yamlet add-requirement FILE --description "..."
 //   yamlet add-criterion FILE --rq RQ-N --pattern P ...
@@ -38,6 +39,7 @@ import { adrCommand } from "./src/adr_author.ts";
 import { systemsCommand } from "./src/systems.ts";
 import { impactCommand } from "./src/impact.ts";
 import { graphCommand } from "./src/graph.ts";
+import { traceCommand } from "./src/trace.ts";
 import { testsCommand } from "./src/tests.ts";
 import { helpFor, USAGE } from "./src/help.ts";
 import { VERSION } from "./src/version.ts";
@@ -151,6 +153,7 @@ export const COMMANDS: Command[] = [
   systemsCommand,
   impactCommand,
   graphCommand,
+  traceCommand,
   testsCommand,
   initCommand,
   addComponentCommand,

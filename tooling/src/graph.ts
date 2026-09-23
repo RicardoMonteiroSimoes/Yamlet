@@ -64,7 +64,7 @@ function portId(dir: "in" | "out", socket: string): string {
   return `${dir}__${socket}`;
 }
 
-interface Meta {
+export interface Meta {
   system: string;
   topic: string;
   name: string;
@@ -77,7 +77,7 @@ interface Meta {
 }
 
 /** Read a spec's header + contract + requirement count from its flattened records. */
-function metaOf(records: FlatRecord[]): Meta {
+export function metaOf(records: FlatRecord[]): Meta {
   const get = (path: string): string => records.find((r) => r.path === path)?.value ?? "";
   const collect = (re: RegExp): string[] =>
     records.filter((r) => re.test(r.path)).map((r) => r.value);
@@ -368,7 +368,7 @@ interface BuildOpts {
 }
 
 /** Canonicalize a path for cycle detection; falls back to the raw path if it can't resolve. */
-function canonPath(p: string): string {
+export function canonPath(p: string): string {
   try {
     return Deno.realPathSync(p);
   } catch {
@@ -558,8 +558,16 @@ function countsOf(model: GraphModel | ForestModel): Counts {
   return { roots: roots.length, members, wires };
 }
 
-/** Write the payload to `out`; stdout gets the summary, never the bytes. */
-function writeOut(out: string, payload: string, format: string, counts: Counts): CmdResult {
+/**
+ * Write a model-shaped payload to `out`; stdout gets a one-line summary
+ * (`format, size, ...parts`), never the bytes. Shared with `yamlet trace`.
+ */
+export function writePayload(
+  out: string,
+  payload: string,
+  format: string,
+  parts: string[],
+): CmdResult {
   try {
     Deno.writeTextFileSync(out, payload);
   } catch (e) {
@@ -572,10 +580,14 @@ function writeOut(out: string, payload: string, format: string, counts: Counts):
       : String(e);
     return die(`could not write ${out}: ${why}`);
   }
-  const parts = [format, humanBytes(new TextEncoder().encode(payload).length)];
-  parts.push(`${counts.roots} root${counts.roots === 1 ? "" : "s"}`);
+  const all = [format, humanBytes(new TextEncoder().encode(payload).length), ...parts];
+  return { exitCode: 0, stdout: `wrote ${out} — ${all.join(", ")}\n`, stderr: "" };
+}
+
+function writeOut(out: string, payload: string, format: string, counts: Counts): CmdResult {
+  const parts = [`${counts.roots} root${counts.roots === 1 ? "" : "s"}`];
   if (counts.members > 0) parts.push(`${counts.members} members`, `${counts.wires} wires`);
-  return { exitCode: 0, stdout: `wrote ${out} — ${parts.join(", ")}\n`, stderr: "" };
+  return writePayload(out, payload, format, parts);
 }
 
 /** A human page title for a model: the first root's topic (forest) or the spec's own. */

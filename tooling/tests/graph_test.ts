@@ -353,6 +353,7 @@ Deno.test("graph --format=html embeds the viewer and references a pinned, SRI-gu
     assertStringIncludes(r.payload, "<!DOCTYPE html>"); // a full document
     assertStringIncludes(r.payload, "window.__YAMLET_GRAPH__ = {"); // the model, inlined
     assertStringIncludes(r.payload, "yamlet.graph/v1");
+    assertStringIncludes(r.payload, "window.YamletViewer"); // the shared helpers, inlined first
     assertStringIncludes(
       r.payload,
       'src="https://cdn.jsdelivr.net/npm/elkjs@0.12.0/lib/elk.bundled.js"',

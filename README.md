@@ -113,6 +113,7 @@ Every write goes through the CLI. It allocates all IDs (`RQ-1`, `AC-3`, `T-2`,
 | `yamlet systems [DIR]` | list the systems and their scope files |
 | `yamlet impact FILE [DIR]` | which composites wire this spec, and how |
 | `yamlet graph [FILE\|DIR] --out=F` | DOT, JSON, or interactive HTML view of a spec or a whole directory |
+| `yamlet trace [DIR] --out=F` | interactive HTML (or JSON) trace: criteria → verdicts → ADRs → tasks, per spec |
 | `yamlet tests SRC TARGET` | project every criterion into a Gherkin `.feature` tree |
 | `yamlet init` · `add-requirement` · `add-criterion` | author a spec |
 | `yamlet add-component` · `add-connection` | wire a composite |

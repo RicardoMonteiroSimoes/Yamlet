@@ -1,0 +1,159 @@
+adr: ADR-0001
+title: Structural PDF parsing
+status: accepted
+date: 2026-09-07
+kind: selection
+arises_from:
+- pdf-verify.yamlet.yaml#AC-8
+- pdf-verify.yamlet.yaml#AC-9
+
+question: >-
+  What reads the cross-reference table, trailer and object structure of an untrusted upload, given
+  that the two failures must be reported as distinct identifiers?
+
+forces:
+- >-
+  The bytes arrive from an unauthenticated caller (front: external) and are adversarial by default.
+- >-
+  AC-10 fixes a precedence order over seven identifiers, so invalid_xref_trailer and
+  invalid_object_structure must be decidable independently of each other.
+- >-
+  Doing nothing is not available: AC-8 and AC-9 name failures no header/EOF check can detect.
+- >-
+  The service is distributed to customers as a closed-source artifact.
+
+basis:
+- id: B-1
+  quantity: 40000 uploads / month
+  source: >-
+    ingest telemetry, 2026-08 monthly mean
+- id: B-2
+  quantity: 36 months
+  source: >-
+    the amortisation horizon this team uses for build-versus-buy
+
+dimensions:
+- id: D-1
+  matters: >-
+    An AGPL obligation on a distributed closed-source artifact is a legal blocker, not a cost.
+  source: >-
+    OSS-policy/distribution.md
+- id: D-2
+  matters: >-
+    AC-8 and AC-9 must map to different identifiers. A parser that collapses both into one generic
+    failure cannot satisfy them without a second mechanism on top.
+- id: D-3
+  matters: >-
+    Code size reachable from untrusted bytes bounds the damage a malformed upload can do.
+- id: D-4
+  matters: >-
+    An unmaintained parser is a standing obligation to fork or migrate.
+  source: >-
+    upstream release history and open-issue age
+- id: D-5
+  matters: >-
+    Only decisive at a spread wide enough to survive the engineer-day rate being wrong by a third.
+  unit: EUR of total ownership
+  basis:
+  - B-1
+  - B-2
+  source: >-
+    cost/pdf-parsing-tco.md, over platform chargeback 2026-H2 and the internal engineer-day rate.
+
+options:
+- id: OPT-1
+  summary: >-
+    Apache PDFBox 3.x
+  refs:
+    project: https://pdfbox.apache.org/
+    licence: https://github.com/apache/pdfbox/blob/trunk/LICENSE.txt
+    failure-modes: https://pdfbox.apache.org/docs/3.0.3/javadocs/org/apache/pdfbox/Loader.html
+  reversibility: costly
+  against:
+    D-1: >-
+      Apache-2.0, no distribution obligation.
+    D-2: >-
+      Both failures surface as IOException with library-authored messages. Distinguishing them means
+      matching on message text, which is not a contract.
+    D-3: >-
+      A full document model, font and stream decoding are reachable from a parse call; roughly two
+      orders of magnitude more code than the checks need.
+    D-4: >-
+      Active, wide deployment, predictable major-version cadence.
+    D-5: >-
+      About 26k, mostly recurring: three engineer-days to adopt, then upgrade and CVE tracking, plus
+      one further service instance to absorb parse-time heap.
+- id: OPT-2
+  summary: >-
+    iText 8
+  refs:
+    project: https://itextpdf.com/products/itext-core
+    licence: https://github.com/itext/itext-java/blob/develop/LICENSE.md
+    pricing: https://itextpdf.com/how-buy/pricing
+  reversibility: costly
+  against:
+    D-1: >-
+      AGPL-3.0 or a per-seat commercial licence. Blocker under the distribution model.
+    D-2: >-
+      n/a — not evaluated, D-1 excludes the option.
+    D-3: >-
+      n/a — not evaluated, D-1 excludes the option.
+    D-4: >-
+      Active, commercially supported.
+    D-5: >-
+      n/a — not priced, D-1 excludes the option.
+- id: OPT-3
+  summary: >-
+    A scanner written here that reads only startxref, the trailer dictionary and object delimiters
+  refs:
+    grammar: ISO 32000-1:2008 §7.5
+  reversibility: reversible
+  against:
+    D-1: >-
+      No third-party licence.
+    D-2: >-
+      Each check is a separate function, so the two identifiers fall out of the structure rather
+      than being recovered from a message.
+    D-3: >-
+      Reads bytes; builds no document model, decodes no streams, resolves no fonts.
+    D-4: >-
+      Maintained here. The PDF structural grammar it depends on is frozen in ISO 32000 and does not
+      move.
+    D-5: >-
+      About 25k, front-loaded: twelve engineer-days to write it and assemble the corpus it is tested
+      against, then low ownership with no dependency to track. Cheaper than OPT-1 only past roughly
+      month 32, so the two are a wash at this horizon.
+
+decision: OPT-3
+
+requires:
+- id: R-1
+  must: >-
+    Resolve startxref offsets without following them recursively. A cross-reference chain is
+    bounded, or a malformed file can direct it to loop.
+- id: R-2
+  must: >-
+    Validate every byte offset read from the file against the file length before using it.
+- id: R-3
+  must: >-
+    Keep each check independent of whether another has run. AC-10 evaluates all seven independently,
+    so a scanner that short-circuits cannot report the earliest failure correctly.
+- id: R-4
+  must: >-
+    Keep structural parsing of untrusted bytes off the request thread under default JVM limits.
+
+accepts:
+- >-
+  The scanner accepts files a full parser would reject, and rejects none a full parser accepts, only
+  within the four structural properties AC-6 through AC-9 name. It is not a PDF validator.
+- >-
+  Cross-reference streams (PDF 1.5+) need their own decoding path, which is more work than calling a
+  library.
+
+revisit:
+- >-
+  A requirement asks for anything inside the page tree — content extraction, rendering, signature
+  verification. The scanner is the wrong shape for it and OPT-1 returns.
+- >-
+  Ownership of the scanner runs past 0.25 engineer-day / month, which is the assumption D-5 rests
+  on.

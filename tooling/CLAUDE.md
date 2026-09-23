@@ -45,8 +45,10 @@ src/blocks.ts     address an existing RQ-N/AC-N by id + its line extent (starts 
 src/systems.ts    `yamlet systems` (read-only)
 src/impact.ts     `yamlet impact` — reverse dependency index: which composites consume a spec (read-only)
 src/graph.ts      `yamlet graph` -> DOT | JSON model | HTML viewer (read-only)
+src/trace.ts      `yamlet trace` -> traceability model (spec/techspec/ADR) as JSON | HTML viewer (read-only)
 src/tests.ts      `yamlet tests` -> project criteria into Gherkin .feature files + binding manifest.json (wipes + rebuilds TARGET)
-src/viewer/       the HTML viewer (template + css + js + assembler); elk vendored
+src/viewer/       the HTML viewers (graph + trace pages, shared common.js/viewer.css, assembler); elk vendored.
+                  A new viewer asset must also be `--include`d in deno.json's compile task
 ```
 
 **Author owns all serialization** — indentation, quoting, pattern→clause mapping, ID allocation. IDs

@@ -1,0 +1,34 @@
+adr: ADR-0093
+title: Chunk size for streaming uploads
+status: superseded
+date: 2026-09-07
+kind: policy
+superseded_by: ADR-0094
+arises_from:
+- pdf-verify.yamlet.yaml#RQ-3
+
+question: >-
+  How large is one streamed chunk?
+
+dimensions:
+- id: D-1
+  matters: >-
+    Memory per concurrent upload
+
+options:
+- id: OPT-1
+  summary: >-
+    64 KiB
+  reversibility: reversible
+  against:
+    D-1: >-
+      Small
+- id: OPT-2
+  summary: >-
+    1 MiB
+  reversibility: reversible
+  against:
+    D-1: >-
+      Larger
+
+decision: OPT-1
