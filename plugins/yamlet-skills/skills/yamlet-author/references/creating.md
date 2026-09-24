@@ -64,6 +64,8 @@ A scope is exactly one of the two, never both. A `pdf-verifier` that only stores
 
 An `external` scope therefore **owes extra `unwanted`/`if` acceptance-criteria** for malformed or hostile input — factor that in when you drill the requirements. This also serves as a scope-limiting factor, which makes it easier to judge whether the requirements are concise.
 
+`internal` claims a caller, and a composite is where yamlet names it: verify warns (`W008`) on an `internal` spec that no composite under the working directory wires. Expected while a layer is written before its caller — tell the user, don't change `front` to silence it.
+
 ## 4. Converge on a summary
 
 The `summary` is one short sentence of what the scope encompasses, free of technicalities. *"Accepts an uploaded file, verifies it is a well-formed PDF, and returns the validated PDF."* is a perfect example.
@@ -98,7 +100,7 @@ The contract is set at `init` and cannot yet be changed afterwards — this is y
 
 You do **not** obey it blindly and it does not decide — bring its findings back to the user in plain prose:
 
-- Any **BLOCKER** (unused input, missing output, misclassified leaf/composite, fragmented system) must be resolved with the user *before* `init`.
+- Any **BLOCKER** (unused input, bag input, forgeable input, missing output, misclassified leaf/composite, fragmented system) must be resolved with the user *before* `init`.
 - Put its **QUESTIONS** to the user and its **SUGGESTIONS** up for a decision.
 
 Run this gate **once**, right before `init`. Do not skip it: a contract mistake is the most expensive error in the whole flow.
