@@ -414,8 +414,8 @@ exposes and the level above supplies. At an `external` root the level above *is*
 untrusted caller, so a boundary input there is caller-supplied and forgeable. Values
 the caller must not choose come from a member instead — a configuration leaf whose
 outputs are the settings (`intake_settings` wired into `receipt_portal`). Provenance
-is a fact of the wiring, not a flag on the input. yamlet says *what connects to what*, never *what
-the value is*. `{alias.socket}` tokens stay legal inside a composite's criteria (still
+is a fact of the wiring, not a flag on the input. yamlet says *what connects to what*,
+never *what the value is*. `{alias.socket}` tokens stay legal inside a composite's criteria (still
 resolved by `E604`): they let an emergent criterion *refer* to a member, but they no
 longer *constitute* wiring.
 
@@ -436,9 +436,9 @@ Open sub-decisions (still unsettled):
   member, `{alias.socket}` is unambiguous; multiple operations would force
   `{alias.operation.socket}`. Wanting five operations is a smell it's really five
   components.
-- **Authoring**: composites are **hand-written**. `yamlet init`/`add-*` own leaf
-  serialization only, and gain no `components`/`connections` support until the shape
-  is proven stable.
+- **Authoring**: `add-component` and `add-connection` build a composite's
+  `components`/`connections` blocks; there is still no command that edits or removes
+  a member or a wire once written.
 
 ---
 
