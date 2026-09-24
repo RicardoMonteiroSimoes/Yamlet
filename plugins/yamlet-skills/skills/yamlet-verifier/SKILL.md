@@ -20,13 +20,17 @@ Read the output above:
 
 - `OK: …` — the spec is valid (exit 0).
 - one or more `E###` lines — validation errors; the spec is invalid (exit 1).
-- a `W###` line — non-fatal warning; does not affect validity.
+- a `W###` line — non-fatal warning; does not affect validity, but raise it.
   `W008` (an `internal` spec no composite wires) is the one finding that depends on where verify runs: it scans the working directory for composites.
 - a usage error — no file path was supplied; re-invoke with the path to a `.yamlet.yaml` file (exit 2).
 
 If there are any issues, you MUST consult with the user.
 
 To resolve what a rule ID means, run `yamlet verify --list-rules`.
+
+## Do not fix by hand
+
+If you are running inside the `yamlet-author` flow, the one hard rule still holds: an `E###` is corrected by working the change back through the `yamlet` author commands, never by editing the YAML. Appending is always available; rewriting or removing committed text is not — if the fix needs that, say so plainly.
 
 ## Leaf vs composite: what "used" means (don't misread a passing spec)
 

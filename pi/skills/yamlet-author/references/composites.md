@@ -7,7 +7,7 @@ Do all of this immediately after init and **before** the first requirement — t
 ## C1. Discover the members you'll wire
 
 ```
-yamlet_systems({ dir: "specs", contracts: true, details: true })
+yamlet_systems({ dir: "specs", contracts: true, details: true })   // add system: "<slug>" to narrow
 ```
 
 `contracts` lists each scope's exposed contract on labelled `in:`/`out:` lines. You wire *against those contracts*, so choose members whose inputs you can supply and whose outputs you need — and read `details` alongside them, because a contract signature tells you the *shape* of a member but only its summary tells you what it actually does. Two scopes of one service often differ by a single socket (`…-plain` without the attachment); the prose is what says which one you want.

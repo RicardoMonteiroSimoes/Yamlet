@@ -90,7 +90,7 @@ The contract needs its own slug, `expose_name`, which is **different from `syste
 
 Every declared input **must** be referenced by some criterion as `{input.NAME}`, and every declared output as `{output.NAME}`, before the spec is complete. So only declare inputs and outputs the behaviour actually uses.
 
-**Get this right now.** Adding an input to a contract later is not supported, and even once it is, it will reach every composite that wires this spec — contracts are total, so a new input leaves every parent with an unbound member input. If you are unsure how costly a mistake here would be, `yamlet_impact` on a comparable spec shows you the shape of it.
+**Get this right now.** Adding an input to a contract later is not yet supported, and even once it is, it will reach every composite that wires this spec — contracts are total, so a new input leaves every parent with an unbound member input. If you are unsure how costly a mistake here would be, `yamlet_impact` on a comparable spec shows you the shape of it.
 
 **Leaf or composite?** Decide here, because it changes what the contract *means*. A **leaf** does the work itself; its inputs and outputs are referenced by its own criteria. A **composite** does none of the work — it wires *existing* scopes together and its contract is a **boundary**: inputs it accepts from its caller and routes to members, outputs it surfaces from what members produce. If the behaviour is "take these inputs, run them through services X and Y, hand back their results," it's a composite. If unsure, it's a leaf.
 
