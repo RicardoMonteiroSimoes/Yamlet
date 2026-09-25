@@ -85,7 +85,19 @@ export const CATALOG: Rule[] = [
     id: "E306",
     severity: "error",
     description:
-      "a while/shall/adrs entry is not a plain string (an unquoted colon-space made it a mapping)",
+      "a while/shall/adrs/reads/writes entry is not a plain string (an unquoted colon-space made it a mapping)",
+  },
+  {
+    id: "E307",
+    severity: "error",
+    description:
+      "reads/writes entry must name a stored field as entity.field (^[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*$)",
+  },
+  {
+    id: "E308",
+    severity: "error",
+    description:
+      "a field is listed more than once in one criterion's reads/writes (a write already covers the read)",
   },
   {
     id: "E401",
@@ -405,6 +417,12 @@ export const CATALOG: Rule[] = [
     severity: "warning",
     description:
       "front=internal but no composite under the working directory wires this spec as a member (its trusted caller is unnamed)",
+  },
+  {
+    id: "W009",
+    severity: "warning",
+    description:
+      "a field this spec reads is written by no spec of its system under the working directory",
   },
 ];
 

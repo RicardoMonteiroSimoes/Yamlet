@@ -21,7 +21,7 @@ Read the output above:
 - `OK: …` — the spec is valid (exit 0).
 - one or more `E###` lines — validation errors; the spec is invalid (exit 1).
 - a `W###` line — non-fatal warning; does not affect validity, but raise it.
-  `W008` (an `internal` spec no composite wires) is the one finding that depends on where verify runs: it scans the working directory for composites.
+  `W008` (an `internal` spec no composite wires) and `W009` (a stored field this spec reads that no scope of its system writes) are the two findings that depend on where verify runs: they scan the working directory, for composites and for the system's other specs.
 - a usage error — no file path was supplied; re-invoke with the path to a `.yamlet.yaml` file (exit 2).
 
 If there are any issues, you MUST consult with the user.

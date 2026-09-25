@@ -29,7 +29,7 @@ One question: **is this criterion (or obligation) really met at these references
 
 ## Input
 
-Your prompt holds: the code root the references are relative to; the criterion (`AC-N`, pattern, clauses, each `shall`, any examples) verbatim — or an obligation (`ADR-nnnn#R-n` and its `must`, which you check as its one `shall`); and the evidence — one or more `path:line` references. Resolve every reference against that root (you start from a fresh context and know nothing else about the layout). A `shall` with no reference offered for it is unsupported.
+Your prompt holds: the code root the references are relative to; the criterion (`AC-N`, pattern, clauses, each `shall`, any examples, any `writes`) verbatim — or an obligation (`ADR-nnnn#R-n` and its `must`, which you check as its one `shall`); and the evidence — one or more `path:line` references. Resolve every reference against that root (you start from a fresh context and know nothing else about the layout). A `shall` with no reference offered for it is unsupported.
 
 ## Check — each `shall`, in order
 
@@ -40,11 +40,13 @@ For each `shall`, at the references given:
 3. **Under the stated clause?** An `if`/`when`/`while`/`where` names the situation; the code must react to that situation, not a broader or narrower one.
 4. **Does the reference resolve?** A missing file, a line that is blank or unrelated, or a reference into a test alone (a test asserts; it does not implement) does not support the `shall`.
 
+Then each field the criterion declares under `writes`, as one more `shall` ("writes `vote.option`"): the code at the references must create, change or delete that stored field on the path the clauses describe. A declared write the evidence never performs is unsupported. `reads` need no check.
+
 ## Report — terse, per `shall`
 
 - `shall 1: SATISFIED — path:line, <what the code does>`
 - `shall 2: NOT SATISFIED — path:line, <the fact that falls short>`
 
-Then one line: **`CONFIRMED`** (every `shall` satisfied at the offered references) or **`REFUTED: <the first shall that fails and why>`**.
+Then one line: **`CONFIRMED`** (every `shall`, and every declared write, satisfied at the offered references) or **`REFUTED: <the first shall that fails and why>`**.
 
 If it holds, say so and stop — do not invent objections.

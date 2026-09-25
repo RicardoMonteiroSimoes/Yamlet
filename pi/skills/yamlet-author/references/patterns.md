@@ -48,6 +48,22 @@ yamlet_add_criterion({
 
 `rq` accepts **any** requirement in the file. Add `after: "AC-N"` to insert directly behind a named sibling instead of appending to the end of that requirement's criteria; the inserted criterion takes a letter-suffixed id (`AC-1a`) so nothing is renumbered.
 
+## Stored state — `reads` / `writes`
+
+Criteria lean on persisted state — "the poll is closed", "replace the earlier vote", "the instant it was changed". Name it: `reads` for a field (`entity.field`) the criterion only looks at, `writes` for one it creates, changes or deletes. A write covers the read, so a field is named once per criterion. Ask the user, per criterion: *what stored data does this look at, and what does it change?* A criterion that touches none carries neither.
+
+```
+yamlet_add_criterion({
+  file: "specs/vote_casting.yamlet.yaml", rq: "RQ-1", pattern: "unwanted",
+  if: "the poll is closed", shall: ["reject the vote"], reads: ["poll.state"]
+})
+```
+
+1. **Reuse names first.** Before naming a field, list what the system already has: `yamlet_systems({ dir: "specs", system: "lunch-poll", state: true })`. Add `details: true` to see the criteria behind each field — they are its only description. A second spelling of the same thing (`poll.status` next to `poll.state`) is invisible to the verifier and splits the data model.
+2. **An index, not a schema.** No types, keys, collation or formats — those stay in the code, or become a decision while planning. No prose description either: if the criteria don't say what a field means, a criterion is missing.
+3. **Contention.** When the field is also touched by another scope of the system, one side writing it, the result carries a `NOTE:` naming that scope. A second writer races the first; a reader may act on a value the other is changing (a vote checked against a poll being closed). Ask the user what should happen when the two interleave. Point to the criterion that already says so, in either spec — or draft one (typically `unwanted`, in the scope that must refuse or reconcile) and challenge it. Two readers never race.
+4. **`W009`** — a field this spec reads that no scope of the system writes. The writing scope isn't specified yet, the name is misspelled, or the data comes from outside the system. Tell the user which; it is a warning, not a reason to change the name.
+
 ## The three kinds of `{token}`
 
 Distinguished purely by shape:

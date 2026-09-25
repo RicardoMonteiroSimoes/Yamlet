@@ -54,12 +54,15 @@ yamlet verify [--format=human|json] <file.adr.yaml>
                                                    -> the extension picks the rules: E0xx–E6xx/W00x for a spec,
                                                       E7xx for a tech spec, E8xx for a decision record
 yamlet verify --list-rules [--format=human|json]
-yamlet systems [DIR] [--system=SLUG] [--details] [--contracts] [--format=human|json]
+yamlet systems [DIR] [--system=SLUG] [--details] [--contracts] [--state] [--format=human|json]
                                                    -> existing systems grouped by their scope files; --contracts adds each
                                                       scope's exposed contract on labelled `in:`/`out:` lines (what you can
                                                       wire as a member), --details adds its summary and description as
                                                       wrapped prose (which scope did I mean?), --system=SLUG narrows to
-                                                      one service
+                                                      one service. --state adds every stored field the system's criteria
+                                                      read (r) or write (w), and the contended scope pairs (two scopes on
+                                                      one field, at least one writing it); with --details each criterion's
+                                                      condition and shall entries are shown — they are the field's meaning
 yamlet impact FILE [DIR] [--format=human|json]
                                                    -> the reverse of `components:` — which composites declare this spec
                                                       as a member, under which alias, and which of its sockets each one
@@ -101,10 +104,17 @@ yamlet add-connection  FILE GROUP SOCKET=SOURCE [SOCKET=SOURCE ...]
 yamlet add-requirement FILE --description "..."                    -> prints RQ-N
 yamlet add-criterion   FILE --rq RQ-N [--after AC-N] --pattern P \
                  [--when ...|--if ...|--while ... (repeatable)|--where ...] \
-                 --shall "..." [--shall ...] [--example "k=v;k=v" ...]  -> prints AC-N
+                 --shall "..." [--shall ...] [--example "k=v;k=v" ...] \
+                 [--reads entity.field ...] [--writes entity.field ...]  -> prints AC-N
                                                    -> --rq takes any requirement, not only the newest; --after inserts
                                                       behind a named sibling and allocates a letter-suffixed id
-                                                      (AC-3 -> AC-3a), so no existing id is ever renumbered
+                                                      (AC-3 -> AC-3a), so no existing id is ever renumbered. --reads /
+                                                      --writes name the stored fields it touches; a field another scope
+                                                      of the system also touches (either side writing) prints a NOTE
+yamlet add-state       FILE --ac AC-N [--reads entity.field ...] [--writes entity.field ...]
+                                                   -> declare the stored fields an existing criterion reads or writes;
+                                                      merges into its lists (a write supersedes a read) and prints them.
+                                                      Gated like add-adr; prints the same NOTE on a contended field
 yamlet add-adr         FILE PATH (--rq RQ-N | --ac AC-N)
                                                    -> link a decision record (a path relative to FILE, must exist) to an
                                                       existing requirement or criterion; the first mutation of an existing
@@ -419,7 +429,8 @@ src/composite.ts       cross-file member/socket tables (directional: inputs vs o
 src/validate.ts        Phase 2: structural + semantic rules over records
 src/render.ts          byte-exact human/JSON output
 src/verify.ts          orchestration: extension → flatten → composite → validate
-src/author.ts          correct-by-construction appender + verify commit gate (and `add-adr`, the one in-place mutation)
+src/author.ts          correct-by-construction appender + verify commit gate (and `add-adr` / `add-state`, the in-place mutations)
+src/state.ts           a criterion's reads/writes merged per system: fields, contended pairs (systems --state, W009, NOTE)
 src/cmd.ts             the command helpers (usage error, flag values, path predicates) shared by author + techspec
 src/records.ts         readers over flattened records by prefix, shared by `tests` and the tech spec
 src/techspec.ts        the tech spec format: model, reader, canonical serializer, E701–E719

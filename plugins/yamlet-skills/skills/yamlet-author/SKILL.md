@@ -46,13 +46,14 @@ Push back on vagueness. "Handles errors" → *which* errors, and *what* behaviou
 - **exit 2** — `error:`, and nothing was written. Fix the input and retry.
 - **exit 3** — the change tripped a validation finding and the file was rolled back. Tell the user: the change is not expressible as asked.
 - **a `WARNING:` on stderr with exit 0** — the change landed under a requirement an ADR decides. Relay it verbatim: the decision is not revisited here; the tech spec that plans this change (`yamlet-techspec`) reads the record and accounts for it.
+- **a `NOTE:` on stderr with exit 0** — a stored field the criterion reads or writes is also touched by another scope, one side writing it. Ask the user what happens when the two interleave (see `references/patterns.md`, "Stored state"). If no criterion says, draft one and challenge it like any other.
 
 **Never invent an id** — use the one the tool printed. Ids are permanent, never reused and never renumbered; a deleted criterion leaves a gap, and the gap is correct.
 
 ## Working rhythm
 
 1. Route, and follow that procedure's setup.
-2. Per requirement: draft its description and criteria with the user, **challenge them** (below), settle the objections, then commit — `add-requirement`, then `add-criterion` per criterion.
+2. Per requirement: draft its description and criteria with the user — including the stored fields each one reads or writes (`references/patterns.md`, "Stored state") — **challenge them** (below), settle the objections, then commit — `add-requirement`, then `add-criterion` per criterion.
 3. A requirement with no criteria is incomplete. Give it at least one.
 4. Read the file back and confirm it captures the source of truth.
 5. **Verify** (below).
@@ -60,7 +61,7 @@ Push back on vagueness. "Handles errors" → *which* errors, and *what* behaviou
 
 ### Challenge before you commit
 
-Draft the requirement's description **and** its full set of criteria in conversation first. Then invoke **`yamlet-criteria-challenger`** (`/yamlet-criteria-challenger <proposal>`) with: the description; every intended criterion (pattern, clauses, `shall` items, placeholders/examples); and the scope's front and contract.
+Draft the requirement's description **and** its full set of criteria in conversation first. Then invoke **`yamlet-criteria-challenger`** (`/yamlet-criteria-challenger <proposal>`) with: the description; every intended criterion (pattern, clauses, `shall` items, placeholders/examples, reads/writes); the scope's front and contract; and the system's existing stored fields (`yamlet systems DIR --system=S --state`).
 
 Relay its findings in prose — you do not obey it blindly. Resolve every **BLOCKER** before committing, put its **QUESTIONS** to the user, and surface its **SUGGESTIONS** for a decision.
 

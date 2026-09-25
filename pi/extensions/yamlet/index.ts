@@ -108,6 +108,19 @@ const OPTIONAL_COMMANDS: Record<string, string> = {
 	techspec: "tech spec",
 	adr: "decision record",
 	trace: "traceability",
+	"add-state": "stored state",
+};
+
+/**
+ * Flags that shipped with a later command, on a command that predates it: a
+ * criterion's `--reads`/`--writes` and `systems --state` arrived with
+ * `add-state`. A CLI without that command rejects them as unknown flags, so a
+ * call passing one is refused up front with the upgrade hint instead.
+ */
+const FLAG_NEEDS: Record<string, string> = {
+	"--reads": "add-state",
+	"--writes": "add-state",
+	"--state": "add-state",
 };
 
 /**
@@ -399,9 +412,11 @@ async function runYamlet(
 	// A planning command on a CLI that predates it: say "upgrade", not "unknown
 	// command", and say it before running anything.
 	const cmd = args[0] ?? "";
-	if (probe.missing.includes(cmd)) {
+	const needs = [cmd, ...args.flatMap((a) => (FLAG_NEEDS[a] ? [FLAG_NEEDS[a]] : []))];
+	const lacking = [...new Set(needs.filter((c) => probe.missing.includes(c)))];
+	if (lacking.length > 0) {
 		throw new Error(
-			`Found ${probe.version}, but it is missing the command(s) this tool needs: ${cmd}.\n${UPGRADE_HINT}`,
+			`Found ${probe.version}, but it is missing the command(s) this tool needs: ${lacking.join(", ")}.\n${UPGRADE_HINT}`,
 		);
 	}
 
@@ -655,6 +670,12 @@ export default function (pi: ExtensionAPI) {
 				description: "Include each scope's summary and description",
 			})),
 			contracts: Type.Optional(Type.Boolean({ description: "Include each scope's exposed contract signature" })),
+			state: Type.Optional(Type.Boolean({
+				description:
+					"Include the stored fields the system's criteria read (r) or write (w), and the contended " +
+					"scope pairs (two scopes on one field, one writing it). With details, each criterion's " +
+					"condition and shall entries: they are the field's meaning",
+			})),
 			format: Type.Optional(StringEnum(["human", "json"] as const)),
 		}),
 		async execute(_id, params, signal, _onUpdate, ctx) {
@@ -663,6 +684,7 @@ export default function (pi: ExtensionAPI) {
 			if (params.system) args.push(`--system=${params.system}`);
 			if (params.details) args.push("--details");
 			if (params.contracts) args.push("--contracts");
+			if (params.state) args.push("--state");
 			if (params.format) args.push(`--format=${params.format}`);
 			return run(ctx, args, signal);
 		},
@@ -723,8 +745,9 @@ export default function (pi: ExtensionAPI) {
 		description:
 			"Check a spec (.yamlet.yaml), a tech spec (.techspec.yaml) or a decision record (.adr.yaml) " +
 			"against the rule catalog, the mechanical source of truth for validity; the extension picks the " +
-			"rules. E### is invalid; W### is a non-fatal warning. W008 depends on the working directory: it " +
-			"scans it for composites wiring an internal spec.",
+			"rules. E### is invalid; W### is a non-fatal warning. W008 and W009 depend on the working " +
+			"directory: they scan it for composites wiring an internal spec, and for the system's writers " +
+			"of a field this spec reads.",
 		promptSnippet: "Verify a .yamlet.yaml, .techspec.yaml or .adr.yaml against the rule catalog",
 		parameters: Type.Object({
 			file: Type.Optional(Type.String({ description: "Path to the .yamlet.yaml, .techspec.yaml or .adr.yaml to verify" })),
@@ -950,7 +973,8 @@ export default function (pi: ExtensionAPI) {
 			"trigger; the pattern picks the clauses: event (when), unwanted (if), optional (where + exactly " +
 			"one of when/if), complex (while + exactly one of when/if). A clause or a shall is at most 20 words. " +
 			"{input.X}/{output.X} need no examples; any other {placeholder} does, with every row binding " +
-			"every placeholder.",
+			"every placeholder. `reads`/`writes` name the stored fields (entity.field) it touches; a NOTE " +
+			"in the result names another scope contending for one.",
 		promptSnippet: "Add an EARS acceptance criterion (returns its AC-N)",
 		parameters: Type.Object({
 			file: Type.String(),
@@ -973,6 +997,12 @@ export default function (pi: ExtensionAPI) {
 			examples: Type.Optional(Type.Array(Type.String(), {
 				description: "Rows binding every placeholder, e.g. 'n=0;delay_seconds=10'",
 			})),
+			reads: Type.Optional(Type.Array(Type.String(), {
+				description: "Stored fields (entity.field) the criterion only reads, e.g. 'poll.state'",
+			})),
+			writes: Type.Optional(Type.Array(Type.String(), {
+				description: "Stored fields it creates, changes or deletes; a write covers the read",
+			})),
 		}),
 		async execute(_id, params, signal, _onUpdate, ctx) {
 			return mutate(params.file, ctx, () => {
@@ -984,6 +1014,35 @@ export default function (pi: ExtensionAPI) {
 				if (params.where) args.push("--where", params.where);
 				repeat("--shall", params.shall, args);
 				repeat("--example", params.examples, args);
+				repeat("--reads", params.reads, args);
+				repeat("--writes", params.writes, args);
+				return args;
+			}, signal);
+		},
+	});
+
+	pi.registerTool({
+		name: "yamlet_add_state",
+		label: "yamlet add-state",
+		description:
+			"Declare the stored fields (entity.field) an EXISTING criterion reads or writes. Merges into its " +
+			"lists — a write supersedes a read of the same field — and returns them. Reuse the names " +
+			"yamlet_systems with `state` lists. A NOTE in the result names another scope contending for a field.",
+		promptSnippet: "Declare the stored fields an existing criterion reads or writes",
+		parameters: Type.Object({
+			file: Type.String({ description: "The spec .yamlet.yaml" }),
+			ac: Type.String({ description: "The criterion, e.g. AC-2" }),
+			reads: Type.Optional(Type.Array(Type.String(), { description: "Fields it only reads" })),
+			writes: Type.Optional(Type.Array(Type.String(), { description: "Fields it creates, changes or deletes" })),
+		}),
+		async execute(_id, params, signal, _onUpdate, ctx) {
+			if ((params.reads?.length ?? 0) + (params.writes?.length ?? 0) === 0) {
+				throw new Error("yamlet_add_state needs at least one field in `reads` or `writes`.");
+			}
+			return mutate(params.file, ctx, () => {
+				const args = ["add-state", cleanPath(params.file), "--ac", params.ac];
+				repeat("--reads", params.reads, args);
+				repeat("--writes", params.writes, args);
 				return args;
 			}, signal);
 		},

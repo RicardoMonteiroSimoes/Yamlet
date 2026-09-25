@@ -68,6 +68,16 @@ yamlet_add_criterion({
 
 An inserted criterion gets a letter-suffixed id (`AC-1a`, then `AC-1b`) so it sorts into position and **no existing id changes**. `after` must name a criterion of the requirement in `rq`; if it doesn't, the tool says which requirement it actually belongs to.
 
+### Declaring stored state on an existing criterion
+
+A criterion written before its fields were named takes them later, without touching its text:
+
+```
+yamlet_add_state({ file: "specs/vote_casting.yamlet.yaml", ac: "AC-2", reads: ["poll.state"] })
+```
+
+It merges into the criterion's lists (a write supersedes a read of the same field) and returns them. Reuse the names `yamlet_systems` with `state: true` lists, and handle a `NOTE:` exactly as for a new criterion (`patterns` guide, "Stored state").
+
 ### Adding a new requirement
 
 Unchanged — `yamlet_add_requirement`, then its criteria. Drafted and challenged exactly as in the skill body.
