@@ -4,9 +4,12 @@
 import type { Finding, FlatRecord, Severity } from "./types.ts";
 import type { CompositeInfo } from "./composite.ts";
 import { socketKey } from "./composite.ts";
+import { escRe } from "./records.ts";
 
 const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const TOKEN = /^[a-z][a-z0-9_]*$/;
+// A stored field named by a criterion's `reads`/`writes`: `entity.field` (E307).
+export const FIELD = /^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$/;
 
 const REQUIRED_TOP = [
   "system",
@@ -71,6 +74,12 @@ const STACKED_CONDITION = /,\s*and\b|\btogether with\b|\bas well as\b/i;
 export interface ValidateOutput {
   findings: Finding[];
   summary: { requirements: number; acceptanceCriteria: number };
+}
+
+// Order list-entry paths by their trailing index (`x[2]` before `x[10]`).
+function byIndex(a: string, b: string): number {
+  const n = (p: string): number => Number(p.match(/\[([0-9]+)\]$/)?.[1] ?? 0);
+  return n(a) - n(b);
 }
 
 function topKey(path: string): string {
@@ -355,13 +364,16 @@ export function validate(
   }
 
   // ── E306: an entry of a string list read as a mapping ──
-  // `while`, `shall` and `adrs` hold plain strings. An unquoted colon-space
-  // makes a list entry a one-key mapping instead, and every reader of the list
-  // (the projection, the trace, the tech spec) then silently skips it.
+  // `while`, `shall`, `adrs`, `reads` and `writes` hold plain strings. An unquoted
+  // colon-space makes a list entry a one-key mapping instead, and every reader of
+  // the list (the projection, the trace, the tech spec, `systems --state`) then
+  // silently skips it.
   const strayEntries = new Map<string, { line: number; text: string }>();
   for (const r of records) {
     const m = r.path.match(
       /^(requirements\[[0-9]+\](?:\.acceptance-criteria\[[0-9]+\])?\.(?:while|shall|adrs)\[[0-9]+\])\.(.*)$/,
+    ) ?? r.path.match(
+      /^(requirements\[[0-9]+\]\.acceptance-criteria\[[0-9]+\]\.(?:reads|writes)\[[0-9]+\])\.(.*)$/,
     );
     if (m && !strayEntries.has(m[1]!)) {
       strayEntries.set(m[1]!, { line: r.line, text: m[2]! + ": " + r.value });
@@ -785,6 +797,38 @@ export function validate(
         ab + ".shall",
         acid + ": missing required field (shall) or shall is empty",
       );
+    }
+
+    // E307/E308: the stored fields a criterion reads or writes. An index over the
+    // criteria, not a schema: each entry names a field as `entity.field`, and a
+    // field appears once per criterion — a write already covers the read that a
+    // read-modify-write implies. Entries read as a mapping are E306 above.
+    const touched = new Set<string>();
+    for (const list of ["reads", "writes"]) {
+      const re = new RegExp("^" + escRe(ab) + "\\." + list + "\\[[0-9]+\\]$");
+      const entries = [...byPath.keys()].filter((p) => re.test(p)).sort(byIndex);
+      for (const p of entries) {
+        const v = byPath.get(p)!;
+        const ln = byLine.get(p)!;
+        if (!FIELD.test(v)) {
+          finding(
+            "E307",
+            ln,
+            p,
+            acid + ": " + list + " entry must name a stored field as entity.field, got: " + v,
+          );
+        } else if (touched.has(v)) {
+          finding(
+            "E308",
+            ln,
+            p,
+            acid + ": field " + v + " is listed more than once in reads/writes " +
+              "(a write already covers the read)",
+          );
+        } else {
+          touched.add(v);
+        }
+      }
     }
 
     // Detect trigger/condition clauses.

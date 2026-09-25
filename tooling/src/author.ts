@@ -20,7 +20,9 @@ import { verifyText } from "./verify.ts";
 import { type Contract, contractOf } from "./systems.ts";
 import { type CompositeInfo, resolveComposite, socketKey } from "./composite.ts";
 import { type Block, blocksOf, criteriaKeyLine, findBlock, spliceAfter } from "./blocks.ts";
-import { listUnder } from "./records.ts";
+import { listUnder, strayUnder } from "./records.ts";
+import { FIELD } from "./validate.ts";
+import { collectState } from "./state.ts";
 import {
   argVal,
   basename,
@@ -45,7 +47,9 @@ const USAGE = `Usage:
   yamlet add-criterion   FILE --rq RQ-N [--after AC-N] \\
                    --pattern event|optional|unwanted|complex \\
                    [--when ...|--if ...|--while ... (repeatable)|--where ...] \\
-                   --shall "..." [--shall "..." ...] [--example "k=v;k=v" ...]
+                   --shall "..." [--shall "..." ...] [--example "k=v;k=v" ...] \\
+                   [--reads entity.field ...] [--writes entity.field ...]
+  yamlet add-state       FILE --ac AC-N [--reads entity.field ...] [--writes entity.field ...]
   yamlet add-adr         FILE PATH (--rq RQ-N | --ac AC-N)
 `;
 const usageResult = (): CmdResult => ({ exitCode: 2, stdout: "", stderr: USAGE });
@@ -135,6 +139,36 @@ function declaredList(text: string, key: "inputs" | "outputs"): string[] {
   for (const rec of flatten(text).records) {
     if (re.test(rec.path)) out.push(rec.value);
   }
+  return out;
+}
+
+// ── stored state (reads / writes) ──
+
+/**
+ * Mirrors E307/E308 at construction time: every field is `entity.field`, and a
+ * field appears once per criterion — a write already covers the read.
+ */
+function checkState(reads: string[], writes: string[]): string {
+  const seen = new Set<string>();
+  for (const f of [...writes, ...reads]) {
+    if (!FIELD.test(f)) {
+      return `invalid stored field '${f}' (must be entity.field, each part ^[a-z][a-z0-9_]*$)`;
+    }
+    if (seen.has(f)) {
+      return writes.includes(f) && reads.includes(f)
+        ? `'${f}' is given as both --reads and --writes; a write already covers the read`
+        : `'${f}' is given twice`;
+    }
+    seen.add(f);
+  }
+  return "";
+}
+
+/** The `reads:` / `writes:` lists of a criterion (4-space indent), or "". */
+function emitState(reads: string[], writes: string[]): string {
+  let out = "";
+  if (reads.length > 0) out += "    reads:\n" + emitListItems(reads);
+  if (writes.length > 0) out += "    writes:\n" + emitListItems(writes);
   return out;
 }
 
@@ -677,6 +711,8 @@ export function runAddCriterion(args: string[]): CmdResult {
     const whiles: string[] = [];
     const shalls: string[] = [];
     const examples: string[] = [];
+    const reads: string[] = [];
+    const writes: string[] = [];
 
     let i = 1;
     while (i < args.length) {
@@ -718,6 +754,14 @@ export function runAddCriterion(args: string[]): CmdResult {
           after = argVal(args, i, a);
           i += 2;
           break;
+        case "--reads":
+          reads.push(argVal(args, i, a));
+          i += 2;
+          break;
+        case "--writes":
+          writes.push(argVal(args, i, a));
+          i += 2;
+          break;
         default:
           return die(`unknown flag for add-criterion: ${a}`);
       }
@@ -727,6 +771,8 @@ export function runAddCriterion(args: string[]): CmdResult {
     if (!rq) return die("add-criterion requires --rq RQ-N");
     if (!pattern) return die("add-criterion requires --pattern");
     if (shalls.length === 0) return die("add-criterion requires at least one --shall");
+    const stateErr = checkState(reads, writes);
+    if (stateErr !== "") return die(stateErr);
 
     const text = Deno.readTextFileSync(file);
 
@@ -959,6 +1005,7 @@ export function runAddCriterion(args: string[]): CmdResult {
         block += emitExampleRow(row);
       }
     }
+    block += emitState(reads, writes);
 
     // Splice after the anchor: the named sibling with `--after`, otherwise the
     // requirement's full extent (its last criterion, or its `acceptance-criteria:`
@@ -984,7 +1031,8 @@ export function runAddCriterion(args: string[]): CmdResult {
       `the new criterion ${acid} falls under its decision`,
       adrsOf(next, target.path),
     );
-    return { exitCode: 0, stdout: `${acid}\n`, stderr: notice };
+    const shared = contentionNotice(file, next, acid, [...writes, ...reads]);
+    return { exitCode: 0, stdout: `${acid}\n`, stderr: notice + shared };
   } catch (e) {
     if (e instanceof CmdError) return e.result;
     throw e;
@@ -1137,6 +1185,162 @@ export function runAddAdr(args: string[]): CmdResult {
 }
 
 /**
+ * The notice a mutation prints when a field it just declared is also touched by
+ * another scope of the same system, with at least one side writing it. Whether
+ * the two interleave safely is not something the tool can judge: a criterion
+ * must say what happens (a vote arriving after the poll closed), and asking is
+ * the author's job. On stderr, exit 0. Scans the working directory, as W009 does.
+ */
+function contentionNotice(file: string, text: string, ac: string, fields: string[]): string {
+  if (fields.length === 0) return "";
+  const records = flatten(text).records;
+  const system = records.find((r) => r.path === "system")?.value ?? "";
+  const state = collectState(".", system, { file, records });
+  const lines: string[] = [];
+  for (const use of state.fields) {
+    if (!fields.includes(use.field)) continue;
+    const mine = use.touches.filter((t) => t.ac === ac && sameFile(t.file, file));
+    if (mine.length === 0) continue;
+    const iWrite = mine.some((t) => t.access === "write");
+    // One line per (scope, access), its criteria joined.
+    const rows = new Map<string, string[]>();
+    for (const t of use.touches) {
+      if (sameFile(t.file, file)) continue;
+      if (!iWrite && t.access !== "write") continue;
+      const key = `${t.access === "write" ? "written" : "read"} by ${t.file}`;
+      rows.set(key, [...(rows.get(key) ?? []), t.ac]);
+    }
+    for (const [key, acs] of rows) lines.push(`  ${use.field}: ${key} ${acs.join(", ")}`);
+  }
+  if (lines.length === 0) return "";
+  return `NOTE: ${ac} shares stored state with other scopes of ${system}:\n` + lines.join("\n") +
+    "\nSay in a criterion what happens when they interleave (yamlet systems --state).\n";
+}
+
+function sameFile(a: string, b: string): boolean {
+  const real = (p: string): string => {
+    try {
+      return Deno.realPathSync(p);
+    } catch {
+      return p;
+    }
+  };
+  return a === b || real(a) === real(b);
+}
+
+// ── add-state ──
+// Declare the stored fields an existing criterion reads or writes. Like add-adr,
+// it rewrites an existing block and runs `strictGuard`. The lists are merged and
+// re-emitted at the criterion's end: a write supersedes a read of the same field
+// (a write already covers it), and a field already declared is not repeated.
+export function runAddState(args: string[]): CmdResult {
+  try {
+    const file = args[0] ?? "";
+    if (file === "") return usageResult();
+
+    let ac = "";
+    const reads: string[] = [];
+    const writes: string[] = [];
+    let i = 1;
+    while (i < args.length) {
+      const a = args[i]!;
+      if (a === "--ac") {
+        ac = argVal(args, i, a);
+        i += 2;
+      } else if (a === "--reads") {
+        reads.push(argVal(args, i, a));
+        i += 2;
+      } else if (a === "--writes") {
+        writes.push(argVal(args, i, a));
+        i += 2;
+      } else {
+        return die(`unknown flag for add-state: ${a}`);
+      }
+    }
+    if (ac === "") return die("add-state requires --ac AC-N");
+    if (reads.length === 0 && writes.length === 0) {
+      return die("add-state requires at least one --reads or --writes");
+    }
+    const err = checkState(reads, writes);
+    if (err !== "") return die(err);
+    if (!isFile(file)) return die(`file not found: ${file} (run 'init' first)`);
+
+    const backup = Deno.readTextFileSync(file);
+    const blocks = blocksOf(backup);
+    const target = findBlock(blocks, ac);
+    if (target === undefined || target.kind !== "criterion") {
+      const known = blocks.filter((b) => b.kind === "criterion" && b.id !== "").map((b) => b.id);
+      return die(`no such criterion: ${ac} (this spec has ${known.join(", ") || "none"})`);
+    }
+
+    const records = flatten(backup).records;
+    const stray = [
+      ...strayUnder(records, `${target.path}.reads`),
+      ...strayUnder(records, `${target.path}.writes`),
+    ];
+    if (stray.length > 0) {
+      return die(
+        `${ac} has a reads/writes entry read as a mapping (E306); ` +
+          `it was not written by this tool: ${stray[0]!.value}`,
+      );
+    }
+    const oldReads = listUnder(records, `${target.path}.reads`);
+    const oldWrites = listUnder(records, `${target.path}.writes`);
+    const newWrites = [...new Set([...oldWrites, ...writes])];
+    const newReads = [...new Set([...oldReads, ...reads])].filter((f) => !newWrites.includes(f));
+    const same = (a: string[], b: string[]): boolean =>
+      a.length === b.length && a.every((x, k) => x === b[k]);
+    if (same(newReads, oldReads) && same(newWrites, oldWrites)) {
+      return die(`${ac} already declares every field given`);
+    }
+
+    // Cut the block's existing lists — the key line and the lines its entries were
+    // parsed from (not every `    - ` line after it: a hand-ordered `examples:`
+    // table may follow) — then re-emit both at the block's end.
+    const lines = backup.split("\n");
+    const cut = new Set<number>(); // 0-based
+    for (const r of records) {
+      if (
+        /^\S+\.(?:reads|writes)\[[0-9]+\]$/.test(r.path) && r.path.startsWith(`${target.path}.`)
+      ) {
+        cut.add(r.line - 1);
+      }
+    }
+    for (let ln = target.start; ln <= target.end; ln++) {
+      const l = lines[ln - 1] ?? "";
+      if (l === "    reads:" || l === "    writes:") cut.add(ln - 1);
+    }
+    const emitted = emitState(newReads, newWrites).replace(/\n$/, "").split("\n");
+    const out: string[] = [];
+    lines.forEach((l, k) => {
+      if (!cut.has(k)) out.push(l);
+      if (k === target.end - 1) out.push(...emitted);
+    });
+    const next = out.join("\n");
+
+    Deno.writeTextFileSync(file, next);
+    const guard = strictGuard(file, backup, next);
+    if (!guard.ok) {
+      Deno.writeTextFileSync(file, backup);
+      return {
+        exitCode: 3,
+        stdout: "",
+        stderr: `error: add-state produced an unexpected finding and was rolled back:\n${
+          renderUnexpected(guard.unexpected)
+        }\n`,
+      };
+    }
+    let stdout = "";
+    if (newReads.length > 0) stdout += `${ac} reads:  ${newReads.join(", ")}\n`;
+    if (newWrites.length > 0) stdout += `${ac} writes: ${newWrites.join(", ")}\n`;
+    return { exitCode: 0, stdout, stderr: contentionNotice(file, next, ac, [...writes, ...reads]) };
+  } catch (e) {
+    if (e instanceof CmdError) return e.result;
+    throw e;
+  }
+}
+
+/**
  * Validate example rows against the criterion's placeholders and input refs.
  * Returns "" when consistent, or a (possibly multi-line) human message. Mirrors
  * author.sh's validate_examples awk.
@@ -1269,7 +1473,8 @@ export const addCriterionCommand: Command = {
 Usage:
   yamlet add-criterion FILE --rq RQ-N [--after AC-N] --pattern P \\
     [--when ...|--if ...|--while ... (repeatable)|--where ...] \\
-    --shall "..." [--shall ...] [--example "k=v;k=v" ...]
+    --shall "..." [--shall ...] [--example "k=v;k=v" ...] \\
+    [--reads entity.field ...] [--writes entity.field ...]
 
 --rq      any requirement in the file, not only the newest one.
 --after   insert directly after this criterion instead of appending. It must be
@@ -1278,10 +1483,40 @@ Usage:
           existing id changes — ids are never renumbered, because the projected
           Gherkin manifest keys on them.
 
+--reads   a stored field (entity.field) the criterion reads; repeatable.
+--writes  a stored field the criterion creates, changes or deletes; repeatable.
+          A write covers the read, so a field is named once. Names are an index,
+          not a schema: reuse the ones 'yamlet systems --state' already lists.
+
 Without --after the criterion is appended to the end of that requirement's
-criteria and takes the next free number.
+criteria and takes the next free number. When a declared field is also touched
+by another scope of the system, and either side writes it, a NOTE on stderr
+names that scope: a criterion should say what happens when the two interleave.
 `,
   run: runAddCriterion,
+};
+
+export const addStateCommand: Command = {
+  name: "add-state",
+  summary: "declare the stored fields a criterion reads or writes",
+  help: `yamlet add-state — declare the stored fields an existing criterion reads or writes
+
+Usage:
+  yamlet add-state FILE --ac AC-N [--reads entity.field ...] [--writes entity.field ...]
+
+--reads   a stored field the criterion reads; repeatable.
+--writes  a stored field the criterion creates, changes or deletes; repeatable.
+
+Merges into the criterion's \`reads:\`/\`writes:\` lists. A write supersedes a read
+of the same field; a field already declared is not repeated. Prints the
+criterion's resulting lists. Field names are an index over the criteria, not a
+schema — types, keys and collation stay in the code. Reuse the names
+'yamlet systems --state' already lists for the system.
+
+When a field is also touched by another scope of the system, and either side
+writes it, a NOTE on stderr names that scope (see add-criterion).
+`,
+  run: runAddState,
 };
 
 export const addAdrCommand: Command = {

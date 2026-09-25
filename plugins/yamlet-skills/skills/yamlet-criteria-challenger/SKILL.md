@@ -10,7 +10,7 @@ context: fork
 background: false
 model: opus
 effort: low
-allowed-tools: Bash(yamlet verify:*), Read
+allowed-tools: Bash(yamlet verify:*), Bash(yamlet systems:*), Read
 ---
 
 # Yamlet Criteria Challenger
@@ -21,12 +21,12 @@ Committed wording is final (criteria bind step definitions at once), but appendi
 
 ## Hard limits
 
-- Read-only. NEVER write/edit files or run a mutating `yamlet` command. You may run `yamlet verify --list-rules` to cite a rule ID and `Read` the spec for committed context.
+- Read-only. NEVER write/edit files or run a mutating `yamlet` command. You may run `yamlet verify --list-rules` to cite a rule ID, `yamlet systems` to list the system's stored fields, and `Read` the spec for committed context.
 - You challenge and recommend; you DONT decide or rewrite. The author and user commit.
 
 ## Input
 
-`$ARGUMENTS` holds: the requirement description; each criterion (EARS pattern, clause(s) `while`/`when`/`where`/`if`, `shall` items, any placeholders/examples); and scope context (front, declared contract inputs/outputs). Missing criteria for the requirement is your first finding.
+`$ARGUMENTS` holds: the requirement description; each criterion (EARS pattern, clause(s) `while`/`when`/`where`/`if`, `shall` items, any placeholders/examples, reads/writes); scope context (front, declared contract inputs/outputs); and the system's existing stored fields. Missing criteria for the requirement is your first finding.
 
 ## Checks — for each: object or clear it
 
@@ -44,10 +44,16 @@ Committed wording is final (criteria bind step definitions at once), but appendi
 7. **Contract references.** (leaf) every declared input must reach `{input.NAME}` and every output `{output.NAME}` or verify fails — flag any without a home if this is the requirement that owes it. (composite) inputs are wired as connection sources, not referenced here — don't flag those.
 8. **Placeholders.** Any `{placeholder}` (token `^[a-z][a-z0-9_]*$`, not an `{input.*}`/`{output.*}`) needs an examples table with **every row binding every placeholder**. Flag a placeholder with no table or a row with a missing binding — the script rejects these.
 9. **Coverage gaps.** A success path with no failure path, a failure part-way through a multi-step write, an unstated boundary?
+10. **Stored state.** Each criterion names the stored fields it touches (`reads` / `writes`, `entity.field`), and you have the system's existing fields (given with the proposal, or `yamlet systems <DIR> --system=<slug> --state --details`). Flag:
+   - stored data the text leans on ("the poll is closed", "the earlier vote", "the instant it changed") with no field for it — a BLOCKER when another scope already writes that data (the contention stays hidden), a SUGGESTION otherwise;
+   - the wrong access: a `shall` that changes a field listed under `reads`, or a write that is only looked at — a BLOCKER, it misreports who races whom;
+   - a new name for something the system already names (`poll.status` beside `poll.state`) — a QUESTION: same thing? reuse the name;
+   - a contended field — another scope touches it, one side writing — with no criterion, here or there, saying what happens when the two interleave (a vote after the poll closed; an option removed while voted on) — a coverage gap under 9;
+   - a "field" that is not stored state (a contract input, a computed value) — a SUGGESTION to drop it. Fields are an index, not a schema: never ask for types, keys or a description.
 
 ## Report — terse and ordered
 
-- **BLOCKERS** — will fail verify or freeze a defect (vague shall, unbound value, wrong pattern, unbound placeholder, bundled capabilities, missing `unwanted` on an external front).
+- **BLOCKERS** — will fail verify or freeze a defect (vague shall, unbound value, wrong pattern, unbound placeholder, bundled capabilities, missing `unwanted` on an external front, hidden or misreported stored state).
 - **QUESTIONS** — real ambiguities for the user.
 - **SUGGESTIONS** — non-blocking improvements.
 - **BOTTOM LINE** — one line: `ready to commit` or `revise before committing`, with the single most important reason.

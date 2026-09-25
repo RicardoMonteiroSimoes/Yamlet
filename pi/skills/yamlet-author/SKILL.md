@@ -58,12 +58,14 @@ The `add_*` tools return the assigned id (`RQ-1`, `AC-3`). A failure returns `er
 
 A `WARNING:` in a successful result means the change landed under a requirement an ADR decides. Relay it verbatim: the decision is not revisited here; the tech spec that plans this change (the `yamlet-techspec` skill) reads the record and accounts for it.
 
+A `NOTE:` in a successful result means a stored field the criterion reads or writes is also touched by another scope, one side writing it. Ask the user what happens when the two interleave (`patterns` guide, "Stored state"). If no criterion says, draft one and challenge it like any other.
+
 **Never invent an id** — use the one the tool returned. Ids are permanent, never reused and never renumbered; a deleted criterion leaves a gap, and the gap is correct.
 
 ## Working rhythm
 
 1. Route, and follow that procedure's setup.
-2. Per requirement: draft its description and criteria with the user, **challenge them** (below), settle the objections, then commit — `yamlet_add_requirement`, then `yamlet_add_criterion` per criterion.
+2. Per requirement: draft its description and criteria with the user — including the stored fields each one reads or writes (`patterns` guide, "Stored state") — **challenge them** (below), settle the objections, then commit — `yamlet_add_requirement`, then `yamlet_add_criterion` per criterion.
 3. A requirement with no criteria is incomplete. Give it at least one.
 4. Read the file back and confirm it captures the source of truth.
 5. **Verify** (below).
@@ -71,7 +73,7 @@ A `WARNING:` in a successful result means the change landed under a requirement 
 
 ### Challenge before you commit
 
-Draft the requirement's description **and** its full set of criteria in conversation first. Then spawn the **`yamlet-criteria-challenger`** agent with: the description; every intended criterion (pattern, clauses, `shall` items, placeholders/examples); and the scope's front and contract.
+Draft the requirement's description **and** its full set of criteria in conversation first. Then spawn the **`yamlet-criteria-challenger`** agent with: the description; every intended criterion (pattern, clauses, `shall` items, placeholders/examples, reads/writes); the scope's front and contract; and the system's existing stored fields (`yamlet_systems({ dir, system, state: true })`).
 
 ```
 Agent({

@@ -27,7 +27,7 @@ If `yamlet_verify` is not among your tools, the yamlet pi extension is not insta
 - `OK: …` — the spec is valid.
 - one or more `E###` lines — validation errors; the spec is invalid.
 - a `W###` line — non-fatal warning; does not affect validity, but raise it.
-  `W008` (an `internal` spec no composite wires) is the one finding that depends on where verify runs: it scans the working directory for composites.
+  `W008` (an `internal` spec no composite wires) and `W009` (a stored field this spec reads that no scope of its system writes) are the two findings that depend on where verify runs: they scan the working directory, for composites and for the system's other specs.
 
 Finding errors is a **successful call reporting an invalid spec**, not a tool failure — read the findings and report them. If there are any issues, you MUST consult with the user.
 
