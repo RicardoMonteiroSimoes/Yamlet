@@ -10,10 +10,14 @@ field means and *why* it exists. It is deliberately separate from:
   this document is the bug.** (The original sh+awk `verify.sh`/`author.sh` were
   retired; the TypeScript tooling under `tooling/` is now the only implementation.)
 - **`README.md`** — the pitch and a pointer here. Not a second spec.
-- **`specs_example/`** — verified specimens: three leaves (`email_service`,
+- **`specs_example/`** — verified specimens: four leaves (`email_service`,
   `email_service_plain` — the attachment-free variant scope of the same service,
-  `pdf_upload`) and two composites (`pdf_archiver`, and `pdf_archiver_resilient`,
-  which adds a failure path notifying via the plain sender). Teach *shape*, not meaning.
+  `pdf_upload`, and `intake_settings` — a configuration source with outputs and no
+  inputs) and four composites (`pdf_archiver`; `pdf_archiver_resilient`, which adds a
+  failure path notifying via the plain sender; `receipt_intake`, which nests
+  `pdf_archiver`; and `receipt_portal`, the `external` root that wires `receipt_intake`
+  from its caller and its settings). `pdf_archiver_resilient` is an unwired `internal`
+  variant and carries `W008` on purpose. Teach *shape*, not meaning.
 
 Ownership rule: every fact has exactly one home. Don't restate a validity rule
 here (link its id); don't put semantics in the example's comments (they rot).
@@ -70,8 +74,22 @@ validation lives once, at the boundary that owns the trust decision
 untrusted input enters the graph.
 
 An `external` leaf with no `if` clause in any criterion is a warning (`W006`) — a
-sibling scope may own that behaviour, so not an error. Composites are exempt: their
-trust boundary is undecided.
+sibling scope may own that behaviour, so not an error. Composites are exempt: they
+may hold no criteria at all.
+
+**`internal` names a caller, and a composite is where it is named (`W008`).**
+`internal` claims "a component we control calls me"; the only place yamlet records
+that caller is a composite wiring the spec as a member. An `internal` spec — leaf or
+composite — that no composite under the working directory wires is a warning. The
+lookup is reverse (who names *this* file?), so it scans the working directory
+recursively, as `yamlet impact` does; a composite outside that tree is not seen.
+It is a warning, not an error, because leaves are written before the composite that
+wires them, and a system may be built from the inside out: an `internal` layer
+authored on its own warns until its caller exists.
+
+**A system's trust boundary is its root's `front`.** The root is the spec no
+composite wires. An `external` root is where untrusted input enters; an `internal`
+root means the entry point is not specified yet — which is exactly what `W008` says.
 
 ### `exposes` — the contract signature
 
@@ -392,8 +410,12 @@ never flags. So wiring completeness is a flat rule, not a per-connection matrix:
 A member *output* need not be consumed — it is the member's surface, not the
 composite's obligation. Composite-owned data (a configured archive address, a fixed
 subject) is **not** a literal held in the file; it is a boundary input the composite
-exposes and the level above supplies. yamlet says *what connects to what*, never *what
-the value is*. `{alias.socket}` tokens stay legal inside a composite's criteria (still
+exposes and the level above supplies. At an `external` root the level above *is* the
+untrusted caller, so a boundary input there is caller-supplied and forgeable. Values
+the caller must not choose come from a member instead — a configuration leaf whose
+outputs are the settings (`intake_settings` wired into `receipt_portal`). Provenance
+is a fact of the wiring, not a flag on the input. yamlet says *what connects to what*,
+never *what the value is*. `{alias.socket}` tokens stay legal inside a composite's criteria (still
 resolved by `E604`): they let an emergent criterion *refer* to a member, but they no
 longer *constitute* wiring.
 
@@ -414,11 +436,9 @@ Open sub-decisions (still unsettled):
   member, `{alias.socket}` is unambiguous; multiple operations would force
   `{alias.operation.socket}`. Wanting five operations is a smell it's really five
   components.
-- **`front` for a graph**: where the trust boundary sits for a whole composite is not
-  yet decided.
-- **Authoring**: composites are **hand-written**. `yamlet init`/`add-*` own leaf
-  serialization only, and gain no `components`/`connections` support until the shape
-  is proven stable.
+- **Authoring**: `add-component` and `add-connection` build a composite's
+  `components`/`connections` blocks; there is still no command that edits or removes
+  a member or a wire once written.
 
 ---
 
@@ -672,7 +692,7 @@ None at the moment.
 ---
 
 *Shipped since first draft: the trigger rule (`E301`–`E303`), [word budgets](#word-budgets--e305)
-(`E305`), `W006` and `W007`; [decision records](#decision-records--adryaml)
+(`E305`), `W006`, `W007` and `W008`; [decision records](#decision-records--adryaml)
 (`E801`–`E815`), [`adrs`](#adrs--linking-a-decision) links on requirements and
 criteria (`E109`) and the derived [tech spec](#tech-specs--planning-the-work)
 (`E701`–`E719`); the [`exposes`](#exposes--the-contract-signature) contract

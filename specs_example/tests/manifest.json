@@ -82,12 +82,35 @@
         "sockets": []
       }
     },
+    "receipt-intake/intake_settings.feature": {
+      "AC-1": {
+        "inputs": [],
+        "outputs": [
+          "archive_address",
+          "archive_body",
+          "archive_subject",
+          "confirmation_body",
+          "confirmation_subject"
+        ],
+        "sockets": []
+      }
+    },
     "receipt-intake/receipt_intake.feature": {
       "AC-1": {
         "inputs": [
           "archive_address",
           "file",
           "filename",
+          "submitter_address"
+        ],
+        "outputs": [],
+        "sockets": []
+      }
+    },
+    "receipt-intake/receipt_portal.feature": {
+      "AC-1": {
+        "inputs": [
+          "file",
           "submitter_address"
         ],
         "outputs": [],

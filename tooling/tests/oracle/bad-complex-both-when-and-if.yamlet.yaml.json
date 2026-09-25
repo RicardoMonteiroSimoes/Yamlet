@@ -1,4 +1,5 @@
 {"file":"bad-complex-both-when-and-if.yamlet.yaml","valid":false,"errors":[
   {"rule":"E303","severity":"error","line":12,"path":"requirements[0].acceptance-criteria[0]","message":"AC-1: pattern=complex must have exactly one of (when/if), not both"}
 ],"warnings":[
+  {"rule":"W008","severity":"warning","line":7,"path":"front","message":"front=internal but no composite under the working directory wires this spec as a member: the trusted caller it claims is unnamed"}
 ],"summary":{"requirements":1,"acceptanceCriteria":1}}

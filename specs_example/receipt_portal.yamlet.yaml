@@ -1,0 +1,42 @@
+system: receipt-intake
+topic: Receipt submission portal
+summary: The public entry point where a submitter hands in a receipt PDF for archiving and confirmation.
+description: >-
+  The external boundary of the receipt intake: an untrusted submitter supplies only the file, its name and their own address. Every other value the intake needs — the archive address and the e-mail subjects and bodies — is wired from the deployment's settings, so a submitter can never choose where a receipt is archived. It throttles submissions per submitter before anything reaches the intake.
+blast_radius: medium
+front: external
+exposes:
+  name: receipt-portal
+  intent: accept a receipt PDF from a submitter and hand it to the receipt intake
+  inputs:
+  - file
+  - filename
+  - submitter_address
+
+components:
+- intake: receipt_intake.yamlet.yaml
+- settings: intake_settings.yamlet.yaml
+
+connections:
+  intake:
+    file: input.file
+    filename: input.filename
+    submitter_address: input.submitter_address
+    archive_address: settings.archive_address
+    subject: settings.archive_subject
+    content: settings.archive_body
+    confirmation_subject: settings.confirmation_subject
+    confirmation_body: settings.confirmation_body
+
+requirements:
+- id: RQ-1
+  description: >-
+    A submitter who floods the portal is throttled before the intake sees the receipt
+  acceptance-criteria:
+  - id: AC-1
+    pattern: unwanted
+    if: "{input.submitter_address} has submitted more than {max_submissions} receipts in the past hour"
+    shall:
+    - reject {input.file} without handing it to the intake
+    examples:
+    - max_submissions: "10"

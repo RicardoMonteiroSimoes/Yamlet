@@ -54,7 +54,7 @@ Push back on vagueness. "Handles errors" → *which* errors, and *what* behaviou
 
 ## Reading a tool's response
 
-The `add_*` tools return the assigned id (`RQ-1`, `AC-3`). A failure returns `error:` and wrote nothing — fix the input and retry. `yamlet_verify` is the exception: `E###` findings are a successful call reporting an invalid spec, not a tool failure.
+The `add_*` tools return the assigned id (`RQ-1`, `AC-3`). A failure returns `error:` and wrote nothing — fix the input and retry. Except a failure saying the change "produced an unexpected finding and was rolled back": the commit gate caught it, so the change is not expressible as asked — tell the user, do not retry. `yamlet_verify` is the exception: `E###` findings are a successful call reporting an invalid spec, not a tool failure.
 
 A `WARNING:` in a successful result means the change landed under a requirement an ADR decides. Relay it verbatim: the decision is not revisited here; the tech spec that plans this change (the `yamlet-techspec` skill) reads the record and accounts for it.
 

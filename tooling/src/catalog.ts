@@ -400,6 +400,12 @@ export const CATALOG: Rule[] = [
     description:
       "trigger clause stacks conditions (', and', 'together with', 'as well as'); split them into while entries or criteria",
   },
+  {
+    id: "W008",
+    severity: "warning",
+    description:
+      "front=internal but no composite under the working directory wires this spec as a member (its trusted caller is unnamed)",
+  },
 ];
 
 /** Severity lookup by rule id, mirroring the sh verifier's `catalog_sev`. */

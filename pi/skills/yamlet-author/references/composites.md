@@ -7,7 +7,7 @@ Do all of this immediately after init and **before** the first requirement — t
 ## C1. Discover the members you'll wire
 
 ```
-yamlet_systems({ dir: "specs", contracts: true, details: true })
+yamlet_systems({ dir: "specs", contracts: true, details: true })   // add system: "<slug>" to narrow
 ```
 
 `contracts` lists each scope's exposed contract on labelled `in:`/`out:` lines. You wire *against those contracts*, so choose members whose inputs you can supply and whose outputs you need — and read `details` alongside them, because a contract signature tells you the *shape* of a member but only its summary tells you what it actually does. Two scopes of one service often differ by a single socket (`…-plain` without the attachment); the prose is what says which one you want.
@@ -71,6 +71,8 @@ yamlet_add_connection({ file: "specs/archiver.yamlet.yaml", group: "output", wir
   { socket: "problem", source: "uploads.error" }
 ]})
 ```
+
+**At an `external` composite, a boundary input is chosen by the untrusted caller.** The example's `input.archive_address` is right only while the archiver is `internal`. At an external root, wire configuration (addresses, fixed subjects) and anything identity- or role-bearing from a member's output — a settings leaf, a token resolver — never from `input.*` (see `specs_example/receipt_portal.yamlet.yaml`).
 
 **If a member doesn't offer what you need**, the tool refuses and names the member. That refusal is correct and the fix is to change *that* spec first — not to work around it here.
 

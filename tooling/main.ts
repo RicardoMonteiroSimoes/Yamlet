@@ -123,6 +123,10 @@ The extension picks the rules: a .yamlet.yaml spec gets E0xx–E6xx and W00x, a
 .techspec.yaml tech spec gets E7xx (see \`yamlet techspec --help\`), a .adr.yaml
 decision record gets E8xx (see \`yamlet adr --help\`).
 
+One rule reads beyond the file: W008 (front=internal, but no composite wires this
+spec) scans the working directory for composites, as \`yamlet impact\` does. Run
+verify from the specs root, or a composite outside the scanned tree goes unseen.
+
 Options:
   --format=human|json   output shape (default: human)
   --list-rules          print the rule catalog instead of verifying a file

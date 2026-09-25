@@ -88,12 +88,13 @@ function socketUse(
   return { bound: sorted(bound), used: sorted(used), referenced: sorted(referenced) };
 }
 
-/** Every composite under `root` that declares `target` as a member. */
-export function collectImpact(target: string, root: string): ImpactReport {
+/**
+ * Every composite among `specs` that declares `target` as a member. Reads only
+ * the candidates, never the target — so `verify` can ask about a file whose text
+ * is still in memory (the author's mutation gate) or not yet on disk.
+ */
+export function consumersOf(target: string, specs: readonly string[]): Consumer[] {
   const targetKey = canonical(target);
-  const targetRecords = flatten(Deno.readTextFileSync(target)).records;
-
-  const specs = listSpecs(root);
   const consumers: Consumer[] = [];
 
   for (const f of specs) {
@@ -124,6 +125,14 @@ export function collectImpact(target: string, root: string): ImpactReport {
   consumers.sort((a, b) =>
     a.file < b.file ? -1 : a.file > b.file ? 1 : a.alias < b.alias ? -1 : a.alias > b.alias ? 1 : 0
   );
+  return consumers;
+}
+
+/** Every composite under `root` that declares `target` as a member. */
+export function collectImpact(target: string, root: string): ImpactReport {
+  const targetRecords = flatten(Deno.readTextFileSync(target)).records;
+  const specs = listSpecs(root);
+  const consumers = consumersOf(target, specs);
 
   return {
     file: target,

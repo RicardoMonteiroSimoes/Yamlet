@@ -33,7 +33,7 @@ src/composite.ts  cross-file member/socket tables (directional: inputs vs output
 src/validate.ts   Phase 2: structural + semantic rules over records
 src/catalog.ts    the rule catalog (source of truth for rule ids/severities)
 src/render.ts     byte-exact human/JSON output
-src/verify.ts     orchestration: extension -> flatten -> composite -> validate
+src/verify.ts     orchestration: extension -> flatten -> composite -> validate -> W008 (reverse scan of cwd via impact)
 src/author.ts     correct-by-construction appender; runs verifier as commit gate. `add-adr` is its one in-place mutation
 src/scalar.ts     the one scalar emitter (quote iff standard YAML would misread) + quoted-scalar reader
 src/cmd.ts        command helpers shared by author + techspec (usage error, flag values, path predicates)

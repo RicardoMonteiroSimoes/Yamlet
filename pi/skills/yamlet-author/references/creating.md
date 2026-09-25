@@ -64,6 +64,8 @@ A scope is exactly one of the two, never both. A `pdf-verifier` that only stores
 
 An `external` scope therefore **owes extra `unwanted`/`if` acceptance-criteria** for malformed or hostile input — factor that in when you drill the requirements. This also serves as a scope-limiting factor, which makes it easier to judge whether the requirements are concise.
 
+`internal` claims a caller, and a composite is where yamlet names it: verify warns (`W008`) on an `internal` spec that no composite under the working directory wires. Expected while a layer is written before its caller — tell the user, don't change `front` to silence it.
+
 ## 4. Converge on a summary
 
 The `summary` is one short sentence of what the scope encompasses, free of technicalities. *"Accepts an uploaded file, verifies it is a well-formed PDF, and returns the validated PDF."* is a perfect example.
@@ -88,7 +90,7 @@ The contract needs its own slug, `expose_name`, which is **different from `syste
 
 Every declared input **must** be referenced by some criterion as `{input.NAME}`, and every declared output as `{output.NAME}`, before the spec is complete. So only declare inputs and outputs the behaviour actually uses.
 
-**Get this right now.** Adding an input to a contract later is not supported, and even once it is, it will reach every composite that wires this spec — contracts are total, so a new input leaves every parent with an unbound member input. If you are unsure how costly a mistake here would be, `yamlet_impact` on a comparable spec shows you the shape of it.
+**Get this right now.** Adding an input to a contract later is not yet supported, and even once it is, it will reach every composite that wires this spec — contracts are total, so a new input leaves every parent with an unbound member input. If you are unsure how costly a mistake here would be, `yamlet_impact` on a comparable spec shows you the shape of it.
 
 **Leaf or composite?** Decide here, because it changes what the contract *means*. A **leaf** does the work itself; its inputs and outputs are referenced by its own criteria. A **composite** does none of the work — it wires *existing* scopes together and its contract is a **boundary**: inputs it accepts from its caller and routes to members, outputs it surfaces from what members produce. If the behaviour is "take these inputs, run them through services X and Y, hand back their results," it's a composite. If unsure, it's a leaf.
 
@@ -108,7 +110,7 @@ It runs in an isolated context whose only tools are `read` and `yamlet_systems` 
 
 You do **not** obey it blindly and it does not decide — bring its findings back to the user in plain prose:
 
-- Any **BLOCKER** (unused input, missing output, misclassified leaf/composite, fragmented system) must be resolved with the user *before* init.
+- Any **BLOCKER** (unused input, bag input, forgeable input, missing output, misclassified leaf/composite, fragmented system) must be resolved with the user *before* init.
 - Put its **QUESTIONS** to the user and its **SUGGESTIONS** up for a decision.
 
 Run this gate **once**, right before init. Do not skip it: a contract mistake is the most expensive error in the whole flow. If you have no `Agent` tool, see the skill body's fallback — do not silently skip the gate.

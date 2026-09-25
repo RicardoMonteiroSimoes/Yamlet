@@ -27,7 +27,7 @@ Turn **finished** specs and their code into **one tech spec**: a verdict per cri
 ## Reading the tool's response
 
 - **exit 0** — `init` prints the tech spec's path; `task` prints its `T-N`. A `DECIDED:` notice on stderr means an ADR decides this behaviour — see *Decided behaviour*.
-- **exit 2** — `error:` and nothing was written. Fix the input; a refusal names the ids and specs that exist.
+- **exit 2** — `error:` and nothing was written. Fix the input; a refusal names the ids and specs that exist. A refusal that says the file has errors means delete it and start over.
 - **exit 3** — the change tripped a validation finding and was not written. Tell the user.
 
 ## Working rhythm

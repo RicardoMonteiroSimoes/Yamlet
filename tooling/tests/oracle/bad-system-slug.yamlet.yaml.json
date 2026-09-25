@@ -1,4 +1,5 @@
 {"file":"bad-system-slug.yamlet.yaml","valid":false,"errors":[
   {"rule":"E105","severity":"error","line":1,"path":"system","message":"system must match ^[a-z0-9]+(-[a-z0-9]+)*$, got: Bad_Slug_With_Underscores"}
 ],"warnings":[
+  {"rule":"W008","severity":"warning","line":6,"path":"front","message":"front=internal but no composite under the working directory wires this spec as a member: the trusted caller it claims is unnamed"}
 ],"summary":{"requirements":1,"acceptanceCriteria":1}}

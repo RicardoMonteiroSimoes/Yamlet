@@ -36,7 +36,7 @@ A tool that answers "missing the command(s) … techspec" means the CLI on PATH 
 ## Reading a tool's response
 
 - `yamlet_techspec_init` returns the tech spec's path; `yamlet_techspec_task` returns its `T-N`. A `DECIDED:` notice in the result means an ADR decides this behaviour — see *Decided behaviour*.
-- A failure (`error:`) wrote nothing. It names what is missing, out of order, or which ids and specs exist; fix the input. A refusal that says the file has errors means delete it and start over.
+- A failure (`error:`) wrote nothing. It names what is missing, out of order, or which ids and specs exist; fix the input. A refusal that says the file has errors means delete it and start over. A failure saying the change "produced an unexpected finding (nothing written)" is the commit gate: tell the user.
 
 ## Working rhythm
 

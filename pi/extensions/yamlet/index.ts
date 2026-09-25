@@ -723,7 +723,8 @@ export default function (pi: ExtensionAPI) {
 		description:
 			"Check a spec (.yamlet.yaml), a tech spec (.techspec.yaml) or a decision record (.adr.yaml) " +
 			"against the rule catalog, the mechanical source of truth for validity; the extension picks the " +
-			"rules. E### is invalid; W### is a non-fatal warning.",
+			"rules. E### is invalid; W### is a non-fatal warning. W008 depends on the working directory: it " +
+			"scans it for composites wiring an internal spec.",
 		promptSnippet: "Verify a .yamlet.yaml, .techspec.yaml or .adr.yaml against the rule catalog",
 		parameters: Type.Object({
 			file: Type.Optional(Type.String({ description: "Path to the .yamlet.yaml, .techspec.yaml or .adr.yaml to verify" })),

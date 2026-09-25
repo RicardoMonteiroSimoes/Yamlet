@@ -1,4 +1,5 @@
 {"file":"bad-composite-unknown-alias.yamlet.yaml","valid":false,"errors":[
   {"rule":"E604","severity":"error","line":36,"path":"requirements[0].acceptance-criteria[0].when","message":"member reference {ghost.pdf_file} names unknown component alias: ghost"}
 ],"warnings":[
+  {"rule":"W008","severity":"warning","line":7,"path":"front","message":"front=internal but no composite under the working directory wires this spec as a member: the trusted caller it claims is unnamed"}
 ],"summary":{"requirements":1,"acceptanceCriteria":1}}

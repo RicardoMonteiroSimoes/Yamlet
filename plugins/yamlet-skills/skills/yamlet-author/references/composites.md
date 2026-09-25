@@ -66,6 +66,8 @@ yamlet add-connection specs/archiver.yamlet.yaml output \
   problem=uploads.error
 ```
 
+**At an `external` composite, a boundary input is chosen by the untrusted caller.** The example's `input.archive_address` is right only while the archiver is `internal`. At an external root, wire configuration (addresses, fixed subjects) and anything identity- or role-bearing from a member's output — a settings leaf, a token resolver — never from `input.*` (see `specs_example/receipt_portal.yamlet.yaml`).
+
 **If a member doesn't offer what you need**, the tool refuses and names the member. That refusal is correct and the fix is to change *that* spec first — not to work around it here.
 
 ## C4. What "used" means on a composite
