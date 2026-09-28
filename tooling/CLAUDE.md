@@ -53,7 +53,8 @@ src/graph.ts      `yamlet graph` -> DOT | JSON model | HTML viewer (read-only)
 src/trace.ts      `yamlet trace` -> traceability model (spec/techspec/ADR) as JSON | HTML viewer (read-only)
 src/tests.ts      `yamlet tests` -> project criteria into Gherkin .feature files + binding manifest.json (wipes + rebuilds TARGET)
 src/viewer/       the HTML viewers (graph + trace pages, shared common.js/viewer.css, assembler); elk vendored.
-                  A new viewer asset must also be `--include`d in deno.json's compile task
+                  The whole directory is `--include`d by deno.json's compile task and
+                  scripts/build-release.sh; the release build smoke-tests the HTML output
 ```
 
 **Author owns all serialization** — indentation, quoting, pattern→clause mapping, ID allocation. IDs
