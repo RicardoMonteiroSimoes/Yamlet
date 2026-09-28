@@ -17,8 +17,8 @@ This skill drives the `yamlet_adr_*` tools from the yamlet pi extension. Without
 ## The hard rules
 
 - **Never write a `.adr.yaml` yourself.** Every byte goes through the `yamlet_adr_*` tools, which mint every id and verify the file on every call. `read` a record to show it. The extension blocks `write`/`edit` on a `*.adr.yaml` and the shell equivalents — being blocked is the rule working.
-- **A record is frozen after `accept`.** Nothing changes it afterwards but `reject`, `supersede` and their dates. A decision is revised by writing the next record, never by editing this one.
-- **Options before opinions.** No option is written until every dimension is, and no decision until every option is judged against every dimension. The CLI enforces the order; you keep the conversation in it.
+- **A record is frozen after accept.** Only `yamlet_adr_supersede` changes it then. Before that, fix an objection in place (`yamlet_adr_remove`/`_replace`) — never reject and restart; `yamlet_adr_reject` (with a reason) is for an abandoned record.
+- **Options before opinions.** No option before the dimensions are challenged, no decision until every option is judged against every dimension.
 
 ## Reading a tool's response
 
@@ -42,12 +42,13 @@ This skill drives the `yamlet_adr_*` tools from the yamlet pi extension. Without
    })
    ```
 
-   It is headless and cannot ask the user anything, so relay its findings in prose. Resolve every **BLOCKER**, put its **QUESTIONS** to the user. Dimensions are the last thing that is cheap to change.
+   It is headless and cannot ask the user anything, so relay its findings in prose. Resolve every **BLOCKER**, put its **QUESTIONS** to the user. Dimensions are cheapest to change now.
 6. **Options.** At least two; the status quo counts and naming it is what makes the set honest. Each is judged against **every** dimension in one call: a cell states a fact, a measured cell carries a numeral, `n/a — <reason>` is allowed and a bare `n/a` is not. A selection needs a locator per option (`refs`).
    `yamlet_adr_add_option({ file, summary, reversibility: "reversible|costly|one-way", refs: [{ label: "project", locator: "URL" }], against: [{ dimension: "D-1", text: "..." }, ...] })`
 7. **Decision.** The user picks. `yamlet_adr_decide({ file, option: "OPT-n" })`
 8. **What it obliges, costs, and when it stops being right.** Obligations are work, imperative voice (`yamlet_adr_add_obligation`); costs are taken knowingly and never discharged (`yamlet_adr_add_accept`); a revisit condition with a threshold names its number (`yamlet_adr_add_revisit`).
-9. **Accept.** `yamlet_verify({ file })` must report `OK`; then `yamlet_adr_accept({ file })`. Say plainly that the record is now frozen, and that the spec must link it: `yamlet_add_adr({ file: SPEC, adr: FILE, rq: "RQ-n" })` or `ac: "AC-n"` (the tech spec or author does this; if you are standalone, do it and verify the spec).
+9. **Challenge again.** Spawn it with prompt `Before accept: <record>` plus the paths of the other accepted records beside it and the specs they and it link; revise for its blockers, put the rest to the user (supersede after accepting; spec changes go to the yamlet-author skill).
+10. **Accept.** `yamlet_verify({ file })` must report `OK`; then `yamlet_adr_accept({ file })`. Say plainly that the record is now frozen, and that the spec must link it: `yamlet_add_adr({ file: SPEC, adr: FILE, rq: "RQ-n" })` or `ac: "AC-n"` (the tech spec or author does this; if you are standalone, do it and verify the spec).
 
 ### If there is no `Agent` tool
 

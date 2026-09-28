@@ -4,6 +4,8 @@ ADR-0093-superseded-record.adr.yaml	0
 ADR-0094-chunk-size-revised.adr.yaml	0
 bad-adr-accepted-assumes-proposed.adr.yaml	1
 bad-adr-matrix.adr.yaml	1
+bad-adr-reason-not-rejected.adr.yaml	1
+bad-adr-rejected-without-reason.adr.yaml	1
 bad-adr-status.adr.yaml	1
 bad-adr-structure.adr.yaml	1
 bad-adrs.yamlet.yaml	1

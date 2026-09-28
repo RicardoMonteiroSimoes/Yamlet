@@ -56,12 +56,14 @@ Commands:
   add-adr           link an ADR to a requirement or criterion
   add-state         declare the stored fields a criterion reads or writes
   techspec          plan a change across a system's specs: gap analysis and task list (.techspec.yaml)
-  adr               write a decision record (.adr.yaml), correct by construction
+  adr               write or revise a decision record (.adr.yaml), correct by construction
 `;
 
 // The release before \`systems --criteria\`: the command is there, its summary does not name the flag.
 const OLD_SYSTEMS = (h) => h.replace(/  systems .*\n/, "  systems           list existing systems grouped by their scope files\n");
-const HELP_0_5 = OLD_SYSTEMS(HELP);
+// The release before ADR revision (remove, replace, reject --reason): \`adr\` is there, its summary says only "write".
+const OLD_ADR = (h) => h.replace(/  adr .*\n/, "  adr               write a decision record (.adr.yaml), correct by construction\n");
+const HELP_0_5 = OLD_ADR(OLD_SYSTEMS(HELP));
 
 // The release before tech specs and decision records: every authoring command,
 // none of the planning ones.
@@ -136,7 +138,7 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 {
 	const { tools } = makePi();
 	const names = [...tools.keys()].sort();
-	ok("31 tools registered", names.length === 31, names.join(","));
+	ok("33 tools registered", names.length === 33, names.join(","));
 	ok("impact and guide are registered",
 		names.includes("yamlet_impact") && names.includes("yamlet_guide"), names.join(","));
 	const planning = [
@@ -145,7 +147,8 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 		"yamlet_techspec_obligation", "yamlet_techspec_task",
 		"yamlet_adr_init", "yamlet_adr_add_force", "yamlet_adr_add_basis", "yamlet_adr_add_dimension",
 		"yamlet_adr_add_option", "yamlet_adr_decide", "yamlet_adr_add_obligation", "yamlet_adr_add_accept",
-		"yamlet_adr_add_revisit", "yamlet_adr_accept", "yamlet_adr_reject", "yamlet_adr_supersede",
+		"yamlet_adr_add_revisit", "yamlet_adr_remove", "yamlet_adr_replace",
+		"yamlet_adr_accept", "yamlet_adr_reject", "yamlet_adr_supersede",
 	];
 	ok("one tool per techspec/adr subcommand", planning.every((n) => names.includes(n)),
 		planning.filter((n) => !names.includes(n)).join(","));
@@ -569,10 +572,57 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 	const { tools, calls } = makePi();
 	await tools.get("yamlet_adr_accept").execute("id", { file: "a.adr.yaml" }, undefined, undefined, ctx);
 	ok("accept argv (no --date unless given)", same(calls.at(-1), ["yamlet", "adr", "accept", "a.adr.yaml"]), JSON.stringify(calls.at(-1)));
-	await tools.get("yamlet_adr_reject").execute("id", { file: "a.adr.yaml", date: "2026-09-08" }, undefined, undefined, ctx);
-	ok("reject --date argv", same(calls.at(-1), ["yamlet", "adr", "reject", "a.adr.yaml", "--date", "2026-09-08"]), JSON.stringify(calls.at(-1)));
+	await tools.get("yamlet_adr_reject").execute("id", { file: "a.adr.yaml", reason: "Moot: ADR-0004 decides it.", date: "2026-09-08" }, undefined, undefined, ctx);
+	ok("reject --reason --date argv",
+		same(calls.at(-1), ["yamlet", "adr", "reject", "a.adr.yaml", "--reason", "Moot: ADR-0004 decides it.", "--date", "2026-09-08"]),
+		JSON.stringify(calls.at(-1)));
+	ok("reject requires a reason", tools.get("yamlet_adr_reject").parameters.required.includes("reason"));
 	await tools.get("yamlet_adr_supersede").execute("id", { file: "a.adr.yaml", by: "ADR-0009" }, undefined, undefined, ctx);
 	ok("supersede argv", same(calls.at(-1), ["yamlet", "adr", "supersede", "a.adr.yaml", "--by", "ADR-0009"]), JSON.stringify(calls.at(-1)));
+}
+
+{
+	// Revising a proposed record: an id, or a list entry by position; never both.
+	const { tools, calls } = makePi();
+	await tools.get("yamlet_adr_remove").execute("id", { file: "@adr/a.adr.yaml", id: "D-2" }, undefined, undefined, ctx);
+	ok("remove argv (id)", same(calls.at(-1), ["yamlet", "adr", "remove", "adr/a.adr.yaml", "D-2"]), JSON.stringify(calls.at(-1)));
+	await tools.get("yamlet_adr_remove").execute("id", { file: "a.adr.yaml", list: "revisit", position: 2 }, undefined, undefined, ctx);
+	ok("remove argv (list + position)", same(calls.at(-1), ["yamlet", "adr", "remove", "a.adr.yaml", "--revisit", "2"]), JSON.stringify(calls.at(-1)));
+	for (const input of [{}, { id: "D-1", list: "force", position: 1 }, { list: "force" }]) {
+		const before = calls.length;
+		let msg = "";
+		try { await tools.get("yamlet_adr_remove").execute("id", { file: "a.adr.yaml", ...input }, undefined, undefined, ctx); }
+		catch (e) { msg = e.message; }
+		ok(`remove refuses ${JSON.stringify(input)} before running`,
+			msg.startsWith("yamlet_adr_remove") && calls.length === before, msg || JSON.stringify(calls.slice(before)));
+	}
+	await tools.get("yamlet_adr_replace").execute("id", {
+		file: "a.adr.yaml", id: "D-1", matters: "Latency decides at 50 ms.", unit: "ms", source: "bench.md", basis: ["B-1"],
+		against: [{ key: "OPT-1", text: "20" }, { key: "OPT-2", text: "n/a — D-2 excludes it" }],
+	}, undefined, undefined, ctx);
+	ok("replace argv (dimension, re-judging cells)",
+		same(calls.at(-1), ["yamlet", "adr", "replace", "a.adr.yaml", "D-1", "--matters", "Latency decides at 50 ms.",
+			"--unit", "ms", "--source", "bench.md", "--basis", "B-1", "--against", "OPT-1=20", "--against", "OPT-2=n/a — D-2 excludes it"]),
+		JSON.stringify(calls.at(-1)));
+	await tools.get("yamlet_adr_replace").execute("id", {
+		file: "a.adr.yaml", id: "OPT-2", summary: "iText 8", reversibility: "costly",
+		refs: [{ label: "licence", locator: "https://example.org/LICENSE" }], against: [{ key: "D-1", text: "AGPL-3.0." }],
+	}, undefined, undefined, ctx);
+	ok("replace argv (option)",
+		same(calls.at(-1), ["yamlet", "adr", "replace", "a.adr.yaml", "OPT-2", "--summary", "iText 8", "--reversibility", "costly",
+			"--ref", "licence=https://example.org/LICENSE", "--against", "D-1=AGPL-3.0."]),
+		JSON.stringify(calls.at(-1)));
+	await tools.get("yamlet_adr_replace").execute("id", { file: "a.adr.yaml", list: "force", position: 3, text: "The caller is untrusted." }, undefined, undefined, ctx);
+	ok("replace argv (list entry: text last)",
+		same(calls.at(-1), ["yamlet", "adr", "replace", "a.adr.yaml", "--force", "3", "The caller is untrusted."]), JSON.stringify(calls.at(-1)));
+	await tools.get("yamlet_adr_replace").execute("id", { file: "a.adr.yaml", id: "R-1", text: "Validate every offset." }, undefined, undefined, ctx);
+	ok("replace argv (obligation)", same(calls.at(-1), ["yamlet", "adr", "replace", "a.adr.yaml", "R-1", "Validate every offset."]), JSON.stringify(calls.at(-1)));
+	await tools.get("yamlet_adr_add_dimension").execute("id", {
+		file: "a.adr.yaml", matters: "Found late.", against: [{ option: "OPT-1", text: "fine" }, { option: "OPT-2", text: "poor" }],
+	}, undefined, undefined, ctx);
+	ok("add_dimension argv (after options: every option judged)",
+		same(calls.at(-1), ["yamlet", "adr", "add-dimension", "a.adr.yaml", "--matters", "Found late.", "--against", "OPT-1=fine", "--against", "OPT-2=poor"]),
+		JSON.stringify(calls.at(-1)));
 }
 
 // ── 3. exit-code semantics ─────────────────────────────────────────────────
@@ -633,9 +683,9 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 	resetNotes();
 	const { handlers, tools, calls } = makePi({ help: HELP_0_5 });
 	await handlers.session_start({}, ctx);
-	ok("0.5 CLI: one startup warning naming systems --criteria",
-		notes.length === 1 && notes[0][0] === "warning" && notes[0][1].includes("no systems --criteria command") &&
-		notes[0][1].includes("system criteria"), JSON.stringify(notes));
+	ok("0.5 CLI: one startup warning naming systems --criteria and adr revise",
+		notes.length === 1 && notes[0][0] === "warning" && notes[0][1].includes("no systems --criteria/adr revise command") &&
+		notes[0][1].includes("system criteria") && notes[0][1].includes("ADR revision"), JSON.stringify(notes));
 	const before = calls.length;
 	let msg = "";
 	try { await tools.get("yamlet_systems").execute("id", { criteria: true }, undefined, undefined, ctx); } catch (e) { msg = e.message; }
@@ -644,6 +694,24 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 		!calls.slice(before).some((c) => c[1] === "systems"), msg || JSON.stringify(calls.slice(before)));
 	const r = await tools.get("yamlet_systems").execute("id", { details: true }, undefined, undefined, ctx);
 	ok("0.5 CLI: systems without --criteria still runs", r.details.command[1] === "systems", JSON.stringify(r));
+	// ADR revision: the new subcommands, reject (a record without a reason would
+	// fail E804 after the upgrade, unrepairably) and a late dimension are refused
+	// up front with the upgrade hint; the rest of `adr` still runs.
+	for (const [tool, input, sub] of [
+		["yamlet_adr_remove", { file: "a.adr.yaml", id: "D-1" }, "remove"],
+		["yamlet_adr_replace", { file: "a.adr.yaml", id: "R-1", text: "t" }, "replace"],
+		["yamlet_adr_reject", { file: "a.adr.yaml", reason: "moot" }, "reject"],
+		["yamlet_adr_add_dimension", { file: "a.adr.yaml", matters: "m", against: [{ option: "OPT-1", text: "x" }] }, "add-dimension"],
+	]) {
+		const before = calls.length;
+		let m = "";
+		try { await tools.get(tool).execute("id", input, undefined, undefined, ctx); } catch (e) { m = e.message; }
+		ok(`0.5 CLI: ${tool} fails with the upgrade hint, before running`,
+			m.includes("needs: adr revise.") && m.includes("brew upgrade yamlet") &&
+			!calls.slice(before).some((c) => c[1] === "adr" && c[2] === sub), m || JSON.stringify(calls.slice(before)));
+	}
+	const dim = await tools.get("yamlet_adr_add_dimension").execute("id", { file: "a.adr.yaml", matters: "m" }, undefined, undefined, ctx);
+	ok("0.5 CLI: add_dimension before options still runs", dim.details.command[2] === "add-dimension", JSON.stringify(dim));
 }
 {
 	// The release before tech specs and decision records must keep loading:
@@ -692,9 +760,10 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 	const { handlers, tools, calls } = makePi({ help: HELP_0_4_0 });
 	await handlers.session_start({}, ctx);
 	ok("0.4.0 CLI: one startup warning naming trace, the one-spec techspec and add-state, not adr",
-		notes.length === 1 && notes[0][0] === "warning" && notes[0][1].includes("no techspec/trace/add-state/systems --criteria command") && notes[0][1].includes("stored state") &&
+		notes.length === 1 && notes[0][0] === "warning" && notes[0][1].includes("no techspec/trace/add-state/systems --criteria/adr revise command") && notes[0][1].includes("stored state") &&
 		notes[0][1].includes("traceability") && notes[0][1].includes("tech spec") &&
 		!notes[0][1].includes("decision record"), JSON.stringify(notes));
+	// (\`adr\` itself is there — only its revision commands are missing, and that is "ADR revision".)
 	const r = await tools.get("yamlet_adr_add_force").execute("id", { file: "a.adr.yaml", text: "t" }, undefined, undefined, ctx);
 	ok("0.4.0 CLI: the adr tools still run", r.details.command[1] === "adr", JSON.stringify(r));
 	for (const [tool, input, cmd] of [

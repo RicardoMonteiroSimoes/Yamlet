@@ -767,7 +767,7 @@ Deno.test("phase order: basis before dimensions before options; matrices are ato
     ),
     "OPT-1",
   );
-  refused(adr("add-dimension", A, "--matters", "late"), "before the options");
+  refused(adr("add-dimension", A, "--matters", "late"), "missing: OPT-1");
   ok(
     adr(
       "add-option",
@@ -883,8 +883,22 @@ Deno.test("accept needs a decision and a clean record, then freezes it; supersed
       ["add-obligation", A, "late"],
       ["add-accept", A, "late"],
       ["add-revisit", A, "late"],
+      ["remove", A, "D-1"],
+      ["remove", A, "--force", "1"],
+      [
+        "replace",
+        A,
+        "OPT-2",
+        "--summary",
+        "c",
+        "--reversibility",
+        "reversible",
+        "--against",
+        "D-1=x",
+      ],
+      ["replace", A, "--revisit", "1", "late"],
       ["accept", A],
-      ["reject", A],
+      ["reject", A, "--reason", "late"],
     ]
   ) {
     refused(adr(...args), "only possible while proposed");
@@ -919,10 +933,22 @@ Deno.test("accept needs a decision and a clean record, then freezes it; supersed
   assertEquals(verifyFile(A).exitCode, 0);
   refused(adr("supersede", A, "--by", "ADR-0002"), "only an accepted record");
 
-  // Reject: from proposed only.
-  ok(adr("reject", B, "--date", "2026-09-09"), "reject");
-  assertStringIncludes(Deno.readTextFileSync(B), "status: rejected\ndate: 2026-09-09\n");
-  refused(adr("reject", B), "only possible while proposed");
+  // Reject: from proposed only, and only with a reason, which the record keeps.
+  refused(adr("reject", B, "--date", "2026-09-09"), "requires --reason");
+  ok(
+    adr("reject", B, "--reason", "The question was: moot.", "--date", "2026-09-09"),
+    "reject",
+  );
+  assertStringIncludes(
+    Deno.readTextFileSync(B),
+    "status: rejected\ndate: 2026-09-09\n",
+  );
+  assertStringIncludes(
+    Deno.readTextFileSync(B),
+    "assumes:\n- ADR-0001\nrejected_because: >-\n  The question was: moot.\n",
+  );
+  assertEquals(verifyFile(B).result.errors.filter((f) => f.rule === "E804"), []);
+  refused(adr("reject", B, "--reason", "again"), "only possible while proposed");
 });
 
 Deno.test("an accepted record may not assume a proposed one", () => {
@@ -1011,4 +1037,313 @@ Deno.test("dispatch and text arguments", () => {
     Deno.readTextFileSync(A),
     "forces:\n- >-\n  two words\n- >-\n  line one line two\n",
   );
+});
+
+/** A proposed policy record: D-1 plain, D-2 measured in EUR, OPT-1 and OPT-2 judged on both. */
+function draft(dir: string): string {
+  const A = ok(
+    adr(
+      "init",
+      dir,
+      "--title",
+      "Draft",
+      "--kind",
+      "policy",
+      "--question",
+      "Q?",
+      "--arises-from",
+      "pdf-verify.yamlet.yaml#RQ-1",
+      "--date",
+      "2026-09-07",
+    ),
+    "init",
+  ).stdout.trim();
+  ok(adr("add-force", A, "first force"), "force 1");
+  ok(adr("add-force", A, "second force"), "force 2");
+  ok(adr("add-basis", A, "--quantity", "10 users", "--source", "s"), "B-1");
+  ok(adr("add-dimension", A, "--matters", "fit"), "D-1");
+  ok(
+    adr(
+      "add-dimension",
+      A,
+      "--matters",
+      "cost",
+      "--unit",
+      "EUR",
+      "--source",
+      "s",
+      "--basis",
+      "B-1",
+    ),
+    "D-2",
+  );
+  ok(
+    adr(
+      "add-option",
+      A,
+      "--summary",
+      "a",
+      "--reversibility",
+      "reversible",
+      "--against",
+      "D-1=good",
+      "--against",
+      "D-2=10",
+    ),
+    "OPT-1",
+  );
+  ok(
+    adr(
+      "add-option",
+      A,
+      "--summary",
+      "b",
+      "--reversibility",
+      "costly",
+      "--against",
+      "D-1=poor",
+      "--against",
+      "D-2=n/a — D-1 excludes it",
+    ),
+    "OPT-2",
+  );
+  return A;
+}
+
+Deno.test("a dimension added after options judges every one of them in the same call", () => {
+  const A = draft(workDir());
+  refused(adr("add-dimension", A, "--matters", "late"), "missing: OPT-1, OPT-2");
+  refused(
+    adr("add-dimension", A, "--matters", "late", "--against", "OPT-1=x", "--against", "OPT-9=y"),
+    "no such option: OPT-9",
+  );
+  refused(
+    adr(
+      "add-dimension",
+      A,
+      "--matters",
+      "late",
+      "--unit",
+      "ms",
+      "--source",
+      "s",
+      "--basis",
+      "B-1",
+      "--against",
+      "OPT-1=fast",
+      "--against",
+      "OPT-2=5",
+    ),
+    "OPT-1/D-3 is measured in ms; the cell needs a numeral",
+  );
+  refused(
+    adr("add-dimension", A, "--matters", "late", "--against", "OPT-1=x", "--against", "OPT-2=n/a"),
+    "OPT-2/D-3: a bare n/a",
+  );
+  const out = ok(
+    adr(
+      "add-dimension",
+      A,
+      "--matters",
+      "late",
+      "--against",
+      "OPT-1=fine",
+      "--against",
+      "OPT-2=n/a — D-1 excludes it",
+    ),
+    "D-3",
+  );
+  assertEquals(out.stdout, "D-3\n");
+  const text = Deno.readTextFileSync(A);
+  assertStringIncludes(text, "    D-2: >-\n      10\n    D-3: >-\n      fine\n");
+  assertEquals(verifyFile(A).exitCode, 0);
+  // Before any option, --against has nothing to judge.
+  const dir = workDir();
+  const B = ok(
+    adr(
+      "init",
+      dir,
+      "--title",
+      "E",
+      "--kind",
+      "policy",
+      "--question",
+      "Q?",
+      "--arises-from",
+      "pdf-verify.yamlet.yaml#RQ-1",
+    ),
+    "init",
+  ).stdout.trim();
+  refused(adr("add-dimension", B, "--matters", "m", "--against", "OPT-1=x"), "no such option");
+});
+
+Deno.test("remove drops one element of a proposed record and refuses what would dangle", () => {
+  const A = draft(workDir());
+  refused(adr("remove", A), "needs an id");
+  refused(adr("remove", A, "X-1"), "needs an id");
+  refused(adr("remove", A, "D-9"), "no such dimension: D-9 (this record has D-1, D-2)");
+  refused(adr("remove", A, "--force", "3"), "no such entry: --force 3 (this record has 2");
+  refused(adr("remove", A, "--force", "0"), "counted from 1");
+  refused(adr("remove", A, "--force", "1", "--revisit", "1"), "not several");
+  refused(adr("remove", A, "D-1", "D-2"), "too many arguments: D-2");
+  refused(adr("replace", A, "D-1", "--force", "1", "text"), "takes an id or --force, not both");
+  refused(adr("remove", A, "B-1"), "B-1 is the basis of D-2");
+  // OPT-2's D-2 cell cites D-1 as excluding it: D-1 cannot go while that stands.
+  refused(adr("remove", A, "D-1"), "would leave OPT-2/D-2: cites D-1");
+
+  ok(adr("decide", A, "OPT-1"), "decide");
+  refused(adr("remove", A, "OPT-1"), "OPT-1 is the decision");
+  ok(adr("add-obligation", A, "do it"), "R-1");
+  // Prose still naming an element holds it in place; a citation of another record's R-n does not.
+  ok(adr("add-revisit", A, "OPT-2 drops below 5 EUR, see ADR-0009#R-1"), "revisit");
+  refused(adr("remove", A, "OPT-2"), "OPT-2 is still named in revisit 1");
+  ok(adr("remove", A, "--revisit", "1"), "remove revisit 1");
+  ok(adr("add-accept", A, "cost one"), "accept 1");
+  ok(adr("add-accept", A, "cost two"), "accept 2");
+
+  ok(adr("remove", A, "--force", "1"), "remove force 1");
+  ok(adr("remove", A, "--accept", "2"), "remove accept 2");
+  ok(adr("remove", A, "R-1"), "remove R-1");
+  ok(adr("remove", A, "OPT-2"), "remove OPT-2");
+  ok(adr("remove", A, "D-2"), "remove D-2: its cells go with it");
+  ok(adr("remove", A, "B-1"), "remove B-1: no longer used");
+  const text = Deno.readTextFileSync(A);
+  assertStringIncludes(text, "forces:\n- >-\n  second force\n");
+  assertStringIncludes(text, "accepts:\n- >-\n  cost one\n");
+  for (const gone of ["first force", "cost two", "R-1", "OPT-2", "D-2", "B-1", "basis:"]) {
+    assertEquals(text.includes(gone), false, `${gone} should be gone:\n${text}`);
+  }
+  assertStringIncludes(text, "  against:\n    D-1: >-\n      good\n");
+  // One option left: the draft carries the in-progress E811, and nothing else.
+  ok(
+    adr("add-option", A, "--summary", "c", "--reversibility", "reversible", "--against", "D-1=ok"),
+    "OPT-3",
+  );
+  assertEquals(verifyFile(A).exitCode, 0);
+});
+
+Deno.test("replace rewrites one element in place under the same id", () => {
+  const A = draft(workDir());
+  ok(adr("decide", A, "OPT-2"), "decide");
+
+  // Options: the whole option, as add-option takes it; the decision still points at it.
+  refused(
+    adr(
+      "replace",
+      A,
+      "OPT-2",
+      "--summary",
+      "b2",
+      "--reversibility",
+      "costly",
+      "--against",
+      "D-1=x",
+    ),
+    "missing: D-2",
+  );
+  refused(
+    adr("replace", A, "OPT-2", "--matters", "m"),
+    "--matters does not apply to replacing OPT-2",
+  );
+  ok(
+    adr(
+      "replace",
+      A,
+      "OPT-2",
+      "--summary",
+      "b2",
+      "--reversibility",
+      "one-way",
+      "--against",
+      "D-1=still poor",
+      "--against",
+      "D-2=12",
+    ),
+    "replace OPT-2",
+  );
+  let text = Deno.readTextFileSync(A);
+  assertStringIncludes(text, "- id: OPT-2\n  summary: >-\n    b2\n  reversibility: one-way\n");
+  assertStringIncludes(text, "decision: OPT-2\n");
+
+  // Dimensions: a new unit that leaves a cell without a numeral must re-judge it.
+  refused(
+    adr("replace", A, "D-1", "--matters", "fit", "--unit", "ms", "--source", "s", "--basis", "B-1"),
+    "OPT-1/D-1 is measured in ms; the cell needs a numeral: good; re-judge that cell",
+  );
+  refused(adr("replace", A, "D-1", "--matters", "m", "--against", "OPT-7=1"), "no such option");
+  ok(
+    adr(
+      "replace",
+      A,
+      "D-1",
+      "--matters",
+      "latency",
+      "--unit",
+      "ms",
+      "--source",
+      "s",
+      "--basis",
+      "B-1",
+      "--against",
+      "OPT-1=20",
+      "--against",
+      "OPT-2=40",
+    ),
+    "replace D-1",
+  );
+  text = Deno.readTextFileSync(A);
+  assertStringIncludes(text, "- id: D-1\n  matters: >-\n    latency\n  unit: ms\n");
+  assertStringIncludes(text, "    D-1: >-\n      20\n    D-2: >-\n      10\n");
+  assertStringIncludes(text, "    D-1: >-\n      40\n    D-2: >-\n      12\n");
+
+  // Basis, obligations and the id-less lists.
+  refused(adr("replace", A, "B-1", "--quantity", "many", "--source", "s"), "must carry a numeral");
+  ok(adr("replace", A, "B-1", "--quantity", "20 users", "--source", "t"), "replace B-1");
+  ok(adr("add-obligation", A, "do it"), "R-1");
+  refused(adr("replace", A, "R-1"), "requires TEXT");
+  ok(adr("replace", A, "R-1", "do it", "properly"), "replace R-1");
+  ok(adr("replace", A, "--force", "2", "a", "better", "force"), "replace force 2");
+  ok(adr("add-revisit", A, "cost exceeds 12 EUR"), "revisit");
+  refused(adr("replace", A, "--revisit", "1", "cost exceeds the budget"), "must quantify it");
+  ok(adr("replace", A, "--revisit", "1", "cost exceeds 15 EUR"), "replace revisit 1");
+  text = Deno.readTextFileSync(A);
+  assertStringIncludes(text, "- id: B-1\n  quantity: 20 users\n");
+  assertStringIncludes(text, "- id: R-1\n  must: >-\n    do it properly\n");
+  assertStringIncludes(text, "forces:\n- >-\n  first force\n- >-\n  a better force\n");
+  assertStringIncludes(text, "revisit:\n- >-\n  cost exceeds 15 EUR\n");
+  assertEquals(verifyFile(A).exitCode, 0);
+  ok(adr("accept", A), "accept");
+});
+
+Deno.test("an obligation another record cites can be neither removed nor replaced", () => {
+  const dir = workDir();
+  const A = draft(dir);
+  ok(adr("decide", A, "OPT-1"), "decide");
+  ok(adr("add-obligation", A, "one"), "R-1");
+  ok(adr("add-obligation", A, "two"), "R-2");
+  const B = ok(
+    adr(
+      "init",
+      dir,
+      "--title",
+      "B",
+      "--kind",
+      "policy",
+      "--question",
+      "Q?",
+      "--assumes",
+      "ADR-0001",
+    ),
+    "init B",
+  ).stdout.trim();
+  ok(adr("add-force", B, "ADR-0001#R-1 holds."), "force citing R-1");
+  refused(adr("remove", A, "R-1"), "ADR-0001#R-1 is cited by ADR-0002");
+  refused(adr("replace", A, "R-1", "other"), "ADR-0001#R-1 is cited by ADR-0002");
+  // Its own forces count too: the gate reads the file before the write, so only this catches it.
+  ok(adr("add-force", A, "ADR-0001#R-2 constrains this."), "self-citation");
+  refused(adr("remove", A, "R-2"), "ADR-0001#R-2 is cited by ADR-0001");
+  ok(adr("remove", A, "--force", "3"), "drop the self-citation");
+  // R-2 is uncited — and R-1 must not match a citation of R-10.
+  ok(adr("replace", A, "R-2", "two, reworded"), "replace R-2");
+  ok(adr("remove", A, "R-2"), "remove R-2");
 });

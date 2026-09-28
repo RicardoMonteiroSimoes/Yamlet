@@ -111,6 +111,9 @@ const OPTIONAL_COMMANDS: Record<string, string> = {
 	"add-state": "stored state",
 	// A flag on a command every CLI has: present once the command's summary names it.
 	"systems --criteria": "system criteria",
+	// Revising a proposed record (remove, replace, a late dimension) and a reject
+	// that says why: present once `adr`'s summary says "revise".
+	"adr revise": "ADR revision",
 };
 
 /**
@@ -124,6 +127,22 @@ const FLAG_NEEDS: Record<string, string> = {
 	"--writes": "add-state",
 	"--state": "add-state",
 	"--criteria": "systems --criteria",
+};
+
+/**
+ * Sub-subcommands (and a flag on one) that arrived with ADR revision, on `adr`,
+ * which predates it: `"adr SUB"` matches that subcommand, `"adr SUB --flag"`
+ * only when the flag is passed. An older CLI calls them unknown — or, for
+ * `reject`, refuses the `--reason` a rejected record must now carry — so the
+ * call is refused up front with the upgrade hint instead. Rejecting there
+ * without a reason would write a record the upgraded CLI reports as E804
+ * and nothing could repair.
+ */
+const SUBCOMMAND_NEEDS: Record<string, string> = {
+	"adr remove": "adr revise",
+	"adr replace": "adr revise",
+	"adr reject": "adr revise",
+	"adr add-dimension --against": "adr revise",
 };
 
 /**
@@ -417,7 +436,14 @@ async function runYamlet(
 	// A planning command on a CLI that predates it: say "upgrade", not "unknown
 	// command", and say it before running anything.
 	const cmd = args[0] ?? "";
-	const needs = [cmd, ...args.flatMap((a) => (FLAG_NEEDS[a] ? [FLAG_NEEDS[a]] : []))];
+	const needs = [
+		cmd,
+		...args.flatMap((a) => (FLAG_NEEDS[a] ? [FLAG_NEEDS[a]] : [])),
+		...Object.entries(SUBCOMMAND_NEEDS).flatMap(([key, need]) => {
+			const [c, sub, flag] = key.split(" ");
+			return args[0] === c && args[1] === sub && (flag === undefined || args.includes(flag)) ? [need] : [];
+		}),
+	];
 	const lacking = [...new Set(needs.filter((c) => probe.missing.includes(c)))];
 	if (lacking.length > 0) {
 		throw new Error(
@@ -1337,7 +1363,8 @@ export default function (pi: ExtensionAPI) {
 		description:
 			"Declare one axis the options are judged on and return its D-n. `matters` states the THRESHOLD at " +
 			"which the axis decides anything, not what the axis is. A measured dimension names its unit, its " +
-			"source (a shared yardstick) and the basis it is stated under. All dimensions before any option.",
+			"source (a shared yardstick) and the basis it is stated under. Declare them before the options; " +
+			"one found once options exist must judge EVERY existing option in this call (`against`).",
 		promptSnippet: "Add a dimension (a decisive threshold) to a decision record (returns its D-n)",
 		parameters: Type.Object({
 			file: Type.String({ description: "The .adr.yaml" }),
@@ -1345,6 +1372,13 @@ export default function (pi: ExtensionAPI) {
 			unit: Type.Optional(Type.String({ description: "Makes the dimension measured: every cell then needs a numeral" })),
 			source: Type.Optional(Type.String({ description: "The yardstick the cells are measured with" })),
 			basis: Type.Optional(Type.Array(Type.String(), { description: "B-n the numbers are stated under" })),
+			against: Type.Optional(Type.Array(
+				Type.Object({
+					option: Type.String({ description: "OPT-n" }),
+					text: Type.String({ description: "The fact for that option on this new dimension" }),
+				}),
+				{ description: "Only once options exist: one cell per existing option — all of them" },
+			)),
 		}),
 		async execute(_id, params, signal, _onUpdate, ctx) {
 			return mutate(params.file, ctx, () => {
@@ -1352,6 +1386,7 @@ export default function (pi: ExtensionAPI) {
 				if (params.unit) args.push("--unit", params.unit);
 				if (params.source) args.push("--source", params.source);
 				repeat("--basis", params.basis, args);
+				for (const a of params.against ?? []) args.push("--against", `${a.option}=${a.text}`);
 				return args;
 			}, signal);
 		},
@@ -1433,37 +1468,133 @@ export default function (pi: ExtensionAPI) {
 		"The condition, with its number if it has one",
 	);
 
-	/** The `FILE [--date D]` shape shared by accept and reject. */
-	const statusTool = (name: string, sub: string, description: string, promptSnippet: string) =>
-		pi.registerTool({
-			name,
-			label: `yamlet adr ${sub}`,
-			description,
-			promptSnippet,
-			parameters: Type.Object({
-				file: Type.String({ description: "The .adr.yaml" }),
-				date: Type.Optional(Type.String({ description: "YYYY-MM-DD (default: today)" })),
-			}),
-			async execute(_id, params, signal, _onUpdate, ctx) {
-				return mutate(params.file, ctx, () => {
-					const args = ["adr", sub, cleanPath(params.file)];
-					if (params.date) args.push("--date", params.date);
-					return args;
-				}, signal);
-			},
-		});
+	// ── revising a proposed record ──
+	// What `remove`/`replace` act on: an id, or the Nth entry of an id-less list.
+	const target = {
+		id: Type.Optional(Type.String({ description: "B-n, D-n, OPT-n or R-n — or use list + position" })),
+		list: Type.Optional(StringEnum(["force", "accept", "revisit"] as const, {
+			description: "An entry without an id: a force, an accepted cost or a revisit condition",
+		})),
+		position: Type.Optional(Type.Integer({ minimum: 1, description: "With list: which entry, counted from 1" })),
+	};
+	const targetArgs = (tool: string, p: { id?: string; list?: string; position?: number }): string[] => {
+		if ((p.id === undefined) === (p.list === undefined)) {
+			throw new Error(`${tool} needs exactly one of \`id\` or \`list\` (with \`position\`).`);
+		}
+		if (p.id !== undefined) return [p.id];
+		if (p.position === undefined) throw new Error(`${tool}: \`list\` needs \`position\` (counted from 1).`);
+		return [`--${p.list}`, String(p.position)];
+	};
 
-	statusTool(
-		"yamlet_adr_accept", "accept",
-		"Accept a decided record that verifies clean, and FREEZE it: afterwards only reject, supersede and " +
-		"their dates change. The spec must then link it (yamlet_add_adr).",
-		"Accept and freeze a decision record",
-	);
-	statusTool(
-		"yamlet_adr_reject", "reject",
-		"Reject a proposed record. Only from proposed; an accepted record is superseded, never rejected.",
-		"Reject a proposed decision record",
-	);
+	pi.registerTool({
+		name: "yamlet_adr_remove",
+		label: "yamlet adr remove",
+		description:
+			"Drop one element of a PROPOSED record: a basis, dimension, option or obligation by id, or a force, " +
+			"accepted cost or revisit condition by list + position. A dimension takes its cells with it. " +
+			"Refused: the decided option (decide another first), a basis a dimension uses, a dimension an n/a " +
+			"cell cites, an obligation another record cites. Answer an objection this way — not by rejecting.",
+		promptSnippet: "Remove one element from a proposed decision record",
+		parameters: Type.Object({ file: Type.String({ description: "The .adr.yaml" }), ...target }),
+		async execute(_id, params, signal, _onUpdate, ctx) {
+			const t = targetArgs("yamlet_adr_remove", params);
+			return mutate(params.file, ctx, () => ["adr", "remove", cleanPath(params.file), ...t], signal);
+		},
+	});
+
+	pi.registerTool({
+		name: "yamlet_adr_replace",
+		label: "yamlet adr replace",
+		description:
+			"Rewrite one element of a PROPOSED record in place, keeping its id (so the decision and every cell " +
+			"still point at it). Pass exactly what its add tool takes: a basis — quantity, source; a dimension — " +
+			"matters [unit, source, basis], plus `against` (OPT-n cells) to re-judge cells its new unit would " +
+			"break; an option — summary, reversibility, [refs], `against` with every D-n; an obligation, force, " +
+			"accepted cost or revisit condition — text.",
+		promptSnippet: "Rewrite one element of a proposed decision record under the same id",
+		parameters: Type.Object({
+			file: Type.String({ description: "The .adr.yaml" }),
+			...target,
+			text: Type.Optional(Type.String({ description: "R-n, or a list entry: the new text" })),
+			quantity: Type.Optional(Type.String({ description: "B-n: carries a numeral" })),
+			source: Type.Optional(Type.String({ description: "B-n: where the number comes from; D-n: the yardstick" })),
+			matters: Type.Optional(Type.String({ description: "D-n: the threshold at which it decides anything" })),
+			unit: Type.Optional(Type.String({ description: "D-n: makes it measured" })),
+			basis: Type.Optional(Type.Array(Type.String(), { description: "D-n: B-n it is stated under" })),
+			summary: Type.Optional(Type.String({ description: "OPT-n: the option, one line" })),
+			reversibility: Type.Optional(StringEnum(["reversible", "costly", "one-way"] as const)),
+			refs: Type.Optional(Type.Array(
+				Type.Object({ label: Type.String(), locator: Type.String({ description: "A URL, path or short citation" }) }),
+				{ description: "OPT-n: locators; required under kind=selection" },
+			)),
+			against: Type.Optional(Type.Array(
+				Type.Object({
+					key: Type.String({ description: "D-n when replacing an option; OPT-n when replacing a dimension" }),
+					text: Type.String(),
+				}),
+				{ description: "Cells: every D-n for an option; only the cells to re-judge for a dimension" },
+			)),
+		}),
+		async execute(_id, params, signal, _onUpdate, ctx) {
+			const t = targetArgs("yamlet_adr_replace", params);
+			return mutate(params.file, ctx, () => {
+				const args = ["adr", "replace", cleanPath(params.file), ...t];
+				if (params.quantity) args.push("--quantity", params.quantity);
+				if (params.matters) args.push("--matters", params.matters);
+				if (params.unit) args.push("--unit", params.unit);
+				if (params.source) args.push("--source", params.source);
+				repeat("--basis", params.basis, args);
+				if (params.summary) args.push("--summary", params.summary);
+				if (params.reversibility) args.push("--reversibility", params.reversibility);
+				for (const r of params.refs ?? []) args.push("--ref", `${r.label}=${r.locator}`);
+				for (const a of params.against ?? []) args.push("--against", `${a.key}=${a.text}`);
+				if (params.text) args.push(params.text);
+				return args;
+			}, signal);
+		},
+	});
+
+	pi.registerTool({
+		name: "yamlet_adr_accept",
+		label: "yamlet adr accept",
+		description:
+			"Accept a decided record that verifies clean, and FREEZE it: afterwards only supersede and its date " +
+			"change. The spec must then link it (yamlet_add_adr).",
+		promptSnippet: "Accept and freeze a decision record",
+		parameters: Type.Object({
+			file: Type.String({ description: "The .adr.yaml" }),
+			date: Type.Optional(Type.String({ description: "YYYY-MM-DD (default: today)" })),
+		}),
+		async execute(_id, params, signal, _onUpdate, ctx) {
+			return mutate(params.file, ctx, () => {
+				const args = ["adr", "accept", cleanPath(params.file)];
+				if (params.date) args.push("--date", params.date);
+				return args;
+			}, signal);
+		},
+	});
+
+	pi.registerTool({
+		name: "yamlet_adr_reject",
+		label: "yamlet adr reject",
+		description:
+			"Abandon a PROPOSED record, saying why; the reason stays in the record, which stays in its directory " +
+			"(it holds its id). For a record that is abandoned, not one that needs work — revise that with " +
+			"yamlet_adr_remove / yamlet_adr_replace. An accepted record is superseded, never rejected.",
+		promptSnippet: "Reject a proposed decision record, with the reason",
+		parameters: Type.Object({
+			file: Type.String({ description: "The .adr.yaml" }),
+			reason: Type.String({ description: "Why the record was abandoned, one or two sentences" }),
+			date: Type.Optional(Type.String({ description: "YYYY-MM-DD (default: today)" })),
+		}),
+		async execute(_id, params, signal, _onUpdate, ctx) {
+			return mutate(params.file, ctx, () => {
+				const args = ["adr", "reject", cleanPath(params.file), "--reason", params.reason];
+				if (params.date) args.push("--date", params.date);
+				return args;
+			}, signal);
+		},
+	});
 
 	pi.registerTool({
 		name: "yamlet_adr_supersede",

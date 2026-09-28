@@ -44,7 +44,8 @@ src/records.ts    readers over flattened records by prefix (shared by `tests` an
 src/techspec.ts   the tech spec format (`*.techspec.yaml`): model, reader, canonical serializer, rules E701–E719
 src/techspec_author.ts  `yamlet techspec init|analysis|criterion|obligation|task` — full rewrite per call, verify as gate
 src/adr.ts        the decision record format (`*.adr.yaml`, adr/v1): model, reader, serializer, resolution, E801–E815
-src/adr_author.ts `yamlet adr init|add-*|decide|accept|reject|supersede` — phase-ordered, frozen after accept
+src/adr_author.ts `yamlet adr init|add-*|remove|replace|decide|accept|reject|supersede` — phase-ordered,
+                  revisable while proposed, frozen after accept
 src/blocks.ts     address an existing RQ-N/AC-N by id + its line extent (starts from records, ends from the next start)
 src/systems.ts    `yamlet systems` (read-only)
 src/impact.ts     `yamlet impact` — reverse dependency index: which composites consume a spec (read-only)
@@ -95,8 +96,10 @@ change is a regression, not a re-freeze.
   touches (one system; `init` refuses a second in the same directory), so covers are qualified
   (`<spec path>#AC-N`) and `depends_on` spans specs. Obligations get verdicts like criteria.
   `verify` dispatches on the extension.
-- A **decision record** is frozen after `accept`: the only mutations of an accepted record are
-  `supersede` and its date. The two records the format was specified with are fixtures
+- A **decision record** is revisable while `proposed` (`remove`, `replace` keep every other id;
+  `replace` keeps the replaced one) and frozen after `accept`: the only mutations of an accepted
+  record are `supersede` and its date. A rejected record stays in its directory — it holds its id —
+  and carries `rejected_because`. The two records the format was specified with are fixtures
   (`tests/verifier-fixtures/ADR-000{1,2}-*.adr.yaml`) and `adr_test.ts` rebuilds them byte-for-byte
   through the commands — change the serializer and both the parity oracle and that test move.
   `assumes` is acyclic by construction (lower ids only), and a directory is the id namespace.

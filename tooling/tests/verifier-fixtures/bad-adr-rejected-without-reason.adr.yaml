@@ -1,0 +1,31 @@
+adr: ADR-0096
+title: Rejected without saying why
+status: rejected
+date: 2026-09-07
+kind: policy
+assumes:
+- ADR-0002
+
+question: >-
+  How long is a verification result kept?
+
+dimensions:
+- id: D-1
+  matters: >-
+    Fit
+
+options:
+- id: OPT-1
+  summary: >-
+    A day
+  reversibility: reversible
+  against:
+    D-1: >-
+      fine
+- id: OPT-2
+  summary: >-
+    A week
+  reversibility: reversible
+  against:
+    D-1: >-
+      also fine

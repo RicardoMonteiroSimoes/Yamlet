@@ -151,20 +151,28 @@ yamlet adr init DIR --title T --kind K --question Q [--arises-from SPEC#AC-n ...
                                                       proposed; prints its path
 yamlet adr add-force      FILE TEXT
 yamlet adr add-basis      FILE --quantity Q --source S                      -> prints B-n
-yamlet adr add-dimension  FILE --matters M [--unit U --source S [--basis B-n ...]]   -> prints D-n
+yamlet adr add-dimension  FILE --matters M [--unit U --source S [--basis B-n ...]] [--against OPT-n=TEXT ...]
+                                                                            -> prints D-n
 yamlet adr add-option     FILE --summary S --reversibility R [--ref LABEL=LOCATOR ...] --against D-n=TEXT ...
                                                                             -> prints OPT-n
 yamlet adr decide         FILE OPT-n
 yamlet adr add-obligation FILE TEXT                                         -> prints R-n
 yamlet adr add-accept     FILE TEXT
 yamlet adr add-revisit    FILE TEXT
-yamlet adr accept | reject FILE [--date D]
+yamlet adr remove         FILE B-n|D-n|OPT-n|R-n | --force N | --accept N | --revisit N
+yamlet adr replace        FILE B-n|D-n|OPT-n <the flags its add-* takes>
+yamlet adr replace        FILE R-n TEXT | --force N TEXT | --accept N TEXT | --revisit N TEXT
+yamlet adr accept         FILE [--date D]
+yamlet adr reject         FILE --reason TEXT [--date D]
 yamlet adr supersede      FILE --by ADR-nnnn [--date D]
                                                    -> the decision record author (SPEC.md, "Decision records"): every id
                                                       minted, the file rewritten canonically per call, phase order
                                                       enforced (basis → dimensions → options; an option is judged
-                                                      against every dimension in one call), and frozen after accept —
-                                                      only reject, supersede and their dates change a record afterwards
+                                                      against every dimension in one call, and a dimension added
+                                                      after options judges every option in one call). Revisable
+                                                      while proposed (remove, replace — same id, same place); frozen
+                                                      after accept — only supersede and its date change it. reject
+                                                      needs --reason, kept in the record as rejected_because
 ```
 
 Exit codes: `0` success · `1` verify found errors · `2` usage/validation error (nothing written) ·
