@@ -58,7 +58,7 @@ export interface SystemState {
   contended: Contention[];
 }
 
-function condition(records: readonly FlatRecord[], ac: string): string {
+export function condition(records: readonly FlatRecord[], ac: string): string {
   const get = (p: string): string => records.find((r) => r.path === p)?.value ?? "";
   const cond: string[] = [];
   const where = get(`${ac}.where`);

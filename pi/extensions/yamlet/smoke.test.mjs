@@ -43,7 +43,7 @@ const HELP = `yamlet — verify and author yamlet specs
 Commands:
   verify            check a spec (or a tech spec) against the rule catalog
   version           print the yamlet version
-  systems           list existing systems grouped by their scope files
+  systems           list existing systems grouped by their scope files (with --criteria, what each says)
   impact            list the composites that consume a spec (reverse dependency index)
   graph             write a DOT, JSON, or HTML graph model of a spec or a directory to a file
   trace             write a traceability model (specs → criteria → ADRs → tasks) of a directory
@@ -59,14 +59,18 @@ Commands:
   adr               write a decision record (.adr.yaml), correct by construction
 `;
 
+// The release before \`systems --criteria\`: the command is there, its summary does not name the flag.
+const OLD_SYSTEMS = (h) => h.replace(/  systems .*\n/, "  systems           list existing systems grouped by their scope files\n");
+const HELP_0_5 = OLD_SYSTEMS(HELP);
+
 // The release before tech specs and decision records: every authoring command,
 // none of the planning ones.
-const HELP_0_2_3 = HELP.replace(/  add-adr .*\n/, "").replace(/  add-state .*\n/, "").replace(/  techspec .*\n/, "").replace(/  adr .*\n/, "")
+const HELP_0_2_3 = HELP_0_5.replace(/  add-adr .*\n/, "").replace(/  add-state .*\n/, "").replace(/  techspec .*\n/, "").replace(/  adr .*\n/, "")
 	.replace(/  trace .*\n/, "");
 
 // The release before `trace` and before a tech spec spanned a system: `techspec`
 // is there by name, with the one-spec interface these tools no longer speak.
-const HELP_0_4_0 = HELP.replace(/  trace .*\n/, "").replace(/  add-state .*\n/, "")
+const HELP_0_4_0 = HELP_0_5.replace(/  trace .*\n/, "").replace(/  add-state .*\n/, "")
 	.replace(/  techspec .*\n/, "  techspec          build a spec's gap analysis and task list (a disposable .techspec.yaml)\n");
 
 // A directory holding an executable `yamlet`, so findOnPath() resolves it.
@@ -221,6 +225,11 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 	}, undefined, undefined, ctx);
 	ok("systems --state argv",
 		same(calls.at(-1), ["yamlet", "systems", "specs", "--system=lunch-poll", "--details", "--state"]),
+		JSON.stringify(calls.at(-1)));
+	await tools.get("yamlet_systems").execute("id", { dir: "specs", system: "lunch-poll", criteria: true },
+		undefined, undefined, ctx);
+	ok("systems --criteria argv",
+		same(calls.at(-1), ["yamlet", "systems", "specs", "--system=lunch-poll", "--criteria"]),
 		JSON.stringify(calls.at(-1)));
 }
 {
@@ -619,6 +628,24 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 		notes[0]?.[0] === "error" && (notes[0]?.[1] ?? "").includes("add-connection") && (notes[0]?.[1] ?? "").includes("tests"), JSON.stringify(notes));
 }
 {
+	// The release before \`systems --criteria\`: one warning naming it; systems
+	// with the flag is refused up front, without it still runs.
+	resetNotes();
+	const { handlers, tools, calls } = makePi({ help: HELP_0_5 });
+	await handlers.session_start({}, ctx);
+	ok("0.5 CLI: one startup warning naming systems --criteria",
+		notes.length === 1 && notes[0][0] === "warning" && notes[0][1].includes("no systems --criteria command") &&
+		notes[0][1].includes("system criteria"), JSON.stringify(notes));
+	const before = calls.length;
+	let msg = "";
+	try { await tools.get("yamlet_systems").execute("id", { criteria: true }, undefined, undefined, ctx); } catch (e) { msg = e.message; }
+	ok("0.5 CLI: systems --criteria fails with the upgrade hint, before running",
+		msg.includes("needs: systems --criteria.") && msg.includes("brew upgrade yamlet") &&
+		!calls.slice(before).some((c) => c[1] === "systems"), msg || JSON.stringify(calls.slice(before)));
+	const r = await tools.get("yamlet_systems").execute("id", { details: true }, undefined, undefined, ctx);
+	ok("0.5 CLI: systems without --criteria still runs", r.details.command[1] === "systems", JSON.stringify(r));
+}
+{
 	// The release before tech specs and decision records must keep loading:
 	// every authoring tool works, the planning tools fail with the upgrade hint,
 	// and the user hears about it once, at startup, as a warning rather than an
@@ -665,7 +692,7 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 	const { handlers, tools, calls } = makePi({ help: HELP_0_4_0 });
 	await handlers.session_start({}, ctx);
 	ok("0.4.0 CLI: one startup warning naming trace, the one-spec techspec and add-state, not adr",
-		notes.length === 1 && notes[0][0] === "warning" && notes[0][1].includes("no techspec/trace/add-state command") && notes[0][1].includes("stored state") &&
+		notes.length === 1 && notes[0][0] === "warning" && notes[0][1].includes("no techspec/trace/add-state/systems --criteria command") && notes[0][1].includes("stored state") &&
 		notes[0][1].includes("traceability") && notes[0][1].includes("tech spec") &&
 		!notes[0][1].includes("decision record"), JSON.stringify(notes));
 	const r = await tools.get("yamlet_adr_add_force").execute("id", { file: "a.adr.yaml", text: "t" }, undefined, undefined, ctx);

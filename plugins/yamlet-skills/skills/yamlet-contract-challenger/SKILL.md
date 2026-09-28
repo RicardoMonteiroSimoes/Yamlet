@@ -39,6 +39,7 @@ Only the contract freezes; requirements append any time — never say the spec c
 8. **Leaf vs composite.** Does it do the work itself (leaf) or only wire existing scopes (composite)? "Run inputs through X and Y and hand back results" declared **leaf** is misclassified.
 9. **Naming.** `expose-name` is a slug (`^[a-z0-9]+(-[a-z0-9]+)*$`, dashes); each input/output is a token (`^[a-z][a-z0-9_]*$`, underscores). Flag dashes in a token, underscores in a slug, or an `expose-name` that collides with the `system` slug.
 10. **Forgeable inputs.** For an `external` scope, leaf or composite, each input is something the untrusted caller *chooses*. One that carries identity, role, ownership, an internal id or deployment configuration (`viewer_role`, `user_id`, `poll_id`, `archive_address`) lets the caller forge it. It must come from the wiring instead — a resolver's output (token → `poll_id`, `viewer_role`) or a settings leaf's output. BLOCKER; name the split.
+11. **Sibling exposure** (`yamlet systems DIR --system=S --criteria`). BLOCKER: an output handing out what a sibling's criteria protect. QUESTION: a sibling's concept under another name.
 
 ## Report — terse and ordered
 
