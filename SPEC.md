@@ -394,7 +394,7 @@ Every rule above is exact. These four are word-list heuristics over clause and
 
 Warnings, never errors: a heuristic that blocks teaches authors to write around the
 list ("the store's cap"). The lists are short on purpose — `timeout` and `within` are
-absent because "an SMTP timeout occurs" is an event, not a bound; a bare *and* is
+absent because "a payment timeout occurs" is an event, not a bound; a bare *and* is
 absent from `W007` because "a file and its filename" is one event — and an
 `{input.NAME}` does not satisfy `W003`: it names the thing measured, not the bound.
 
@@ -419,8 +419,8 @@ tied") — which an implementation that does nothing passes.
 
 A token backed by an `examples` column does not count: it renders as a `<column>`
 and carries its own data. A warning, not an error: the format has no way to name an
-outbound effect (a call to an SMTP server), so a criterion about one is legitimate and
-has no fix.
+outbound effect (an e-mail delivered, a payment taken), so a criterion about one is
+legitimate and has no fix.
 
 ---
 
