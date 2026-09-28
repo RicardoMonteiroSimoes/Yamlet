@@ -168,3 +168,52 @@ Deno.test("runSystems --system filters to one slug; a miss is a clean empty resu
   assertEquals(miss.exitCode, 0);
   assertStringIncludes(miss.stdout, "no system 'nope' found");
 });
+
+// `--criteria` lists what every scope already says, so a rule restated in a second
+// scope can be compared with the first: requirements, criteria, example rows, and
+// the decision records linked anywhere in the system, resolved from DIR.
+function seedCriteria(dir: string, name: string, adr: string): void {
+  Deno.writeTextFileSync(
+    `${dir}/${name}`,
+    `system: poll\ntopic: T\nsummary: s\ndescription: >-\n  ctx\n` +
+      `blast_radius: low\nfront: internal\nrequirements:\n` +
+      `- id: RQ-1\n  description: Options are validated\n  adrs:\n  - ${adr}\n` +
+      `  acceptance-criteria:\n  - id: AC-1\n    pattern: unwanted\n` +
+      `    if: fewer than {n} options are given\n    shall:\n` +
+      `    - reject the poll with {code}\n    examples:\n` +
+      `    - n: "2"\n      code: too_few_options\n`,
+  );
+}
+
+Deno.test("collectSystems omits criteria and decisions unless --criteria is asked for", () => {
+  const dir = Deno.makeTempDirSync();
+  seedCriteria(dir, "a.yamlet.yaml", "adr/ADR-0001-x.adr.yaml");
+  const g = collectSystems(dir)[0]!;
+  assertEquals(g.scopes[0]!.requirements, undefined);
+  assertEquals(g.decisions, undefined);
+});
+
+Deno.test("runSystems --criteria lists every criterion and the system's linked ADRs", () => {
+  const dir = Deno.makeTempDirSync();
+  Deno.mkdirSync(`${dir}/sub`);
+  seedCriteria(dir, "a.yamlet.yaml", "adr/ADR-0001-x.adr.yaml");
+  seedCriteria(`${dir}/sub`, "b.yamlet.yaml", "../adr/ADR-0001-x.adr.yaml");
+
+  const g = collectSystems(dir, { criteria: true })[0]!;
+  const ac = g.scopes[0]!.requirements![0]!.criteria[0]!;
+  assertEquals(ac.pattern, "unwanted");
+  assertEquals(ac.condition, "if fewer than {n} options are given");
+  assertEquals(ac.examples, [{ n: "2", code: "too_few_options" }]);
+  // Both links name one record; resolved from DIR, it is listed once.
+  assertEquals(g.decisions, [`${dir}/adr/ADR-0001-x.adr.yaml`]);
+
+  const r = runSystems([dir, "--criteria"]);
+  assertStringIncludes(r.stdout, "RQ-1  Options are validated");
+  assertStringIncludes(r.stdout, "AC-1  unwanted  if fewer than {n} options are given");
+  assertStringIncludes(r.stdout, "shall reject the poll with {code}");
+  assertStringIncludes(r.stdout, "e.g.  n=2, code=too_few_options");
+  assertStringIncludes(
+    r.stdout,
+    `decisions (linked by its scopes)\n    ${dir}/adr/ADR-0001-x.adr.yaml`,
+  );
+});

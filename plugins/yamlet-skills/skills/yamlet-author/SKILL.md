@@ -61,7 +61,7 @@ Push back on vagueness. "Handles errors" → *which* errors, and *what* behaviou
 
 ### Challenge before you commit
 
-Draft the requirement's description **and** its full set of criteria in conversation first. Then invoke **`yamlet-criteria-challenger`** (`/yamlet-criteria-challenger <proposal>`) with: the description; every intended criterion (pattern, clauses, `shall` items, placeholders/examples, reads/writes); and the scope's front and contract.
+Draft the requirement's description **and** its full set of criteria in conversation first. Then invoke **`yamlet-criteria-challenger`** (`/yamlet-criteria-challenger <proposal>`) with: the description; every intended criterion (pattern, clauses, `shall` items, placeholders/examples, reads/writes); and the scope's system, directory, front and contract.
 
 Relay its findings in prose — you do not obey it blindly. Resolve every **BLOCKER** before committing, put its **QUESTIONS** to the user, and surface its **SUGGESTIONS** for a decision.
 

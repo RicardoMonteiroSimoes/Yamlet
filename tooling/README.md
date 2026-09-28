@@ -54,7 +54,7 @@ yamlet verify [--format=human|json] <file.adr.yaml>
                                                    -> the extension picks the rules: E0xx–E6xx/W00x for a spec,
                                                       E7xx for a tech spec, E8xx for a decision record
 yamlet verify --list-rules [--format=human|json]
-yamlet systems [DIR] [--system=SLUG] [--details] [--contracts] [--state] [--format=human|json]
+yamlet systems [DIR] [--system=SLUG] [--details] [--contracts] [--state] [--criteria] [--format=human|json]
                                                    -> existing systems grouped by their scope files; --contracts adds each
                                                       scope's exposed contract on labelled `in:`/`out:` lines (what you can
                                                       wire as a member), --details adds its summary and description as
@@ -63,6 +63,9 @@ yamlet systems [DIR] [--system=SLUG] [--details] [--contracts] [--state] [--form
                                                       read (r) or write (w), and the contended scope pairs (two scopes on
                                                       one field, at least one writing it); with --details each criterion's
                                                       condition and shall entries are shown — they are the field's meaning
+                                                      --criteria adds every requirement and criterion of each scope (pattern,
+                                                      condition, shall, example rows, ADR links) and the system's linked
+                                                      ADRs, resolved from DIR — how its other scopes already state a rule
 yamlet impact FILE [DIR] [--format=human|json]
                                                    -> the reverse of `components:` — which composites declare this spec
                                                       as a member, under which alias, and which of its sockets each one

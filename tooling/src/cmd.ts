@@ -62,6 +62,19 @@ export function resolveFrom(dir: string, path: string): string {
   return path.startsWith("/") ? path : dir === "" ? path : `${dir}/${path}`;
 }
 
+/** `rel` against `dir`, with `.` and `..` segments collapsed (display form, not canonical). */
+export function joinNorm(dir: string, rel: string): string {
+  const raw = rel.startsWith("/") ? rel : dir === "" || dir === "." ? rel : `${dir}/${rel}`;
+  const abs = raw.startsWith("/");
+  const out: string[] = [];
+  for (const seg of raw.split("/")) {
+    if (seg === "" || seg === ".") continue;
+    if (seg === ".." && out.length > 0 && out[out.length - 1] !== "..") out.pop();
+    else out.push(seg);
+  }
+  return (abs ? "/" : "") + out.join("/");
+}
+
 /** One line per finding, the human verifier shape. */
 export function renderFindings(findings: Finding[]): string {
   return findings.map((f) =>

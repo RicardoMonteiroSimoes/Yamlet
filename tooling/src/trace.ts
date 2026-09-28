@@ -36,6 +36,7 @@ import type { CmdResult, Command } from "./types.ts";
 import { flatten } from "./flatten.ts";
 import { blocksOf } from "./blocks.ts";
 import { listUnder, recordAt } from "./records.ts";
+import { joinNorm } from "./cmd.ts";
 import { listFiles, listSpecs } from "./systems.ts";
 import { canonPath, metaOf, writePayload } from "./graph.ts";
 import { type Adr, listAdrs, loadAdr, OBLIGATION_RE, SPEC_REF_RE } from "./adr.ts";
@@ -212,19 +213,6 @@ export interface TraceModel {
 function dirname(p: string): string {
   const slash = p.lastIndexOf("/");
   return slash < 0 ? "" : p.slice(0, slash);
-}
-
-/** `rel` against `dir`, with `.` and `..` segments collapsed (display form, not canonical). */
-function joinNorm(dir: string, rel: string): string {
-  const raw = rel.startsWith("/") ? rel : dir === "" || dir === "." ? rel : `${dir}/${rel}`;
-  const abs = raw.startsWith("/");
-  const out: string[] = [];
-  for (const seg of raw.split("/")) {
-    if (seg === "" || seg === ".") continue;
-    if (seg === ".." && out.length > 0 && out[out.length - 1] !== "..") out.pop();
-    else out.push(seg);
-  }
-  return (abs ? "/" : "") + out.join("/");
 }
 
 function exists(p: string): boolean {

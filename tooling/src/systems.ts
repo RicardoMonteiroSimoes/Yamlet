@@ -17,11 +17,23 @@
 // `--system=SLUG --details` and reading the prose is how a human or an agent picks
 // the right file to open before editing it.
 //
+// `--criteria` answers a third: *what do the other scopes already say?* It lists
+// every requirement and criterion of each scope, and the decision records the
+// system links, so a rule several scopes restate can be compared across them.
+//
 // Read-only: it never writes. Exit codes: 0 ok · 2 usage/path error.
 
-import type { CmdResult, Command } from "./types.ts";
+import type { CmdResult, Command, FlatRecord } from "./types.ts";
 import { flatten } from "./flatten.ts";
-import { type CriterionState, criterionStates, mergeState, type SystemState } from "./state.ts";
+import { joinNorm } from "./cmd.ts";
+import { escRe, indicesUnder, listUnder } from "./records.ts";
+import {
+  condition,
+  type CriterionState,
+  criterionStates,
+  mergeState,
+  type SystemState,
+} from "./state.ts";
 
 /** The exposed contract of a scope: its signature, not a schema. */
 export interface Contract {
@@ -38,6 +50,22 @@ export interface Scope {
   description?: string;
   // Present only when contracts were requested; `null` means the scope exposes none.
   contract?: Contract | null;
+  // Present only when criteria were requested.
+  requirements?: RequirementText[];
+}
+export interface CriterionText {
+  id: string;
+  pattern: string;
+  condition: string;
+  shall: string[];
+  examples: Record<string, string>[];
+  adrs: string[];
+}
+export interface RequirementText {
+  id: string;
+  description: string;
+  adrs: string[];
+  criteria: CriterionText[];
 }
 export interface SystemGroup {
   system: string;
@@ -45,6 +73,9 @@ export interface SystemGroup {
   // Present only when state was requested: every stored field the system's criteria
   // read or write, and the scope pairs contending for one.
   state?: SystemState;
+  // Present only when criteria were requested: every decision record a scope links,
+  // resolved against the scanned directory's paths, sorted and distinct.
+  decisions?: string[];
 }
 
 const die = (msg: string): CmdResult => ({ exitCode: 2, stdout: "", stderr: `error: ${msg}\n` });
@@ -108,15 +139,56 @@ export function contractOf(records: readonly { path: string; value: string }[]):
   return { name, inputs: exposesList(records, "inputs"), outputs: exposesList(records, "outputs") };
 }
 
+// An `examples` table's rows, each a key → value map in file order.
+function examplesOf(
+  records: readonly FlatRecord[],
+  ac: string,
+): Record<string, string>[] {
+  const re = new RegExp(`^${escRe(ac)}\\.examples\\[(\\d+)\\]\\.(.+)$`);
+  const rows: Record<string, string>[] = [];
+  for (const r of records) {
+    const m = r.path.match(re);
+    if (m) (rows[Number(m[1])] ??= {})[m[2]!] = r.value;
+  }
+  return rows.filter((row) => row !== undefined);
+}
+
+/** Every requirement of a spec with its criteria, as text. */
+export function requirementsOf(
+  records: readonly FlatRecord[],
+): RequirementText[] {
+  const get = (p: string): string => records.find((r) => r.path === p)?.value ?? "";
+  return indicesUnder(records, "requirements").map((i) => {
+    const rq = `requirements[${i}]`;
+    return {
+      id: get(`${rq}.id`),
+      description: get(`${rq}.description`),
+      adrs: listUnder(records, `${rq}.adrs`),
+      criteria: indicesUnder(records, `${rq}.acceptance-criteria`).map((j) => {
+        const ac = `${rq}.acceptance-criteria[${j}]`;
+        return {
+          id: get(`${ac}.id`),
+          pattern: get(`${ac}.pattern`),
+          condition: condition(records, ac),
+          shall: listUnder(records, `${ac}.shall`),
+          examples: examplesOf(records, ac),
+          adrs: listUnder(records, `${ac}.adrs`),
+        };
+      }),
+    };
+  });
+}
+
 /** Group every spec file under `root` by its `system:` slug (sorted, deterministic). */
 export function collectSystems(
   root: string,
-  opts: { contracts?: boolean; details?: boolean; state?: boolean } = {},
+  opts: { contracts?: boolean; details?: boolean; state?: boolean; criteria?: boolean } = {},
 ): SystemGroup[] {
   const files = listSpecs(root);
 
   const bySystem = new Map<string, Scope[]>();
   const stateBySystem = new Map<string, [string, CriterionState[]][]>();
+  const adrsBySystem = new Map<string, Set<string>>();
   for (const f of files) {
     let text: string;
     try {
@@ -131,6 +203,17 @@ export function collectSystems(
     const scope: Scope = { file: f, topic: get("topic"), summary: get("summary") };
     if (opts.details) scope.description = get("description");
     if (opts.contracts) scope.contract = contractOf(records);
+    if (opts.criteria) {
+      scope.requirements = requirementsOf(records);
+      const dir = f.includes("/") ? f.slice(0, f.lastIndexOf("/")) : "";
+      const set = adrsBySystem.get(system) ?? new Set<string>();
+      for (const rq of scope.requirements) {
+        for (const a of [...rq.adrs, ...rq.criteria.flatMap((c) => c.adrs)]) {
+          set.add(joinNorm(dir, a));
+        }
+      }
+      adrsBySystem.set(system, set);
+    }
     const arr = bySystem.get(system) ?? [];
     arr.push(scope);
     bySystem.set(system, arr);
@@ -157,6 +240,7 @@ export function collectSystems(
       }
       g.state = st;
     }
+    if (opts.criteria) g.decisions = [...(adrsBySystem.get(system) ?? [])].sort();
     return g;
   });
   groups.sort((a, b) => (a.system < b.system ? -1 : a.system > b.system ? 1 : 0));
@@ -253,6 +337,31 @@ function stateLines(st: SystemState | undefined, details: boolean): string {
   return s;
 }
 
+// Every requirement and criterion under a scope, when `--criteria` asked for them.
+function criteriaLines(rqs: RequirementText[] | undefined): string {
+  if (rqs === undefined) return "";
+  let s = "";
+  for (const rq of rqs) {
+    s += prose(`${rq.id}  `, rq.description, 4);
+    for (const a of rq.adrs) s += `        adr ${a}\n`;
+    for (const c of rq.criteria) {
+      s += prose(`${c.id}  ${c.pattern}  `, c.condition, 6);
+      for (const sh of c.shall) s += prose("shall ", sh, 8);
+      for (const row of c.examples) {
+        s += prose("e.g.  ", Object.entries(row).map(([k, v]) => `${k}=${v}`).join(", "), 8);
+      }
+      for (const a of c.adrs) s += `        adr ${a}\n`;
+    }
+  }
+  return s;
+}
+
+function decisionLines(decisions: string[] | undefined): string {
+  if (decisions === undefined) return "";
+  if (decisions.length === 0) return "  decisions: none linked\n";
+  return "  decisions (linked by its scopes)\n" + decisions.map((d) => `    ${d}\n`).join("");
+}
+
 function renderHumanSystems(root: string, groups: SystemGroup[], details: boolean): string {
   if (groups.length === 0) return `no systems found under ${root}\n`;
 
@@ -267,8 +376,10 @@ function renderHumanSystems(root: string, groups: SystemGroup[], details: boolea
       s += `  ${sc.file.padEnd(width)}  ${sc.topic}\n`;
       s += detailLines(sc);
       s += contractLine(sc.contract);
+      s += criteriaLines(sc.requirements);
     }
     s += stateLines(g.state, details);
+    s += decisionLines(g.decisions);
   }
   return s;
 }
@@ -279,6 +390,7 @@ export function runSystems(args: string[]): CmdResult {
   let contracts = false;
   let details = false;
   let state = false;
+  let criteria = false;
   let system = "";
   for (const a of args) {
     if (a === "--format=json") format = "json";
@@ -286,6 +398,7 @@ export function runSystems(args: string[]): CmdResult {
     else if (a === "--contracts") contracts = true;
     else if (a === "--details") details = true;
     else if (a === "--state") state = true;
+    else if (a === "--criteria") criteria = true;
     else if (a.startsWith("--system=")) system = a.slice("--system=".length);
     else if (a.startsWith("--")) return die(`unknown flag for systems: ${a}`);
     else if (root !== "") return die(`too many arguments: ${a}`);
@@ -299,7 +412,7 @@ export function runSystems(args: string[]): CmdResult {
     return die(`directory not found: ${root}`);
   }
 
-  let groups = collectSystems(root, { contracts, details, state });
+  let groups = collectSystems(root, { contracts, details, state, criteria });
   if (system !== "") groups = groups.filter((g) => g.system === system);
 
   let stdout: string;
@@ -315,12 +428,12 @@ export function runSystems(args: string[]): CmdResult {
 
 export const systemsCommand: Command = {
   name: "systems",
-  summary: "list existing systems grouped by their scope files",
+  summary: "list existing systems grouped by their scope files (with --criteria, what each says)",
   help: `yamlet systems — list systems grouped by their scope files
 
 Usage:
   yamlet systems [DIR] [--system=SLUG] [--details] [--contracts] [--state]
-                 [--format=human|json]
+                 [--criteria] [--format=human|json]
 
 Arguments:
   DIR                   directory to scan for *.yamlet.yaml (default: .)
@@ -334,6 +447,10 @@ Options:
                         touching one field, at least one writing it. With
                         --details, each criterion's condition and shall entries
                         are shown: they are what the field means
+  --criteria            include every requirement and criterion of each scope
+                        (pattern, condition, shall entries, example rows,
+                        linked ADRs), and the decision records the system's
+                        scopes link, resolved from DIR
   --format=human|json   output shape (default: human)
 
 Narrowing then reading detail is the way to find a specific spec among several
@@ -345,6 +462,10 @@ scopes of one service — a topic alone rarely separates them:
 Before naming a stored field in a criterion, list the ones the system already has:
 
   yamlet systems specs --system=lunch-poll --state
+
+Before adding a rule, read how the system's other scopes already state it:
+
+  yamlet systems specs --system=lunch-poll --criteria
 `,
   run: runSystems,
 };

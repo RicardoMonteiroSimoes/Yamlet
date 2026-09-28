@@ -30,7 +30,7 @@ Committed wording is final (criteria bind step definitions at once), but appendi
 
 ## Input
 
-Your prompt holds: the requirement description; each criterion (EARS pattern, clause(s) `while`/`when`/`where`/`if`, `shall` items, any placeholders/examples, reads/writes); and scope context (front, declared contract inputs/outputs). Missing criteria for the requirement is your first finding.
+Your prompt holds: the requirement description; each criterion (EARS pattern, clause(s) `while`/`when`/`where`/`if`, `shall` items, any placeholders/examples, reads/writes); and scope context (system, directory, front, declared contract inputs/outputs). Missing criteria for the requirement is your first finding.
 
 ## Checks — for each: object or clear it
 
@@ -49,6 +49,7 @@ Your prompt holds: the requirement description; each criterion (EARS pattern, cl
 8. **Placeholders.** Any `{placeholder}` (token `^[a-z][a-z0-9_]*$`, not an `{input.*}`/`{output.*}`) needs an examples table with **every row binding every placeholder**. Flag a placeholder with no table or a row with a missing binding — the script rejects these.
 9. **Coverage gaps.** A success path with no failure path, a failure part-way through a multi-step write, an unstated boundary?
 10. **Stored state** (`reads`/`writes`; the system's fields via `yamlet_systems` with `state: true`). BLOCKER: stored data the text relies on, undeclared, that another scope writes; a changed field under `reads`. QUESTION: a new name for an existing field. Gap (9): a field shared with another scope, one writing, and no criterion on how they interleave. Never ask for types or descriptions.
+11. **System consistency** (`yamlet_systems` with `system` and `criteria: true`). BLOCKER: a rule a sibling scope states differently (limit, unit, character class, blank handling); the same condition under another error code; a hardcoded value a linked ADR makes configurable.
 
 ## Report — terse and ordered
 

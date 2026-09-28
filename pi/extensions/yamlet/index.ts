@@ -109,6 +109,8 @@ const OPTIONAL_COMMANDS: Record<string, string> = {
 	adr: "decision record",
 	trace: "traceability",
 	"add-state": "stored state",
+	// A flag on a command every CLI has: present once the command's summary names it.
+	"systems --criteria": "system criteria",
 };
 
 /**
@@ -121,6 +123,7 @@ const FLAG_NEEDS: Record<string, string> = {
 	"--reads": "add-state",
 	"--writes": "add-state",
 	"--state": "add-state",
+	"--criteria": "systems --criteria",
 };
 
 /**
@@ -224,8 +227,10 @@ function makeProbe(pi: ExtensionAPI): (cwd: string) => Promise<Probe> {
 			// command missing and disable the whole toolset for the session.
 			if (!h.killed && h.code === 0 && h.stdout.trim()) {
 				const has = (c: string): boolean => {
-					const line = new RegExp(`^\\s+${c}\\s.*$`, "m").exec(h.stdout)?.[0];
-					return line !== undefined && (REVISED_COMMANDS[c]?.test(line) ?? true);
+					const [name, flag] = c.split(" ");
+					const line = new RegExp(`^\\s+${name}\\s.*$`, "m").exec(h.stdout)?.[0];
+					return line !== undefined && (REVISED_COMMANDS[name!]?.test(line) ?? true) &&
+						(flag === undefined || line.includes(flag));
 				};
 				const missing = REQUIRED_COMMANDS.filter((c) => !has(c));
 				if (missing.length > 0) {
@@ -673,6 +678,9 @@ export default function (pi: ExtensionAPI) {
 			state: Type.Optional(Type.Boolean({
 				description: "Include the stored fields criteria read/write, and contended scope pairs",
 			})),
+			criteria: Type.Optional(Type.Boolean({
+				description: "Include every scope's requirements and criteria, and the system's linked ADRs",
+			})),
 			format: Type.Optional(StringEnum(["human", "json"] as const)),
 		}),
 		async execute(_id, params, signal, _onUpdate, ctx) {
@@ -682,6 +690,7 @@ export default function (pi: ExtensionAPI) {
 			if (params.details) args.push("--details");
 			if (params.contracts) args.push("--contracts");
 			if (params.state) args.push("--state");
+			if (params.criteria) args.push("--criteria");
 			if (params.format) args.push(`--format=${params.format}`);
 			return run(ctx, args, signal);
 		},
