@@ -49,7 +49,7 @@ Deno.test("tests: manifest lists each scenario's verbatim binding obligations", 
 
   // Contract inputs referenced by a leaf criterion are listed (deduped, sorted);
   // a token referenced twice appears once.
-  assertEquals(feats["e-mail-sending-service/email_service.feature"]["AC-4"], {
+  assertEquals(feats["e-mail-sending-service/email_service.feature"]["AC-1"], {
     inputs: ["attachment", "content", "recipient", "subject"],
     outputs: [],
     sockets: [],
@@ -67,7 +67,7 @@ Deno.test("tests: manifest lists each scenario's verbatim binding obligations", 
     ["uploads.error", "uploads.pdf_file"],
   );
   // A scenario that binds nothing (no contract tokens) is absent, not empty.
-  assertEquals("AC-1" in feats["e-mail-sending-service/email_service.feature"], false);
+  assertEquals("AC-2" in feats["receipt-intake/intake_settings.feature"], false);
 });
 
 Deno.test("tests: a criterion's declared reads/writes are binding obligations too", () => {
