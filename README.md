@@ -40,7 +40,7 @@ The tech spec is disposable; the spec and its ADRs persist. Keep
 `*.techspec.yaml` out of git.
 
 ```
-/yamlet-author I want the system to send emails over a single TLS SMTP server
+/yamlet-author I want the platform to send e-mails, and never lose one
 /yamlet-author the email service should also retry a failed send twice
 /yamlet-techspec specs/email_service.yamlet.yaml specs/email_service_plain.yamlet.yaml
 ```

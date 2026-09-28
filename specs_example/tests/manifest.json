@@ -2,7 +2,7 @@
   "format": "yamlet.tests/v1",
   "features": {
     "e-mail-sending-service/email_service.feature": {
-      "AC-4": {
+      "AC-1": {
         "inputs": [
           "attachment",
           "content",
@@ -10,18 +10,58 @@
           "subject"
         ],
         "outputs": [],
-        "sockets": []
+        "sockets": [],
+        "reads": [],
+        "writes": []
+      },
+      "AC-2": {
+        "inputs": [
+          "recipient"
+        ],
+        "outputs": [],
+        "sockets": [],
+        "reads": [],
+        "writes": []
+      },
+      "AC-3": {
+        "inputs": [
+          "recipient"
+        ],
+        "outputs": [],
+        "sockets": [],
+        "reads": [],
+        "writes": []
       }
     },
     "e-mail-sending-service/email_service_plain.feature": {
-      "AC-3": {
+      "AC-1": {
         "inputs": [
           "content",
           "recipient",
           "subject"
         ],
         "outputs": [],
-        "sockets": []
+        "sockets": [],
+        "reads": [],
+        "writes": []
+      },
+      "AC-2": {
+        "inputs": [
+          "recipient"
+        ],
+        "outputs": [],
+        "sockets": [],
+        "reads": [],
+        "writes": []
+      },
+      "AC-3": {
+        "inputs": [
+          "recipient"
+        ],
+        "outputs": [],
+        "sockets": [],
+        "reads": [],
+        "writes": []
       }
     },
     "pdf-archiver/pdf_archiver.feature": {
@@ -30,7 +70,9 @@
         "outputs": [],
         "sockets": [
           "uploads.pdf_file"
-        ]
+        ],
+        "reads": [],
+        "writes": []
       }
     },
     "pdf-archiver/pdf_archiver_resilient.feature": {
@@ -39,7 +81,9 @@
         "outputs": [],
         "sockets": [
           "uploads.pdf_file"
-        ]
+        ],
+        "reads": [],
+        "writes": []
       },
       "AC-2": {
         "inputs": [],
@@ -47,7 +91,9 @@
         "sockets": [
           "uploads.error",
           "uploads.pdf_file"
-        ]
+        ],
+        "reads": [],
+        "writes": []
       }
     },
     "pdf-upload/pdf_upload.feature": {
@@ -59,7 +105,9 @@
         "outputs": [
           "pdf_file"
         ],
-        "sockets": []
+        "sockets": [],
+        "reads": [],
+        "writes": []
       },
       "AC-2": {
         "inputs": [
@@ -69,7 +117,9 @@
           "error",
           "pdf_file"
         ],
-        "sockets": []
+        "sockets": [],
+        "reads": [],
+        "writes": []
       },
       "AC-3": {
         "inputs": [
@@ -79,7 +129,9 @@
           "error",
           "pdf_file"
         ],
-        "sockets": []
+        "sockets": [],
+        "reads": [],
+        "writes": []
       }
     },
     "receipt-intake/intake_settings.feature": {
@@ -92,7 +144,9 @@
           "confirmation_body",
           "confirmation_subject"
         ],
-        "sockets": []
+        "sockets": [],
+        "reads": [],
+        "writes": []
       }
     },
     "receipt-intake/receipt_intake.feature": {
@@ -104,7 +158,9 @@
           "submitter_address"
         ],
         "outputs": [],
-        "sockets": []
+        "sockets": [],
+        "reads": [],
+        "writes": []
       }
     },
     "receipt-intake/receipt_portal.feature": {
@@ -114,7 +170,9 @@
           "submitter_address"
         ],
         "outputs": [],
-        "sockets": []
+        "sockets": [],
+        "reads": [],
+        "writes": []
       }
     }
   }

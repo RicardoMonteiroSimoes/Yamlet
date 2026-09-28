@@ -51,8 +51,8 @@ Supported, to **any** requirement — not just the most recent one:
 ```
 yamlet_add_criterion({
   file: "specs/email.yamlet.yaml", rq: "RQ-1", pattern: "unwanted",
-  if: "the SMTP server rejects the recipient",
-  shall: ["surface the rejection reason to the caller"]
+  if: "the mailbox of {input.recipient} refuses the e-mail",
+  shall: ["tell the caller the e-mail was refused"]
 })
 ```
 
@@ -60,9 +60,9 @@ To place it at a specific position rather than at the end of that requirement's 
 
 ```
 yamlet_add_criterion({
-  file: "specs/email.yamlet.yaml", rq: "RQ-1", after: "AC-1", pattern: "event",
-  when: "a send is retried",
-  shall: ["log the retry attempt"]
+  file: "specs/email.yamlet.yaml", rq: "RQ-1", after: "AC-1", pattern: "unwanted",
+  if: "{input.recipient} has unsubscribed",
+  shall: ["skip the send"]
 })
 ```
 

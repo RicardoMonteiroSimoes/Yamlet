@@ -193,7 +193,7 @@ define a **second, total** member spec — never an optional flag:
 # email_service_plain.yamlet.yaml
 exposes:
   name: e-mail-sending-service-plain
-  intent: send an email with a subject and content to a recipient over TLS SMTP
+  intent: send a plain e-mail with a subject and content to a recipient
   inputs:
   - recipient
   - subject

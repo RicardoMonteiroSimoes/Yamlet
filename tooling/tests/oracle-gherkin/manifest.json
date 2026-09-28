@@ -2,7 +2,7 @@
   "format": "yamlet.tests/v1",
   "features": {
     "e-mail-sending-service/email_service.feature": {
-      "AC-4": {
+      "AC-1": {
         "inputs": [
           "attachment",
           "content",
@@ -13,14 +13,50 @@
         "sockets": [],
         "reads": [],
         "writes": []
+      },
+      "AC-2": {
+        "inputs": [
+          "recipient"
+        ],
+        "outputs": [],
+        "sockets": [],
+        "reads": [],
+        "writes": []
+      },
+      "AC-3": {
+        "inputs": [
+          "recipient"
+        ],
+        "outputs": [],
+        "sockets": [],
+        "reads": [],
+        "writes": []
       }
     },
     "e-mail-sending-service/email_service_plain.feature": {
-      "AC-3": {
+      "AC-1": {
         "inputs": [
           "content",
           "recipient",
           "subject"
+        ],
+        "outputs": [],
+        "sockets": [],
+        "reads": [],
+        "writes": []
+      },
+      "AC-2": {
+        "inputs": [
+          "recipient"
+        ],
+        "outputs": [],
+        "sockets": [],
+        "reads": [],
+        "writes": []
+      },
+      "AC-3": {
+        "inputs": [
+          "recipient"
         ],
         "outputs": [],
         "sockets": [],

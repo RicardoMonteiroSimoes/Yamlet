@@ -9,7 +9,7 @@ A requirement is a capability, described so a reviewer knows what "done" means. 
 ```
 yamlet_add_requirement({
   file: "specs/email.yamlet.yaml",
-  description: "The service reliably connects to a single SMTP service"
+  description: "A requested e-mail reaches its recipient"
 })
 # -> returns "RQ-1"
 ```
@@ -40,8 +40,8 @@ Every criterion needs one or more `shall` items: the concrete, verifiable obliga
 ```
 yamlet_add_criterion({
   file: "specs/email.yamlet.yaml", rq: "RQ-1", pattern: "event",
-  when: "a login is attempted using valid TLS SMTP credentials",
-  shall: ["authenticate to the SMTP server over TLS"]
+  when: "a send is requested for {input.recipient}",
+  shall: ["deliver an e-mail with {input.subject} and {input.content} to {input.recipient}"]
 })
 # -> returns "AC-1"
 ```
@@ -50,7 +50,7 @@ yamlet_add_criterion({
 
 ## Stored state — `reads` / `writes`
 
-Ask per criterion what stored data it reads and what it changes: `reads`, `writes` (`entity.field`; a write covers the read). Reuse the system's names: `yamlet_systems({ dir, system, state: true })` (`details: true` shows each field's criteria — its only description). An index, not a schema.
+Ask per requirement what the business remembers or changes — facts like an order's status, not tables or columns — then put each on the criterion that touches it: `reads`, `writes` (`entity.field`; a write covers the read). Reuse the system's names: `yamlet_systems({ dir, system, state: true })` (`details: true` shows each field's criteria — its only description). An index, not a schema.
 
 A `NOTE:` means another scope touches the field and one side writes it: ask what happens when they interleave; cite the criterion that says so, or draft one. `W009`: a read field no scope writes — a missing scope, a typo, or external data.
 
@@ -73,10 +73,10 @@ An `{input.NAME}` may *also* be tabulated (as an `input.NAME` example column) wh
 ```
 yamlet_add_criterion({
   file: "specs/email.yamlet.yaml", rq: "RQ-1", pattern: "complex",
-  while: ["{n} retries have already been attempted for the e-mail"],
-  if: "an SMTP timeout occurs on the re-authentication attempt",
-  shall: ["a retry is scheduled with {delay_seconds} seconds backoff delay"],
-  examples: ["n=0;delay_seconds=10", "n=1;delay_seconds=30"]
+  while: ["the sender is on the {plan} plan"],
+  if: "more than {daily_limit} e-mails are requested in one day",
+  shall: ["reject the send"], reads: ["account.plan", "account.sent_today"],
+  examples: ["plan=free;daily_limit=100", "plan=pro;daily_limit=10000"]
 })
 # -> returns "AC-3"
 ```

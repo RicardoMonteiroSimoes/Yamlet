@@ -47,7 +47,7 @@ yamlet_systems({ dir: "specs", system: "e-mail-sending-service", details: true }
 
 A `topic` is a short, specific title for the scope. An `email-service` might hold several yamlet files, one per topic:
 
-- Service connects to an SMTP server
+- Send out plain emails
 - Send out emails using a template
 - Send out emails with attachments
 
@@ -81,6 +81,8 @@ If a short summary is not possible, the scope is too broad and needs splitting f
 A scope may expose a contract: named `input` and `output` attributes. These expose functionality and are what overarching systems wire together into more complex behaviour. Recommend generic options that make sense now *and* later — a `pdf-validator` should offer an `error` output, reusable to display a problem with the PDF.
 
 **This is optional, and not required.** The contract is a *signature, not a schema*: a name, an intent, named inputs, and optional named outputs (the return half — `inputs → outputs`, like a function's parameters and its return value). No types.
+
+**Name it in the business's words.** `recipient`, `invoice`, `error` — never the mechanism's (`smtp_host`, `http_body`, `db_row`). The contract freezes at `init`, and a *how* frozen into it outlives the implementation it names.
 
 **No bag inputs.** If criteria will reach into an input's *fields* — "the identity's subject, email and display name" — the fields are the inputs (`subject`, `email`, `display_name`), not one `identity`; prose fields are invisible to the binding checks. The producer exposes them as separate outputs to match — a socket never destructures.
 
@@ -122,8 +124,8 @@ yamlet_init({
   file: "specs/email.yamlet.yaml",
   system: "email-sending-service",
   topic: "E-Mail sending service",
-  summary: "A service that sends emails over a single TLS SMTP server",
-  description: "The generic e-mail sending service offers connectivity to a single TLS SMTP server for the platform.",
+  summary: "A service that sends e-mails on behalf of the platform",
+  description: "The generic e-mail sending service delivers any e-mail the platform needs to send.",
   blast_radius: "high",
   front: "internal"
 })
