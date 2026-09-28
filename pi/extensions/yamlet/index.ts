@@ -132,13 +132,16 @@ const FLAG_NEEDS: Record<string, string> = {
 /**
  * Sub-subcommands (and a flag on one) that arrived with ADR revision, on `adr`,
  * which predates it: `"adr SUB"` matches that subcommand, `"adr SUB --flag"`
- * only when the flag is passed. An older CLI calls them unknown; the call is
- * refused up front with the upgrade hint instead. (`reject` needs `--reason`
- * now, but an older CLI refuses the flag, so that tool omits it there.)
+ * only when the flag is passed. An older CLI calls them unknown — or, for
+ * `reject`, refuses the `--reason` a rejected record must now carry — so the
+ * call is refused up front with the upgrade hint instead. Rejecting there
+ * without a reason would write a record the upgraded CLI reports as E804
+ * and nothing could repair.
  */
 const SUBCOMMAND_NEEDS: Record<string, string> = {
 	"adr remove": "adr revise",
 	"adr replace": "adr revise",
+	"adr reject": "adr revise",
 	"adr add-dimension --against": "adr revise",
 };
 
@@ -1585,12 +1588,8 @@ export default function (pi: ExtensionAPI) {
 			date: Type.Optional(Type.String({ description: "YYYY-MM-DD (default: today)" })),
 		}),
 		async execute(_id, params, signal, _onUpdate, ctx) {
-			// A CLI before ADR revision rejects without a reason and refuses the flag.
-			const probe = await probeYamlet(ctx.cwd);
-			const withReason = !(probe.ok && probe.missing.includes("adr revise"));
 			return mutate(params.file, ctx, () => {
-				const args = ["adr", "reject", cleanPath(params.file)];
-				if (withReason) args.push("--reason", params.reason);
+				const args = ["adr", "reject", cleanPath(params.file), "--reason", params.reason];
 				if (params.date) args.push("--date", params.date);
 				return args;
 			}, signal);

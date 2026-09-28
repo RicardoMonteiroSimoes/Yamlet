@@ -694,11 +694,13 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 		!calls.slice(before).some((c) => c[1] === "systems"), msg || JSON.stringify(calls.slice(before)));
 	const r = await tools.get("yamlet_systems").execute("id", { details: true }, undefined, undefined, ctx);
 	ok("0.5 CLI: systems without --criteria still runs", r.details.command[1] === "systems", JSON.stringify(r));
-	// ADR revision: the new subcommands, reject (which now sends --reason) and a
-	// late dimension are refused up front; the rest of `adr` still runs.
+	// ADR revision: the new subcommands, reject (a record without a reason would
+	// fail E804 after the upgrade, unrepairably) and a late dimension are refused
+	// up front with the upgrade hint; the rest of `adr` still runs.
 	for (const [tool, input, sub] of [
 		["yamlet_adr_remove", { file: "a.adr.yaml", id: "D-1" }, "remove"],
 		["yamlet_adr_replace", { file: "a.adr.yaml", id: "R-1", text: "t" }, "replace"],
+		["yamlet_adr_reject", { file: "a.adr.yaml", reason: "moot" }, "reject"],
 		["yamlet_adr_add_dimension", { file: "a.adr.yaml", matters: "m", against: [{ option: "OPT-1", text: "x" }] }, "add-dimension"],
 	]) {
 		const before = calls.length;
@@ -708,9 +710,6 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 			m.includes("needs: adr revise.") && m.includes("brew upgrade yamlet") &&
 			!calls.slice(before).some((c) => c[1] === "adr" && c[2] === sub), m || JSON.stringify(calls.slice(before)));
 	}
-	const rej = await tools.get("yamlet_adr_reject").execute("id", { file: "a.adr.yaml", reason: "moot" }, undefined, undefined, ctx);
-	ok("0.5 CLI: reject still runs, without the --reason it would refuse",
-		same(rej.details.command, ["yamlet", "adr", "reject", "a.adr.yaml"]), JSON.stringify(rej.details.command));
 	const dim = await tools.get("yamlet_adr_add_dimension").execute("id", { file: "a.adr.yaml", matters: "m" }, undefined, undefined, ctx);
 	ok("0.5 CLI: add_dimension before options still runs", dim.details.command[2] === "add-dimension", JSON.stringify(dim));
 }
