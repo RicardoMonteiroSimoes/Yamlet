@@ -32,6 +32,7 @@ import {
   addConnectionCommand,
   addCriterionCommand,
   addRequirementCommand,
+  addStateCommand,
   initCommand,
 } from "./src/author.ts";
 import { techspecCommand } from "./src/techspec_author.ts";
@@ -165,6 +166,7 @@ export const COMMANDS: Command[] = [
   addRequirementCommand,
   addCriterionCommand,
   addAdrCommand,
+  addStateCommand,
   techspecCommand,
   adrCommand,
 ];

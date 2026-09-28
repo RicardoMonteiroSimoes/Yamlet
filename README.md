@@ -113,7 +113,7 @@ Every write goes through the CLI. It allocates all IDs (`RQ-1`, `AC-3`, `T-2`,
 | command | what it does |
 |---|---|
 | `yamlet verify FILE` | check a spec against the rule catalog |
-| `yamlet systems [DIR]` | list the systems and their scope files |
+| `yamlet systems [DIR]` | list the systems and their scope files; `--state` adds the stored fields their criteria read and write, and which scopes contend for one |
 | `yamlet impact FILE [DIR]` | which composites wire this spec, and how |
 | `yamlet graph [FILE\|DIR] --out=F` | DOT, JSON, or interactive HTML view of a spec or a whole directory |
 | `yamlet trace [DIR] --out=F` | interactive HTML (or JSON) trace: criteria → verdicts → ADRs → tasks, per spec |
@@ -121,6 +121,7 @@ Every write goes through the CLI. It allocates all IDs (`RQ-1`, `AC-3`, `T-2`,
 | `yamlet init` · `add-requirement` · `add-criterion` | author a spec |
 | `yamlet add-component` · `add-connection` | wire a composite |
 | `yamlet add-adr` | link a decision record to a requirement or criterion |
+| `yamlet add-state` | declare the stored fields an existing criterion reads or writes |
 | `yamlet techspec …` | build a `.techspec.yaml` |
 | `yamlet adr …` | build a `.adr.yaml` |
 

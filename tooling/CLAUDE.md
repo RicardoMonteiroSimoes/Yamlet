@@ -34,7 +34,10 @@ src/validate.ts   Phase 2: structural + semantic rules over records
 src/catalog.ts    the rule catalog (source of truth for rule ids/severities)
 src/render.ts     byte-exact human/JSON output
 src/verify.ts     orchestration: extension -> flatten -> composite -> validate -> W008 (reverse scan of cwd via impact)
-src/author.ts     correct-by-construction appender; runs verifier as commit gate. `add-adr` is its one in-place mutation
+                  -> W009 (scan of cwd for the system's writers, via state)
+src/author.ts     correct-by-construction appender; runs verifier as commit gate. `add-adr` and `add-state` are
+                  its in-place mutations (strictGuard)
+src/state.ts      a criterion's `reads`/`writes` merged per system: fields, contended scope pairs (read-only)
 src/scalar.ts     the one scalar emitter (quote iff standard YAML would misread) + quoted-scalar reader
 src/cmd.ts        command helpers shared by author + techspec (usage error, flag values, path predicates)
 src/records.ts    readers over flattened records by prefix (shared by `tests` and the tech spec)
@@ -79,7 +82,7 @@ change is a regression, not a re-freeze.
 - Deno fmt: 2-space, 100 col, semicolons, double quotes. `strict` + `noUncheckedIndexedAccess`.
 - `edit` / `rm` are **not implemented yet**, and must not be stubbed. The groundwork exists:
   `src/blocks.ts` addresses an existing `RQ-N`/`AC-N` and its line extent, `yamlet impact` supplies
-  the reverse-dependency analysis safe removal needs, and `add-adr` is the first mutation of an
+  the reverse-dependency analysis safe removal needs, and `add-adr` (then `add-state`) mutate an
   existing block, gated by `strictGuard` ("the resulting findings must be a subset of the
   pre-existing ones plus the ones this command predicts", keyed on `(rule, message)` rather than on
   path, since indices shift under insert and remove). `guardCheck`'s allowlist is not a general

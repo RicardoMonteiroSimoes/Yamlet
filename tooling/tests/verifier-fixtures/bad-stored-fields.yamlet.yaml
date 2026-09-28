@@ -1,0 +1,39 @@
+system: stored-fields-fixture
+topic: Stored fields
+summary: Exercises the reads and writes a criterion may declare.
+description: >-
+  One well-formed declaration, and one of each way a declaration goes wrong.
+blast_radius: low
+front: internal
+requirements:
+- id: RQ-1
+  description: >-
+    Votes are recorded against an open poll
+  acceptance-criteria:
+  - id: AC-1
+    pattern: event
+    when: a vote is cast
+    shall:
+    - record the vote
+    reads:
+    - poll.state
+    writes:
+    - vote.option
+  - id: AC-2
+    pattern: event
+    when: a vote is changed
+    shall:
+    - replace the vote
+    reads:
+    - vote.option
+    - poll
+    writes:
+    - vote.option
+    - vote.option
+  - id: AC-3
+    pattern: unwanted
+    if: the poll is closed
+    shall:
+    - reject the vote
+    reads:
+    - poll: state

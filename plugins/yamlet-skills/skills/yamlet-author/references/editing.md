@@ -63,6 +63,10 @@ yamlet add-criterion specs/email.yamlet.yaml --rq RQ-1 --after AC-1 --pattern ev
 
 An inserted criterion gets a letter-suffixed id (`AC-1a`, then `AC-1b`) so it sorts into position and **no existing id changes**. `--after` must name a criterion of the requirement in `--rq`; if it doesn't, the tool says which requirement it actually belongs to.
 
+### Stored state on an existing criterion
+
+`yamlet add-state FILE --ac AC-2 --reads poll.state` merges into its lists (`patterns.md`, "Stored state").
+
 ### Adding a new requirement
 
 Unchanged — `yamlet add-requirement`, then its criteria. Drafted and challenged exactly as in `SKILL.md`.

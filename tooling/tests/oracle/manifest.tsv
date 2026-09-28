@@ -40,6 +40,7 @@ bad-optional-missing-where.yamlet.yaml	1
 bad-pattern-event-wrong-clause.yamlet.yaml	1
 bad-placeholder-missing-example-key.yamlet.yaml	1
 bad-state-pattern.yamlet.yaml	1
+bad-stored-fields.yamlet.yaml	1
 bad-system-slug.yamlet.yaml	1
 bad-tabs.yamlet.yaml	1
 bad-techspec-coverage.techspec.yaml	1

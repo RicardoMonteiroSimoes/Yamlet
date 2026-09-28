@@ -25,7 +25,7 @@ One question: **is this criterion (or obligation) really met at these references
 
 ## Input
 
-`$ARGUMENTS` holds: the criterion (`AC-N`, pattern, clauses, each `shall`, any examples) verbatim — or an obligation (`ADR-nnnn#R-n` and its `must`, which you check as its one `shall`); and the evidence — one or more `path:line` references. A `shall` with no reference offered for it is unsupported.
+`$ARGUMENTS` holds: the criterion (`AC-N`, pattern, clauses, each `shall`, any examples, any `writes`) verbatim — or an obligation (`ADR-nnnn#R-n` and its `must`, which you check as its one `shall`); and the evidence — one or more `path:line` references. A `shall` with no reference offered for it is unsupported.
 
 ## Check — each `shall`, in order
 
@@ -35,6 +35,8 @@ For each `shall`, at the references given:
 2. **Is it exact?** The same value, identifier, order, unit, bound. "At most 10 MiB" is not met by a check at 10 MB; "return `unsafe_filename`" is not met by returning a message.
 3. **Under the stated clause?** An `if`/`when`/`while`/`where` names the situation; the code must react to that situation, not a broader or narrower one.
 4. **Does the reference resolve?** A missing file, a line that is blank or unrelated, or a reference into a test alone (a test asserts; it does not implement) does not support the `shall`.
+
+Each field under `writes` counts as one more `shall`: the code must write it.
 
 ## Report — terse, per `shall`
 

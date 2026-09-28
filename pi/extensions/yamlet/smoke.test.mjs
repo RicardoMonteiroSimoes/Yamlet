@@ -54,18 +54,19 @@ Commands:
   add-requirement   append a requirement to a spec (prints RQ-N)
   add-criterion     append an acceptance criterion (prints AC-N)
   add-adr           link an ADR to a requirement or criterion
+  add-state         declare the stored fields a criterion reads or writes
   techspec          plan a change across a system's specs: gap analysis and task list (.techspec.yaml)
   adr               write a decision record (.adr.yaml), correct by construction
 `;
 
 // The release before tech specs and decision records: every authoring command,
 // none of the planning ones.
-const HELP_0_2_3 = HELP.replace(/  add-adr .*\n/, "").replace(/  techspec .*\n/, "").replace(/  adr .*\n/, "")
+const HELP_0_2_3 = HELP.replace(/  add-adr .*\n/, "").replace(/  add-state .*\n/, "").replace(/  techspec .*\n/, "").replace(/  adr .*\n/, "")
 	.replace(/  trace .*\n/, "");
 
 // The release before `trace` and before a tech spec spanned a system: `techspec`
 // is there by name, with the one-spec interface these tools no longer speak.
-const HELP_0_4_0 = HELP.replace(/  trace .*\n/, "")
+const HELP_0_4_0 = HELP.replace(/  trace .*\n/, "").replace(/  add-state .*\n/, "")
 	.replace(/  techspec .*\n/, "  techspec          build a spec's gap analysis and task list (a disposable .techspec.yaml)\n");
 
 // A directory holding an executable `yamlet`, so findOnPath() resolves it.
@@ -131,11 +132,11 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 {
 	const { tools } = makePi();
 	const names = [...tools.keys()].sort();
-	ok("30 tools registered", names.length === 30, names.join(","));
+	ok("31 tools registered", names.length === 31, names.join(","));
 	ok("impact and guide are registered",
 		names.includes("yamlet_impact") && names.includes("yamlet_guide"), names.join(","));
 	const planning = [
-		"yamlet_add_adr",
+		"yamlet_add_adr", "yamlet_add_state",
 		"yamlet_techspec_init", "yamlet_techspec_analysis", "yamlet_techspec_criterion",
 		"yamlet_techspec_obligation", "yamlet_techspec_task",
 		"yamlet_adr_init", "yamlet_adr_add_force", "yamlet_adr_add_basis", "yamlet_adr_add_dimension",
@@ -191,6 +192,36 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 	}, undefined, undefined, ctx);
 	const expected = ["yamlet", "systems", "specs", "--system=e-mail-sending-service", "--details", "--contracts"];
 	ok("systems --details argv", same(calls.at(-1), expected), JSON.stringify(calls.at(-1)));
+}
+{
+	// Stored state: a criterion's reads/writes, add-state on an existing one, and
+	// the system-wide listing.
+	const { tools, calls } = makePi();
+	await tools.get("yamlet_add_criterion").execute("id", {
+		file: "specs/v.yamlet.yaml", rq: "RQ-1", pattern: "unwanted", if: "the poll is closed",
+		shall: ["reject the vote"], reads: ["poll.state"], writes: ["vote.rejected_at"],
+	}, undefined, undefined, ctx);
+	ok("add_criterion --reads/--writes argv",
+		same(calls.at(-1).slice(-4), ["--reads", "poll.state", "--writes", "vote.rejected_at"]),
+		JSON.stringify(calls.at(-1)));
+	await tools.get("yamlet_add_state").execute("id", {
+		file: "@specs/v.yamlet.yaml", ac: "AC-2", reads: ["poll.state"], writes: ["vote.option", "vote.changed_at"],
+	}, undefined, undefined, ctx);
+	ok("add_state argv",
+		same(calls.at(-1), ["yamlet", "add-state", "specs/v.yamlet.yaml", "--ac", "AC-2", "--reads", "poll.state",
+			"--writes", "vote.option", "--writes", "vote.changed_at"]),
+		JSON.stringify(calls.at(-1)));
+	let msg = "";
+	const before = calls.length;
+	try { await tools.get("yamlet_add_state").execute("id", { file: "s.yamlet.yaml", ac: "AC-1" }, undefined, undefined, ctx); } catch (e) { msg = e.message; }
+	ok("add_state refuses no fields before running",
+		msg.includes("at least one field") && !calls.slice(before).some((c) => c[1] === "add-state"), msg);
+	await tools.get("yamlet_systems").execute("id", {
+		dir: "specs", system: "lunch-poll", state: true, details: true,
+	}, undefined, undefined, ctx);
+	ok("systems --state argv",
+		same(calls.at(-1), ["yamlet", "systems", "specs", "--system=lunch-poll", "--details", "--state"]),
+		JSON.stringify(calls.at(-1)));
 }
 {
 	const { tools, calls } = makePi();
@@ -633,8 +664,8 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 	resetNotes();
 	const { handlers, tools, calls } = makePi({ help: HELP_0_4_0 });
 	await handlers.session_start({}, ctx);
-	ok("0.4.0 CLI: one startup warning naming trace and the one-spec techspec, not adr",
-		notes.length === 1 && notes[0][0] === "warning" && notes[0][1].includes("no techspec/trace command") &&
+	ok("0.4.0 CLI: one startup warning naming trace, the one-spec techspec and add-state, not adr",
+		notes.length === 1 && notes[0][0] === "warning" && notes[0][1].includes("no techspec/trace/add-state command") && notes[0][1].includes("stored state") &&
 		notes[0][1].includes("traceability") && notes[0][1].includes("tech spec") &&
 		!notes[0][1].includes("decision record"), JSON.stringify(notes));
 	const r = await tools.get("yamlet_adr_add_force").execute("id", { file: "a.adr.yaml", text: "t" }, undefined, undefined, ctx);
@@ -650,6 +681,24 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 			msg.includes(`needs: ${cmd}.`) && msg.includes("brew upgrade yamlet") &&
 			!calls.slice(before).some((c) => c[1] === cmd), msg || JSON.stringify(calls.slice(before)));
 	}
+	// Stored state arrived with add-state: its flags on commands 0.4.0 already has
+	// are refused up front, while the same commands without them still run.
+	for (const [tool, input, cmd] of [
+		["yamlet_add_state", { file: "a.yamlet.yaml", ac: "AC-1", reads: ["p.s"] }, "add-state"],
+		["yamlet_add_criterion", { file: "a.yamlet.yaml", rq: "RQ-1", pattern: "event", when: "w", shall: ["s"], reads: ["p.s"] }, "add-criterion"],
+		["yamlet_systems", { state: true }, "systems"],
+	]) {
+		const before = calls.length;
+		let msg = "";
+		try { await tools.get(tool).execute("id", input, undefined, undefined, ctx); } catch (e) { msg = e.message; }
+		ok(`0.4.0 CLI: ${tool} with stored state fails with the upgrade hint, before running`,
+			msg.includes("needs: add-state.") && msg.includes("brew upgrade yamlet") &&
+			!calls.slice(before).some((c) => c[1] === cmd), msg || JSON.stringify(calls.slice(before)));
+	}
+	const plain = await tools.get("yamlet_add_criterion").execute("id",
+		{ file: "a.yamlet.yaml", rq: "RQ-1", pattern: "event", when: "w", shall: ["s"] }, undefined, undefined, ctx);
+	ok("0.4.0 CLI: add_criterion without stored state still runs",
+		plain.details.command[1] === "add-criterion", JSON.stringify(plain));
 }
 {
 	// A killed `help` yields empty stdout; concluding "every command missing"

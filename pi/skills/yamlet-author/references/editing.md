@@ -68,6 +68,10 @@ yamlet_add_criterion({
 
 An inserted criterion gets a letter-suffixed id (`AC-1a`, then `AC-1b`) so it sorts into position and **no existing id changes**. `after` must name a criterion of the requirement in `rq`; if it doesn't, the tool says which requirement it actually belongs to.
 
+### Stored state on an existing criterion
+
+`yamlet_add_state({ file, ac: "AC-2", reads: ["poll.state"] })` merges into its lists (`patterns` guide, "Stored state").
+
 ### Adding a new requirement
 
 Unchanged — `yamlet_add_requirement`, then its criteria. Drafted and challenged exactly as in the skill body.

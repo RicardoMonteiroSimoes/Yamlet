@@ -88,7 +88,7 @@ ones need a restart or `/reload`.
 | `yamlet_guide` | `yamlet_add_requirement` | | `yamlet_techspec_obligation` | `yamlet_adr_add_dimension` |
 | | `yamlet_add_criterion` | | `yamlet_techspec_task` | `yamlet_adr_add_option` |
 | | `yamlet_add_adr` | | | `yamlet_adr_decide` |
-| | | | | `yamlet_adr_add_obligation` |
+| | `yamlet_add_state` | | | `yamlet_adr_add_obligation` |
 | | | | | `yamlet_adr_add_accept` |
 | | | | | `yamlet_adr_add_revisit` |
 | | | | | `yamlet_adr_accept` · `_reject` |

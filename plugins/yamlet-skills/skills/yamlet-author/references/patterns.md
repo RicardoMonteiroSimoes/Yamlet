@@ -45,6 +45,12 @@ yamlet add-criterion specs/email.yamlet.yaml \
 
 `--rq` accepts **any** requirement in the file. Add `--after AC-N` to insert directly behind a named sibling instead of appending to the end of that requirement's criteria; the inserted criterion takes a letter-suffixed id (`AC-1a`) so nothing is renumbered.
 
+## Stored state — `--reads` / `--writes`
+
+Ask per criterion what stored data it reads and what it changes: `--reads entity.field`, `--writes entity.field` (a write covers the read). Reuse the system's names: `yamlet systems DIR --system=S --state` (`--details` shows each field's criteria — its only description). An index, not a schema.
+
+A `NOTE:` means another scope touches the field and one side writes it: ask what happens when they interleave; cite the criterion that says so, or draft one. `W009`: a read field no scope writes — a missing scope, a typo, or external data.
+
 ## The three kinds of `{token}`
 
 Distinguished purely by shape:

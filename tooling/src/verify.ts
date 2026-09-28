@@ -10,6 +10,7 @@ import { resolveComposite } from "./composite.ts";
 import { validate } from "./validate.ts";
 import { consumersOf } from "./impact.ts";
 import { listSpecs } from "./systems.ts";
+import { collectState, criterionStates, systemOf } from "./state.ts";
 import { TECHSPEC_EXT, validateTechspec } from "./techspec.ts";
 import { ADR_EXT, validateAdr } from "./adr.ts";
 
@@ -135,6 +136,39 @@ export function verifyText(file: string, text: string): VerifyOutput {
       message: "front=internal but no composite under the working directory wires this " +
         "spec as a member: the trusted caller it claims is unnamed",
     });
+  }
+
+  // ── W009: a stored field read here that no scope of the system writes ──
+  // Scans the working directory for the specs sharing this `system:`, as W008
+  // does for consumers. It points at a scope not written yet, or a misspelled
+  // field. A warning: scopes are written one at a time, and a field may be
+  // written from outside the system (an import, an admin tool).
+  const own = criterionStates(records);
+  if (own.some((c) => c.reads.length > 0)) {
+    const system = systemOf(records);
+    const written = new Set(
+      collectState(".", system, { file, records }).fields
+        .filter((u) => u.touches.some((t) => t.access === "write"))
+        .map((u) => u.field),
+    );
+    const reported = new Set<string>();
+    for (const r of records) {
+      const m = r.path.match(
+        /^(requirements\[[0-9]+\]\.acceptance-criteria\[[0-9]+\])\.reads\[[0-9]+\]$/,
+      );
+      if (!m || written.has(r.value) || reported.has(r.value)) continue;
+      if (!own.some((c) => c.reads.includes(r.value))) continue; // malformed (E307) or also written
+      reported.add(r.value);
+      const ac = records.find((x) => x.path === `${m[1]}.id`)?.value ?? m[1]!;
+      findings.push({
+        rule: "W009",
+        severity: "warning",
+        line: r.line,
+        path: r.path,
+        message: `${ac}: reads ${r.value}, but no spec of system ${system} under the working ` +
+          "directory writes it",
+      });
+    }
   }
 
   const sorted = [...findings].sort(compareFindings);

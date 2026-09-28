@@ -230,8 +230,9 @@ Gherkin scenario with no `When` step. What they get used for is a *definition*
 | clause(s) | `while`/`when`/`if`/`where` per pattern | — | `E301`, `E302` |
 | `shall` | the concrete, verifiable obligations | non-empty list | `E304` |
 | `adrs` *(optional)* | decision records this behaviour is decided by | see [`adrs`](#adrs--linking-a-decision) | `E109` |
+| `reads` / `writes` *(optional)* | stored fields this behaviour reads / creates, changes or deletes | see [`reads` / `writes`](#reads--writes--stored-state) | `E307`, `E308`, `W009` |
 
-Every `while`, `shall` and `adrs` entry is a plain string (`E306`). An entry with
+Every `while`, `shall`, `adrs`, `reads` and `writes` entry is a plain string (`E306`). An entry with
 an unquoted colon-space — `- store it under the key token: followed by the id` —
 is a one-key mapping to any YAML parser, so it states nothing; quote it. The
 author quotes wherever standard YAML would otherwise read a value as anything
@@ -271,8 +272,8 @@ holds the link. The tech spec reads the record's obligations through that link.
 
 Decisions are made *after* a spec is finished, while the work is planned (see
 [tech specs](#tech-specs--planning-the-work)), so the link is attached to an
-existing block by `yamlet add-adr` — the one mutation the author performs on a
-block that already exists. On a requirement the list sits before
+existing block by `yamlet add-adr` — like `add-state`, a mutation of a block that
+already exists. On a requirement the list sits before
 `acceptance-criteria`, which stays the requirement's last key.
 
 The link is load-bearing on every later change: a mutation that touches decided
@@ -282,6 +283,76 @@ is not where the decision is revisited — that happens when the change is plann
 the [tech spec](#tech-specs--planning-the-work) covering the changed behaviour
 must read the decision and account for it. yamlet only makes sure the change
 cannot happen without the decision being named.
+
+### `reads` / `writes` — stored state
+
+Criteria constantly lean on persisted state — "the poll is closed", "replace the
+earlier vote", "the instant it was changed" — and the contract says nothing about
+it: `exposes` is what crosses the boundary, not what the service keeps. A criterion
+may name the stored fields it touches:
+
+```yaml
+  - id: AC-1
+    pattern: event
+    when: "{input.voter_token} votes for {input.option_id} in an open poll"
+    shall:
+    - record the vote for {input.option_id}
+    reads:
+    - poll.state
+    - poll_option.id
+    writes:
+    - vote.option
+```
+
+Each entry is `entity.field`, both parts tokens (`E307`). `writes` means the
+behaviour creates, changes or deletes the field; `reads` that it only looks at it.
+A field appears once per criterion (`E308`): a write already covers the read a
+read-modify-write implies. Both are optional — a criterion that touches no stored
+state carries neither.
+
+**An index, not a schema.** No types, keys, collation, cascades or id formats: those
+stay in the code, or in a [decision record](#decision-records--adryaml) when the
+choice is the user's. A field has no description of its own either — its meaning is
+the criteria that touch it, which are already written and already projected into
+tests; `yamlet systems --state --details` shows exactly those. A second, prose
+description would be an untested place for behaviour to hide. `reads`/`writes` are
+not projected into Gherkin and cost nothing against a word budget.
+
+**What the index is for.** Declared on the criteria, the fields add up per system
+(`yamlet systems --system=S --state`):
+
+- **Names agree by discovery.** Before naming a field, an author lists the ones the
+  system already has and reuses them. Two scopes spelling the same thing differently
+  (`poll.state`, `poll.status`) is not something the verifier can see; the listing and
+  the criteria challenger are what catch it.
+- **Contention is visible when the spec is written.** Two scopes touching one field,
+  at least one writing it, are *contended*: a second writer races the first, and a
+  reader may act on a value another scope is about to change (a vote checked against a
+  poll being closed — the closer writes `poll.state`, the voter only reads it). Two
+  readers cannot race. For each contended pair a criterion must say what happens when
+  the two interleave; if none does, the spec has a gap. `add-criterion` and `add-state`
+  print a `NOTE` naming the other scope the moment a pair appears.
+- **A read with no writer is a missing scope or a typo** (`W009`, below).
+- **Planning derives schema work from it** rather than re-reading prose: one schema
+  task per entity, and every contended pair to settle (see
+  [tech specs](#tech-specs--planning-the-work)).
+
+**How it is kept honest.** Nothing mechanical checks a declaration against code —
+yamlet reads no ORM or migration, in any language. What is proven stays what was
+always proven: behaviour, by criteria (tests) and by decision obligations (evidence).
+The declaration makes sure the right criteria exist. When the plan records a
+criterion as met, its evidence must show each declared write; research reports a
+write in a criterion's code path that is not declared, as a spec gap.
+
+| rule | fires on |
+|---|---|
+| `E307` | an entry that is not `entity.field` |
+| `E308` | a field listed twice in one criterion, including once in each list |
+| `W009` | a field this spec reads that no spec of its `system` under the working directory writes — a scope not written yet, a misspelled field, or data written from outside the system. A warning: scopes are written one at a time. Like `W008`, it scans the working directory |
+
+The author declares fields with the criterion (`add-criterion --reads/--writes`), or
+on an existing criterion with `add-state --ac AC-N`, which merges into its lists (a
+write supersedes a read of the same field) and re-emits them at the criterion's end.
 
 ### Placeholders and examples
 
@@ -537,6 +608,17 @@ names its criteria exactly. The obligations owed follow the scope: those of the
 records linked on a scoped criterion or on its requirement (with no scope, every
 record the spec links).
 
+**Stored state is planned, not stored here.** The criteria in scope name the fields
+they [read and write](#reads--writes--stored-state); the plan merges them with the
+rest of the system's (`yamlet systems --state`) and with where the code declares each
+one. A field the code lacks is schema work — one enabler task per entity, which every
+task using its fields depends on; a new column satisfies no `shall`, so it covers
+nothing. Every contended pair the plan touches is settled before tasks, including a
+pair whose other scope is outside the plan: a criterion that says what happens is
+enforced (locking, isolation, ordering — a decision when the choice is the user's);
+no criterion is a spec gap. None of this is a field of the tech spec: the enablers
+and the decisions carry it.
+
 **Obligations have verdicts.** An obligation is work exactly as a criterion is, and
 code may already discharge it — a shared foundation usually does. So it is judged
 like a criterion: met with evidence, or unmet and covered by a task. Covering one
@@ -692,7 +774,8 @@ None at the moment.
 ---
 
 *Shipped since first draft: the trigger rule (`E301`–`E303`), [word budgets](#word-budgets--e305)
-(`E305`), `W006`, `W007` and `W008`; [decision records](#decision-records--adryaml)
+(`E305`), `W006`, `W007` and `W008`; [`reads` / `writes`](#reads--writes--stored-state) stored
+fields on criteria (`E307`, `E308`, `W009`); [decision records](#decision-records--adryaml)
 (`E801`–`E815`), [`adrs`](#adrs--linking-a-decision) links on requirements and
 criteria (`E109`) and the derived [tech spec](#tech-specs--planning-the-work)
 (`E701`–`E719`); the [`exposes`](#exposes--the-contract-signature) contract
