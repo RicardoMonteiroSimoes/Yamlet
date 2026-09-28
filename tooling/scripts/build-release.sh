@@ -6,8 +6,10 @@
 #   ./scripts/build-release.sh 0.1.0
 #
 # Deno cross-compiles from any single host (no native toolchain per target), so
-# CI runs this once on one runner. The viewer assets are embedded with the same
-# --include flags as the `compile` task, so each binary is self-contained.
+# CI runs this once on one runner. The viewer assets are embedded by including
+# the whole src/viewer directory (as the `compile` task does) rather than listing
+# files, so a new asset cannot be silently left out. The binary for the host
+# target is smoke-tested on the HTML renderers before it is packaged.
 #
 # The version is stamped into src/version.ts for the duration of the build and
 # restored afterwards, so a local run leaves the working tree clean.
@@ -57,17 +59,30 @@ EOF
 rm -rf "$DIST"
 mkdir -p "$DIST"
 
+HOST_TARGET=$(deno eval 'console.log(Deno.build.target)')
+
+# Run the compiled binary's HTML renderers, which read embedded assets at run
+# time — a missing --include only shows up here, never at compile time.
+smoke_test() {
+    out=$(mktemp -d)
+    "$1" graph "$REPO_DIR/specs_example" --out="$out/graph.html" --format=html --libs=embed >/dev/null
+    "$1" trace "$REPO_DIR/specs_example" --out="$out/trace.html" --format=html --libs=embed >/dev/null
+    rm -rf "$out"
+}
+
 for target in $TARGETS; do
     printf '==> compiling %s\n' "$target"
     deno compile \
         --allow-read --allow-write \
         --target "$target" \
-        --include src/viewer/template.html \
-        --include src/viewer/viewer.css \
-        --include src/viewer/viewer.js \
-        --include src/viewer/vendor/elk.bundled.js \
+        --include src/viewer \
         --output "$DIST/yamlet" \
         main.ts
+
+    if [ "$target" = "$HOST_TARGET" ]; then
+        printf '    smoke-testing %s\n' "$target"
+        smoke_test "$DIST/yamlet"
+    fi
 
     stage="$DIST/stage-$target"
     mkdir -p "$stage"
