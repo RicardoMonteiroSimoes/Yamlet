@@ -424,6 +424,12 @@ export const CATALOG: Rule[] = [
     description:
       "a field this spec reads is written by no spec of its system under the working directory",
   },
+  {
+    id: "W010",
+    severity: "warning",
+    description:
+      "a criterion references no {input.X}, {output.X} or {alias.socket} and declares no reads/writes (nothing for a test to bind)",
+  },
 ];
 
 /** Severity lookup by rule id, mirroring the sh verifier's `catalog_sev`. */

@@ -39,6 +39,7 @@ Committed wording is final (criteria bind step definitions at once), but appendi
    - `complex` — a state **and** a trigger (`while` + one of `when`/`if`).
    An error response not written `unwanted` is mis-patterned. A proposal with no trigger is a definition (prose, pinned by example rows on the criteria that observe it) or an invariant (the `unwanted` criterion that maintains it) — say which, and where it goes instead.
 4. **`shall` atomicity.** Each `shall` is a single, verifiable obligation. Split compound shalls; reject any that can't be observed.
+   **Does it do anything?** Could an implementation that does nothing pass it? "Leave the result tied, record no winner" describes nothing happening: BLOCKER. Each `shall` must change an output, a declared field (`writes`) or an outbound call. A criterion with no `{input.*}`/`{output.*}`/socket and no `reads`/`writes` is `W010` — nothing for a test to bind; usually undeclared state.
 5. **Bindability.** Could a step definition be written from each line alone? Flag what a test would have to invent: an input's *field* in prose ("the identity's email"); an unbound value ("the store's maximum length"); a result described, not stated ("indicates a conflict"); an open list ("such as"); a negative `shall` hiding a precondition ("not fail for that reason alone"); "that"/"this" pointing back into the clause.
 6. **Front fit.** `external`: malformed/hostile input **must** be covered by `unwanted`/`if` — name the missing cases (empty, oversized, wrong-type, malicious). `internal`: an `if` validating an input's *shape* (format, length, allowed values) re-litigates the boundary — presence checks are fine, more is a QUESTION.
 7. **Contract references.** (leaf) every declared input must reach `{input.NAME}` and every output `{output.NAME}` or verify fails — flag any without a home if this is the requirement that owes it. (composite) inputs are wired as connection sources, not referenced here — don't flag those.
@@ -49,7 +50,7 @@ Committed wording is final (criteria bind step definitions at once), but appendi
 
 ## Report — terse and ordered
 
-- **BLOCKERS** — will fail verify or freeze a defect (vague shall, unbound value, wrong pattern, unbound placeholder, bundled capabilities, missing `unwanted` on an external front).
+- **BLOCKERS** — will fail verify or freeze a defect (vague shall, a shall a do-nothing implementation passes, unbound value, wrong pattern, unbound placeholder, bundled capabilities, missing `unwanted` on an external front).
 - **QUESTIONS** — real ambiguities for the user.
 - **SUGGESTIONS** — non-blocking improvements.
 - **BOTTOM LINE** — one line: `ready to commit` or `revise before committing`, with the single most important reason.

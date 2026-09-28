@@ -869,7 +869,7 @@ export default function (pi: ExtensionAPI) {
 		label: "yamlet tests",
 		description:
 			"Project every acceptance criterion in `src` into a Gherkin .feature tree in `target`, plus a " +
-			"manifest.json of the contract tokens each scenario leaves for a consumer to bind.",
+			"manifest.json of the contract tokens and declared reads/writes each scenario leaves for a consumer to bind.",
 		promptSnippet: "Regenerate the Gherkin feature tree from a specs directory",
 		promptGuidelines: [
 			"yamlet_tests wipes and rebuilds its TARGET directory on every run — confirm the target before calling it, and never point it at a directory holding step definitions.",

@@ -316,7 +316,9 @@ choice is the user's. A field has no description of its own either — its meani
 the criteria that touch it, which are already written and already projected into
 tests; `yamlet systems --state --details` shows exactly those. A second, prose
 description would be an untested place for behaviour to hide. `reads`/`writes` are
-not projected into Gherkin and cost nothing against a word budget.
+not projected into Gherkin steps and cost nothing against a word budget; `yamlet
+tests` lists them in its binding manifest beside the contract tokens, as stored state
+a step definition asserts on.
 
 **What the index is for.** Declared on the criteria, the fields add up per system
 (`yamlet systems --system=S --state`):
@@ -400,6 +402,25 @@ They cannot see a bag input, validation on the wrong side of `front`, a negative
 `shall`, "that maximum length" pointing back into its clause, an example row that
 fails its own clause, or two overlapping `if` clauses. Those stay with the
 challenger skills; the warnings are a floor under them.
+
+### Nothing to bind — `W010`
+
+A criterion's test binds to its **binding points**: the contract tokens it leaves
+verbatim (`{input.NAME}`, `{output.NAME}`, `{alias.socket}`) and the stored fields it
+declares (`reads`/`writes`). A criterion with none has nothing a step definition can
+assert on, and `yamlet tests` gives it no manifest entry. That is usually one of two
+gaps: behaviour on stored state with no `reads`/`writes` declared (a retention sweep
+that deletes polls), or a `shall` that describes nothing happening ("leave the result
+tied") — which an implementation that does nothing passes.
+
+| rule | fires on | satisfy it by |
+|---|---|---|
+| `W010` | a criterion that references no `{input.X}`, `{output.X}` or `{alias.socket}` outside its examples, and declares no `reads`/`writes` | declare the stored state it touches, name the output it changes, or drop a criterion that asserts nothing |
+
+A token backed by an `examples` column does not count: it renders as a `<column>`
+and carries its own data. A warning, not an error: the format has no way to name an
+outbound effect (a call to an SMTP server), so a criterion about one is legitimate and
+has no fix.
 
 ---
 
@@ -788,7 +809,7 @@ None at the moment.
 ---
 
 *Shipped since first draft: the trigger rule (`E301`–`E303`), [word budgets](#word-budgets--e305)
-(`E305`), `W006`, `W007` and `W008`; [`reads` / `writes`](#reads--writes--stored-state) stored
+(`E305`), `W006`, `W007`, `W008` and [`W010`](#nothing-to-bind--w010); [`reads` / `writes`](#reads--writes--stored-state) stored
 fields on criteria (`E307`, `E308`, `W009`); [decision records](#decision-records--adryaml)
 (`E801`–`E815`), [`adrs`](#adrs--linking-a-decision) links on requirements and
 criteria (`E109`) and the derived [tech spec](#tech-specs--planning-the-work)

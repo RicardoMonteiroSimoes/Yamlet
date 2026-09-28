@@ -391,8 +391,9 @@ The write plan is built in memory first, so a basename collision aborts before a
 
 Beside the features, each run writes a `yamlet.tests/v1` manifest: for every scenario, the contract
 tokens it leaves **verbatim** — the inputs/outputs/member-sockets a consumer's step definitions must
-bind. Example-backed tokens are excluded (they render as `<columns>` and carry their own data), so
-the manifest is exactly the set of _binding obligations_:
+bind — and the stored fields the criterion declares (`reads`/`writes`), which a step definition
+asserts on though the steps don't show them. Example-backed tokens are excluded (they render as
+`<columns>` and carry their own data), so the manifest is exactly the set of _binding obligations_:
 
 ```jsonc
 {
@@ -402,11 +403,19 @@ the manifest is exactly the set of _binding obligations_:
       "AC-4": {
         "inputs": ["attachment", "content", "recipient", "subject"],
         "outputs": [],
-        "sockets": []
+        "sockets": [],
+        "reads": [],
+        "writes": []
       }
     },
     "pdf-archiver/pdf_archiver_resilient.feature": {
-      "AC-2": { "inputs": [], "outputs": [], "sockets": ["uploads.error", "uploads.pdf_file"] }
+      "AC-2": {
+        "inputs": [],
+        "outputs": [],
+        "sockets": ["uploads.error", "uploads.pdf_file"],
+        "reads": [],
+        "writes": []
+      }
     }
   }
 }
@@ -417,8 +426,9 @@ Built from the same records the features are, it lets a downstream check assert 
 Keys are ordered deterministically (features by path, scenarios by id), arrays deduped and sorted,
 so the file is byte-stable across runs. yamlet stops here: writing the check that consumes the
 manifest — and the step definitions themselves — is the consumer's, on the far side of the
-disconnected boundary. Only scenarios with at least one obligation appear; a feature with none is
-omitted; when no feature is produced, no manifest is written.
+disconnected boundary. Only scenarios with at least one obligation appear (one with none is
+`yamlet verify`'s `W010`); a feature with none is omitted; when no feature is produced, no manifest
+is written.
 
 ## Architecture
 

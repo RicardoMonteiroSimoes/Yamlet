@@ -1,5 +1,6 @@
 {"file":"bad-optional-missing-where.yamlet.yaml","valid":false,"errors":[
   {"rule":"E301","severity":"error","line":12,"path":"requirements[0].acceptance-criteria[0]","message":"AC-1: pattern=optional requires clause: where"}
 ],"warnings":[
-  {"rule":"W006","severity":"warning","line":7,"path":"front","message":"front=external but no criterion carries an if clause: an untrusted caller's malformed or hostile input is unspecified"}
+  {"rule":"W006","severity":"warning","line":7,"path":"front","message":"front=external but no criterion carries an if clause: an untrusted caller's malformed or hostile input is unspecified"},
+  {"rule":"W010","severity":"warning","line":12,"path":"requirements[0].acceptance-criteria[0]","message":"AC-1: references no {input.X}, {output.X} or {alias.socket} and declares no reads/writes; a test has nothing to bind"}
 ],"summary":{"requirements":1,"acceptanceCriteria":1}}
