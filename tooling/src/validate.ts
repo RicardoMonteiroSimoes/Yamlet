@@ -1157,7 +1157,11 @@ export function validate(
       const cm = p.startsWith(exPrefix) ? p.match(/examples\[[0-9]+\]\.(.*)$/) : null;
       if (cm) exampleCols.add(cm[1]!);
     }
-    const bound = touched.size > 0 ||
+    // Any entry counts, well-formed or not (E307 reports the rest), as in the manifest.
+    const declares = [...byPath.keys()].some((p) =>
+      new RegExp("^" + escRe(ab) + "\\.(?:reads|writes)\\[[0-9]+\\]$").test(p)
+    );
+    const bound = declares ||
       proseLines.some((l) =>
         [...l.text.matchAll(/\{([^}]*)\}/g)].some((m) =>
           FIELD.test(m[1]!) && !exampleCols.has(m[1]!)

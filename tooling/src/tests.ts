@@ -350,8 +350,8 @@ function acOrder(a: string, b: string): number {
 /**
  * The `yamlet.tests/v1` binding manifest: `<system>/<scope>.feature` → `AC-N` →
  * the inputs/outputs/member-sockets that scenario references but does not carry
- * as example data, and the stored fields it reads/writes. It is the machine-readable contract of what a consumer's step
- * definitions must bind — a second view of the same tokens the steps show, so a
+ * as example data, and the stored fields it reads/writes. It is the machine-readable
+ * contract of what a consumer's step definitions must bind — a second view of the same tokens the steps show, so a
  * downstream check can assert coverage without re-parsing feature text. Keys are
  * ordered deterministically (features by path, scenarios by id) for a stable file.
  */

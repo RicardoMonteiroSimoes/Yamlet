@@ -20,7 +20,7 @@ Regenerates the Gherkin `.feature` tree for a directory of specs. This skill **o
 
 ## The binding manifest
 
-Alongside the features, the run writes `TARGET/manifest.json` (`yamlet.tests/v1`): for every scenario, the contract tokens it leaves verbatim — the `inputs`, `outputs` and member `sockets` a consumer's step definitions must bind (example-backed tokens are excluded; they render as `<columns>` and carry their own data), plus the stored fields the criterion declares (`reads`, `writes`) for them to assert on. A scenario with none of these has no entry (`W010` in `yamlet verify`). It is the machine-readable list of **binding obligations**, a second view of the same tokens the steps show. A consumer can read it to assert coverage — every referenced input/output/socket is actually wired — without re-parsing Gherkin. Writing that check, and the step definitions, is theirs; yamlet only emits the obligations.
+Alongside the features, the run writes `TARGET/manifest.json` (`yamlet.tests/v1`): for every scenario, the contract tokens it leaves verbatim — the `inputs`, `outputs`, member `sockets` and declared `reads`/`writes` a consumer's step definitions must bind (example-backed tokens are excluded; they render as `<columns>` and carry their own data). It is the machine-readable list of **binding obligations**, a second view of the same tokens the steps show. A consumer can read it to assert coverage — every referenced input/output/socket is actually wired — without re-parsing Gherkin. Writing that check, and the step definitions, is theirs; yamlet only emits the obligations.
 
 ## Why regenerate every time
 
