@@ -671,10 +671,7 @@ export default function (pi: ExtensionAPI) {
 			})),
 			contracts: Type.Optional(Type.Boolean({ description: "Include each scope's exposed contract signature" })),
 			state: Type.Optional(Type.Boolean({
-				description:
-					"Include the stored fields the system's criteria read (r) or write (w), and the contended " +
-					"scope pairs (two scopes on one field, one writing it). With details, each criterion's " +
-					"condition and shall entries: they are the field's meaning",
+				description: "Include the stored fields criteria read/write, and contended scope pairs",
 			})),
 			format: Type.Optional(StringEnum(["human", "json"] as const)),
 		}),
@@ -746,8 +743,7 @@ export default function (pi: ExtensionAPI) {
 			"Check a spec (.yamlet.yaml), a tech spec (.techspec.yaml) or a decision record (.adr.yaml) " +
 			"against the rule catalog, the mechanical source of truth for validity; the extension picks the " +
 			"rules. E### is invalid; W### is a non-fatal warning. W008 and W009 depend on the working " +
-			"directory: they scan it for composites wiring an internal spec, and for the system's writers " +
-			"of a field this spec reads.",
+			"directory: they scan it.",
 		promptSnippet: "Verify a .yamlet.yaml, .techspec.yaml or .adr.yaml against the rule catalog",
 		parameters: Type.Object({
 			file: Type.Optional(Type.String({ description: "Path to the .yamlet.yaml, .techspec.yaml or .adr.yaml to verify" })),
@@ -973,8 +969,7 @@ export default function (pi: ExtensionAPI) {
 			"trigger; the pattern picks the clauses: event (when), unwanted (if), optional (where + exactly " +
 			"one of when/if), complex (while + exactly one of when/if). A clause or a shall is at most 20 words. " +
 			"{input.X}/{output.X} need no examples; any other {placeholder} does, with every row binding " +
-			"every placeholder. `reads`/`writes` name the stored fields (entity.field) it touches; a NOTE " +
-			"in the result names another scope contending for one.",
+			"every placeholder. `reads`/`writes`: stored fields (entity.field) it touches.",
 		promptSnippet: "Add an EARS acceptance criterion (returns its AC-N)",
 		parameters: Type.Object({
 			file: Type.String(),
@@ -998,10 +993,10 @@ export default function (pi: ExtensionAPI) {
 				description: "Rows binding every placeholder, e.g. 'n=0;delay_seconds=10'",
 			})),
 			reads: Type.Optional(Type.Array(Type.String(), {
-				description: "Stored fields (entity.field) the criterion only reads, e.g. 'poll.state'",
+				description: "Stored fields (entity.field) it only reads",
 			})),
 			writes: Type.Optional(Type.Array(Type.String(), {
-				description: "Stored fields it creates, changes or deletes; a write covers the read",
+				description: "Stored fields it creates, changes or deletes",
 			})),
 		}),
 		async execute(_id, params, signal, _onUpdate, ctx) {
@@ -1025,9 +1020,7 @@ export default function (pi: ExtensionAPI) {
 		name: "yamlet_add_state",
 		label: "yamlet add-state",
 		description:
-			"Declare the stored fields (entity.field) an EXISTING criterion reads or writes. Merges into its " +
-			"lists — a write supersedes a read of the same field — and returns them. Reuse the names " +
-			"yamlet_systems with `state` lists. A NOTE in the result names another scope contending for a field.",
+			"Declare the stored fields (entity.field) an EXISTING criterion reads or writes; merges into its lists.",
 		promptSnippet: "Declare the stored fields an existing criterion reads or writes",
 		parameters: Type.Object({
 			file: Type.String({ description: "The spec .yamlet.yaml" }),
