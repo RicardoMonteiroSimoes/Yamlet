@@ -8,7 +8,7 @@ A requirement is a capability, described so a reviewer knows what "done" means. 
 
 ```
 yamlet add-requirement specs/email.yamlet.yaml \
-  --description "The service reliably connects to a single SMTP service"
+  --description "A requested e-mail reaches its recipient"
 # -> prints "RQ-1"
 ```
 
@@ -38,8 +38,8 @@ Every criterion needs one or more `--shall` items: the concrete, verifiable obli
 ```
 yamlet add-criterion specs/email.yamlet.yaml \
   --rq RQ-1 --pattern event \
-  --when "a login is attempted using valid TLS SMTP credentials" \
-  --shall "authenticate to the SMTP server over TLS"
+  --when "a send is requested for {input.recipient}" \
+  --shall "deliver an e-mail with {input.subject} and {input.content} to {input.recipient}"
 # -> prints "AC-1"
 ```
 
@@ -47,7 +47,7 @@ yamlet add-criterion specs/email.yamlet.yaml \
 
 ## Stored state — `--reads` / `--writes`
 
-Ask per criterion what stored data it reads and what it changes: `--reads entity.field`, `--writes entity.field` (a write covers the read). Reuse the system's names: `yamlet systems DIR --system=S --state` (`--details` shows each field's criteria — its only description). An index, not a schema.
+Ask per requirement what the business remembers or changes — facts like an order's status, not tables or columns — then put each on the criterion that touches it: `--reads entity.field`, `--writes entity.field` (a write covers the read). Reuse the system's names: `yamlet systems DIR --system=S --state` (`--details` shows each field's criteria — its only description). An index, not a schema.
 
 A `NOTE:` means another scope touches the field and one side writes it: ask what happens when they interleave; cite the criterion that says so, or draft one. `W009`: a read field no scope writes — a missing scope, a typo, or external data.
 
@@ -70,10 +70,10 @@ An `{input.NAME}` may *also* be tabulated (as an `input.NAME` example column) wh
 ```
 yamlet add-criterion specs/email.yamlet.yaml \
   --rq RQ-1 --pattern complex \
-  --while "{n} retries have already been attempted for the e-mail" \
-  --if "an SMTP timeout occurs on the re-authentication attempt" \
-  --shall "a retry is scheduled with {delay_seconds} seconds backoff delay" \
-  --example "n=0;delay_seconds=10" --example "n=1;delay_seconds=30"
+  --while "the sender is on the {plan} plan" \
+  --if "more than {daily_limit} e-mails are requested in one day" \
+  --shall "reject the send" --reads account.plan --reads account.sent_today \
+  --example "plan=free;daily_limit=100" --example "plan=pro;daily_limit=10000"
 # -> prints "AC-3"
 ```
 

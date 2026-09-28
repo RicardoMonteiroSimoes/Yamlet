@@ -52,6 +52,15 @@ Top-down, plain prose, one thing at a time: ask, listen, drill, confirm, commit 
 
 Push back on vagueness. "Handles errors" → *which* errors, and *what* behaviour? One capability per requirement.
 
+## Altitude — what, not how
+
+A spec states what the caller, or the business, can observe — never how the code gets there. The test: **would the line still hold if the implementation were swapped** (a mail server for a mail API, SQL for a document store, a retry loop for a queue)? If not, it is a *how*.
+
+- Protocols, products, retries, backoff, caching, transactions, queues, tables and status codes stay out.
+- A business rule with a number stays in: "reject a file over 10 MiB" is a *what*; "retry after 30 seconds" is a *how*.
+- When the user offers a *how*, don't transcribe it. Ask what outcome it protects ("so no e-mail is lost?") and write that. Park the *how* out loud: a choice worth recording is `/yamlet-adr`, the rest is `/yamlet-techspec`'s to plan.
+- Precision is not depth. Drill for an exact outcome, never for mechanism.
+
 ## Reading a tool's response
 
 The `add_*` tools return the assigned id (`RQ-1`, `AC-3`). A failure returns `error:` and wrote nothing — fix the input and retry. Except a failure saying the change "produced an unexpected finding and was rolled back": the commit gate caught it, so the change is not expressible as asked — tell the user, do not retry. `yamlet_verify` is the exception: `E###` findings are a successful call reporting an invalid spec, not a tool failure.

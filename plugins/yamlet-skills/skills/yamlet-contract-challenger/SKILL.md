@@ -7,7 +7,7 @@ description: >-
 argument-hint: <serialized contract proposal>
 context: fork
 background: false
-model: opus
+model: sonnet
 effort: low
 allowed-tools: Bash(yamlet systems:*), Read
 ---
@@ -40,10 +40,11 @@ Only the contract freezes; requirements append any time — never say the spec c
 9. **Naming.** `expose-name` is a slug (`^[a-z0-9]+(-[a-z0-9]+)*$`, dashes); each input/output is a token (`^[a-z][a-z0-9_]*$`, underscores). Flag dashes in a token, underscores in a slug, or an `expose-name` that collides with the `system` slug.
 10. **Forgeable inputs.** For an `external` scope, leaf or composite, each input is something the untrusted caller *chooses*. One that carries identity, role, ownership, an internal id or deployment configuration (`viewer_role`, `user_id`, `poll_id`, `archive_address`) lets the caller forge it. It must come from the wiring instead — a resolver's output (token → `poll_id`, `viewer_role`) or a settings leaf's output. BLOCKER; name the split.
 11. **Sibling exposure** (`yamlet systems DIR --system=S --criteria`). BLOCKER: an output handing out what a sibling's criteria protect. QUESTION: a sibling's concept under another name.
+12. **Altitude.** Is the intent, and every input and output, named for the business rather than the mechanism? A protocol, product or transport in a name or the intent (`smtp_host`, `http_body`, "over TLS SMTP") freezes a *how* into a contract that cannot change. BLOCKER; propose the business name. A settings scope's configuration outputs are its business — clear those.
 
 ## Report — terse and ordered
 
-- **BLOCKERS** — will fail verify or freeze a permanent mistake (unused input, bag input, forgeable input, missing output, misclassified leaf/composite, fragmented system); must be resolved with the user before `init`.
+- **BLOCKERS** — will fail verify or freeze a permanent mistake (unused input, bag input, forgeable input, missing output, misclassified leaf/composite, fragmented system, mechanism in a name); must be resolved with the user before `init`.
 - **QUESTIONS** — genuine ambiguities for the user.
 - **SUGGESTIONS** — non-blocking improvements.
 - **BOTTOM LINE** — one line: `proceed to init` or `revise before init`, with the single most important reason.
