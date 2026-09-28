@@ -69,6 +69,7 @@ smoke_test() {
     "$1" trace "$REPO_DIR/specs_example" --out="$out/trace.html" --format=html --libs=embed >/dev/null
     rm -rf "$out"
 }
+SMOKE_TESTED=
 
 for target in $TARGETS; do
     printf '==> compiling %s\n' "$target"
@@ -82,6 +83,7 @@ for target in $TARGETS; do
     if [ "$target" = "$HOST_TARGET" ]; then
         printf '    smoke-testing %s\n' "$target"
         smoke_test "$DIST/yamlet"
+        SMOKE_TESTED=1
     fi
 
     stage="$DIST/stage-$target"
@@ -94,6 +96,11 @@ for target in $TARGETS; do
     rm -rf "$stage"
     printf '    packaged %s\n' "$archive"
 done
+
+if [ -z "$SMOKE_TESTED" ]; then
+    printf 'build-release: host %s is not a shipped target, so no binary was smoke-tested\n' "$HOST_TARGET" >&2
+    exit 1
+fi
 
 # One checksums file over the archives, filenames only (so `sha256sum -c` works
 # from within dist/ and the tap renderer can grep by archive name).
