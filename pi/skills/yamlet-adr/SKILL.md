@@ -17,8 +17,8 @@ This skill drives the `yamlet_adr_*` tools from the yamlet pi extension. Without
 ## The hard rules
 
 - **Never write a `.adr.yaml` yourself.** Every byte goes through the `yamlet_adr_*` tools, which mint every id and verify the file on every call. `read` a record to show it. The extension blocks `write`/`edit` on a `*.adr.yaml` and the shell equivalents — being blocked is the rule working.
-- **Revise a draft; freeze a decision.** While proposed, answer an objection with `yamlet_adr_remove`/`yamlet_adr_replace` on this record — never reject and a fresh init. After accept only `yamlet_adr_supersede` changes it.
-- **Options before opinions.** No option is written until every dimension is, and no decision until every option is judged against every dimension. The CLI enforces the order; you keep the conversation in it.
+- **A record is frozen after accept.** Only `yamlet_adr_supersede` changes it then. Before that, fix an objection in place (`yamlet_adr_remove`/`_replace`) — never reject and restart; `yamlet_adr_reject` (with a reason) is for an abandoned record.
+- **Options before opinions.** No option before the dimensions are challenged, no decision until every option is judged against every dimension.
 
 ## Reading a tool's response
 
@@ -47,16 +47,12 @@ This skill drives the `yamlet_adr_*` tools from the yamlet pi extension. Without
    `yamlet_adr_add_option({ file, summary, reversibility: "reversible|costly|one-way", refs: [{ label: "project", locator: "URL" }], against: [{ dimension: "D-1", text: "..." }, ...] })`
 7. **Decision.** The user picks. `yamlet_adr_decide({ file, option: "OPT-n" })`
 8. **What it obliges, costs, and when it stops being right.** Obligations are work, imperative voice (`yamlet_adr_add_obligation`); costs are taken knowingly and never discharged (`yamlet_adr_add_accept`); a revisit condition with a threshold names its number (`yamlet_adr_add_revisit`).
-9. **Challenge before accept.** Spawn it again; it can only `read`, so name the other accepted records in the directory and the specs this record or they link: `Agent({ subagent_type: "yamlet-adr-challenger", description: "Challenge ADR before accept", prompt: "Before accept: <record>\nRecords:\n- <path>\nSpecs:\n- <path>" })`. Fix what the record can; put every other blocker's route to the user — an older record is superseded after accepting, a criterion to change goes to the yamlet-author skill (from yamlet-techspec, hand it back).
+9. **Challenge again.** Spawn it with prompt `Before accept: <record>` plus the paths of the other accepted records beside it and the specs they and it link; revise for its blockers, put the rest to the user (supersede after accepting; spec changes go to the yamlet-author skill).
 10. **Accept.** `yamlet_verify({ file })` must report `OK`; then `yamlet_adr_accept({ file })`. Say plainly that the record is now frozen, and that the spec must link it: `yamlet_add_adr({ file: SPEC, adr: FILE, rq: "RQ-n" })` or `ac: "AC-n"` (the tech spec or author does this; if you are standalone, do it and verify the spec).
 
 ### If there is no `Agent` tool
 
-The gates need [`@tintinweb/pi-subagents`](https://pi.dev/packages/@tintinweb/pi-subagents). Without it, do not skip it. Tell the user once that you are running the challenge inline, in your own context, and that it is a weaker check. Then work the real checklist — `yamlet_guide({ topic: "adr-challenge" })` — never your memory of it, and report in the same shape. Be harder on yourself to compensate.
-
-## Revising and rejecting
-
-`yamlet_adr_remove` drops an element (`id`, or `list` + `position`); `yamlet_adr_replace` rewrites one under the same id with what its add tool takes; `yamlet_adr_add_dimension` with `against` for every option adds one late. The tool refuses what would dangle and says why. `yamlet_adr_reject({ file, reason })` is for an abandoned record only.
+The gate needs [`@tintinweb/pi-subagents`](https://pi.dev/packages/@tintinweb/pi-subagents). Without it, do not skip it. Tell the user once that you are running the challenge inline, in your own context, and that it is a weaker check. Then work the real checklist — `yamlet_guide({ topic: "adr-challenge" })` — never your memory of it, and report in the same shape. Be harder on yourself to compensate.
 
 ## Superseding
 

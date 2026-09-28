@@ -12,8 +12,6 @@ Load the **`yamlet-adr`** skill and follow it, with the records directory and th
 
 It runs in this session, not in a subagent: it is an interview, and a pi subagent cannot ask the user anything.
 
-A criterion it routes back to you is a spec change: have the user make it through the yamlet-author skill, then re-read that spec before any verdict on it.
-
 ## 3. Link it into the spec
 
 ```

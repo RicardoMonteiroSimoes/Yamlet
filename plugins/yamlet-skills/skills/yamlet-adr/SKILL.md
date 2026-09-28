@@ -15,7 +15,7 @@ Turn a choice into a **decision record**: the question, the forces, the dimensio
 ## The hard rules
 
 - **Never write a `.adr.yaml` yourself** — no Write, no Edit, no shell redirection. Every byte goes through `yamlet adr`, which mints every id and verifies the file on every call. `Read` a record to show it.
-- **Revise a draft; freeze a decision.** While proposed, answer an objection with `remove`/`replace` on this record — never `reject` and a fresh `init`. After `accept` only `supersede` changes it.
+- **A record is frozen after `accept`.** Only `supersede` changes it then. Before that, fix an objection in place (`yamlet adr remove|replace`, see `yamlet help adr`) — never `reject` and restart; `reject --reason` is for an abandoned record.
 - **Options before opinions.** No option before the dimensions are challenged, no decision until every option is judged against every dimension.
 
 ## Reading the tool's response
@@ -36,12 +36,8 @@ Turn a choice into a **decision record**: the question, the forces, the dimensio
    `yamlet adr add-option FILE --summary S --reversibility reversible|costly|one-way [--ref L=URL] --against D-1=... --against D-2=...`
 7. **Decision.** The user picks. `yamlet adr decide FILE OPT-n`
 8. **What it obliges, costs, and when it stops being right.** Obligations are work, imperative voice (`add-obligation`); costs are taken knowingly and never discharged (`add-accept`); a revisit condition with a threshold names its number (`add-revisit`).
-9. **Challenge before accept.** `/yamlet-adr-challenger FILE --before-accept`. Fix what the record can; put every other blocker's route to the user — an older record is superseded after accepting, a criterion to change goes to `yamlet-author` (from yamlet-techspec, hand it back).
+9. **Challenge again.** `/yamlet-adr-challenger FILE --before-accept`; revise for its blockers, put the rest to the user (supersede after accepting; spec changes go to `yamlet-author`).
 10. **Accept.** `yamlet verify FILE` must print `OK`; then `yamlet adr accept FILE`. Say plainly that the record is now frozen, and that the spec must link it: `yamlet add-adr SPEC FILE --rq RQ-n | --ac AC-n` (the tech spec or author does this; if you are standalone, do it and verify the spec).
-
-## Revising and rejecting
-
-`yamlet adr remove FILE <id> | --force N | --accept N | --revisit N` drops an element; `yamlet adr replace FILE <id> <what its add-* takes>` (or `R-n TEXT`, `--force N TEXT`) rewrites it under the same id; `add-dimension … --against OPT-n=TEXT`, one per option, adds one late. The tool refuses what would dangle and says why. `yamlet adr reject FILE --reason TEXT` is for an abandoned record only.
 
 ## Superseding
 

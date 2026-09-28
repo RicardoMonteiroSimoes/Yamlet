@@ -10,8 +10,6 @@ State the criteria that force it and the options you see, one line each. Do not 
 
 Invoke **`yamlet-adr`** (`/yamlet-adr <records-dir> <the choice, with the criteria ids>`). It interviews the user and drives `yamlet adr`; it ends with `yamlet adr accept` and prints the record's path. Records live in one directory per system (`adr/` unless the repository already has one).
 
-A criterion it routes back to you is a spec change: have the user make it through `yamlet-author`, then re-read that spec before any verdict on it.
-
 ## 3. Link it into the spec
 
 ```
