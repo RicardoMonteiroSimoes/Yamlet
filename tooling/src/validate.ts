@@ -1157,11 +1157,12 @@ export function validate(
       const cm = p.startsWith(exPrefix) ? p.match(/examples\[[0-9]+\]\.(.*)$/) : null;
       if (cm) exampleCols.add(cm[1]!);
     }
-    const bound = touched.size > 0 || proseLines.some((l) =>
-      [...l.text.matchAll(/\{([^}]*)\}/g)].some((m) =>
-        FIELD.test(m[1]!) && !exampleCols.has(m[1]!)
-      )
-    );
+    const bound = touched.size > 0 ||
+      proseLines.some((l) =>
+        [...l.text.matchAll(/\{([^}]*)\}/g)].some((m) =>
+          FIELD.test(m[1]!) && !exampleCols.has(m[1]!)
+        )
+      );
     if (!bound) {
       finding(
         "W010",
