@@ -38,9 +38,10 @@
 //     revised by writing the next one.
 //
 // Ids in a proposed record are local to the draft: `replace` keeps an id, and
-// `remove` leaves a gap. An obligation another record cites (`ADR-nnnn#R-n`)
-// can be neither removed nor replaced — that would change what the citation
-// means under its author.
+// the next add after removing the highest one mints it again. So `remove`
+// refuses an id the record's own prose still names, and an obligation any
+// record cites (`ADR-nnnn#R-n`) can be neither removed nor replaced — either
+// would leave a reference pointing at nothing, or at something else.
 //
 // Exit codes: 0 applied · 2 usage/validation error (nothing written) · 3 the
 // mutation produced an unexpected finding and was not written.
@@ -537,7 +538,7 @@ function optionFrom(adr: Adr, flags: Record<string, string[]>, id: string, cmd: 
 function citersOf(dir: string, self: string, rid: string): string[] {
   const cite = new RegExp(`\\b${self}#${rid}\\b`);
   return listAdrs(dir)
-    .filter((l) => l.adr.id !== self && l.adr.forces.some((f) => cite.test(f)))
+    .filter((l) => l.adr.forces.some((f) => cite.test(f)))
     .map((l) => l.adr.id);
 }
 function mustBeUncited(dir: string, adr: Adr, rid: string, what: string): void {
@@ -723,6 +724,9 @@ function targetOf(flags: Record<string, string[]>, positionals: string[], cmd: s
   const given = (Object.keys(LIST_FLAGS) as ListFlag[]).filter((f) => flags[f] !== undefined);
   if (given.length > 1) fail(`adr ${cmd} takes one of ${given.join(", ")}, not several`);
   const flag = given[0];
+  if (flag !== undefined && /^(?:B|D|OPT|R)-[0-9]+$/.test(positionals[0] ?? "")) {
+    fail(`adr ${cmd} takes an id or ${flag}, not both: ${positionals[0]}`);
+  }
   if (flag === undefined) {
     const id = positionals.shift() ?? "";
     if (!/^(?:B|D|OPT|R)-[0-9]+$/.test(id)) {
@@ -745,6 +749,27 @@ function listEntry(adr: Adr, t: { flag: ListFlag; key: ListKey; index: number })
   if (t.index >= n) {
     fail(`no such entry: ${t.flag} ${t.index + 1} (this record has ${n} under ${t.key})`);
   }
+}
+
+/** Where the record's prose still names `id` (an `ADR-nnnn#R-n` citation is another record's). */
+function mentionsOf(adr: Adr, id: string): string[] {
+  const re = new RegExp(`(?<![\\w#-])${id}(?![\\w-])`);
+  const where: string[] = [];
+  const scan = (label: string, ...texts: string[]): void => {
+    if (texts.some((t) => re.test(t))) where.push(label);
+  };
+  scan("question", adr.question);
+  adr.forces.forEach((f, i) => scan(`force ${i + 1}`, f));
+  for (const b of adr.basis) scan(b.id, b.source);
+  for (const d of adr.dimensions) scan(d.id, d.matters, d.source);
+  for (const o of adr.options) {
+    scan(o.id, o.summary);
+    for (const c of o.against) scan(`${o.id}/${c.dim}`, c.text);
+  }
+  for (const r of adr.requires) scan(r.id, r.must);
+  adr.accepts.forEach((s, i) => scan(`accept ${i + 1}`, s));
+  adr.revisit.forEach((s, i) => scan(`revisit ${i + 1}`, s));
+  return where;
 }
 
 function noSuch(kind: string, id: string, ids: string[]): never {
@@ -809,6 +834,12 @@ export function runAdrRemove(args: string[]): CmdResult {
       }
       mustBeUncited(dir, adr, t.id, "removing");
       next = { ...adr, requires: adr.requires.filter((r) => r.id !== t.id) };
+    }
+    if (!("key" in t)) {
+      const where = mentionsOf(next, t.id);
+      if (where.length > 0) {
+        return die(`${t.id} is still named in ${where.join(", ")}; replace that text first`);
+      }
     }
     return commit(file, "adr remove", next);
   } catch (e) {

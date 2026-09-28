@@ -1186,6 +1186,7 @@ Deno.test("remove drops one element of a proposed record and refuses what would 
   refused(adr("remove", A, "--force", "0"), "counted from 1");
   refused(adr("remove", A, "--force", "1", "--revisit", "1"), "not several");
   refused(adr("remove", A, "D-1", "D-2"), "too many arguments: D-2");
+  refused(adr("replace", A, "D-1", "--force", "1", "text"), "takes an id or --force, not both");
   refused(adr("remove", A, "B-1"), "B-1 is the basis of D-2");
   // OPT-2's D-2 cell cites D-1 as excluding it: D-1 cannot go while that stands.
   refused(adr("remove", A, "D-1"), "would leave OPT-2/D-2: cites D-1");
@@ -1193,6 +1194,10 @@ Deno.test("remove drops one element of a proposed record and refuses what would 
   ok(adr("decide", A, "OPT-1"), "decide");
   refused(adr("remove", A, "OPT-1"), "OPT-1 is the decision");
   ok(adr("add-obligation", A, "do it"), "R-1");
+  // Prose still naming an element holds it in place; a citation of another record's R-n does not.
+  ok(adr("add-revisit", A, "OPT-2 drops below 5 EUR, see ADR-0009#R-1"), "revisit");
+  refused(adr("remove", A, "OPT-2"), "OPT-2 is still named in revisit 1");
+  ok(adr("remove", A, "--revisit", "1"), "remove revisit 1");
   ok(adr("add-accept", A, "cost one"), "accept 1");
   ok(adr("add-accept", A, "cost two"), "accept 2");
 
@@ -1334,6 +1339,10 @@ Deno.test("an obligation another record cites can be neither removed nor replace
   ok(adr("add-force", B, "ADR-0001#R-1 holds."), "force citing R-1");
   refused(adr("remove", A, "R-1"), "ADR-0001#R-1 is cited by ADR-0002");
   refused(adr("replace", A, "R-1", "other"), "ADR-0001#R-1 is cited by ADR-0002");
+  // Its own forces count too: the gate reads the file before the write, so only this catches it.
+  ok(adr("add-force", A, "ADR-0001#R-2 constrains this."), "self-citation");
+  refused(adr("remove", A, "R-2"), "ADR-0001#R-2 is cited by ADR-0001");
+  ok(adr("remove", A, "--force", "3"), "drop the self-citation");
   // R-2 is uncited — and R-1 must not match a citation of R-10.
   ok(adr("replace", A, "R-2", "two, reworded"), "replace R-2");
   ok(adr("remove", A, "R-2"), "remove R-2");

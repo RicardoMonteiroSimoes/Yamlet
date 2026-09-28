@@ -699,7 +699,6 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 	for (const [tool, input, sub] of [
 		["yamlet_adr_remove", { file: "a.adr.yaml", id: "D-1" }, "remove"],
 		["yamlet_adr_replace", { file: "a.adr.yaml", id: "R-1", text: "t" }, "replace"],
-		["yamlet_adr_reject", { file: "a.adr.yaml", reason: "moot" }, "reject"],
 		["yamlet_adr_add_dimension", { file: "a.adr.yaml", matters: "m", against: [{ option: "OPT-1", text: "x" }] }, "add-dimension"],
 	]) {
 		const before = calls.length;
@@ -709,6 +708,9 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 			m.includes("needs: adr revise.") && m.includes("brew upgrade yamlet") &&
 			!calls.slice(before).some((c) => c[1] === "adr" && c[2] === sub), m || JSON.stringify(calls.slice(before)));
 	}
+	const rej = await tools.get("yamlet_adr_reject").execute("id", { file: "a.adr.yaml", reason: "moot" }, undefined, undefined, ctx);
+	ok("0.5 CLI: reject still runs, without the --reason it would refuse",
+		same(rej.details.command, ["yamlet", "adr", "reject", "a.adr.yaml"]), JSON.stringify(rej.details.command));
 	const dim = await tools.get("yamlet_adr_add_dimension").execute("id", { file: "a.adr.yaml", matters: "m" }, undefined, undefined, ctx);
 	ok("0.5 CLI: add_dimension before options still runs", dim.details.command[2] === "add-dimension", JSON.stringify(dim));
 }

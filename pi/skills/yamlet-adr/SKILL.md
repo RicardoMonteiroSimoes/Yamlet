@@ -17,13 +17,12 @@ This skill drives the `yamlet_adr_*` tools from the yamlet pi extension. Without
 ## The hard rules
 
 - **Never write a `.adr.yaml` yourself.** Every byte goes through the `yamlet_adr_*` tools, which mint every id and verify the file on every call. `read` a record to show it. The extension blocks `write`/`edit` on a `*.adr.yaml` and the shell equivalents — being blocked is the rule working.
-- **A record is frozen after `accept`.** Nothing changes it afterwards but `supersede` and its date. A decision is revised by writing the next record, never by editing this one.
-- **Revise a draft; don't restart it.** While proposed, an objection is answered with `yamlet_adr_remove`/`yamlet_adr_replace` on the record you have. `yamlet_adr_reject` is for a record that is abandoned, not one that needs work.
+- **Revise a draft; freeze a decision.** While proposed, answer an objection with `yamlet_adr_remove`/`yamlet_adr_replace` on this record — never reject and a fresh init. After accept only `yamlet_adr_supersede` changes it.
 - **Options before opinions.** No option is written until every dimension is, and no decision until every option is judged against every dimension. The CLI enforces the order; you keep the conversation in it.
 
 ## Reading a tool's response
 
-- `yamlet_adr_init` returns the record's path; `add_basis`/`add_dimension`/`add_option`/`add_obligation` return the minted id (`B-1`, `D-3`, `OPT-2`, `R-1`). `yamlet_adr_replace` keeps the id it was given. **Never invent an id** — use the one returned.
+- `yamlet_adr_init` returns the record's path; `add_basis`/`add_dimension`/`add_option`/`add_obligation` return the minted id (`B-1`, `D-3`, `OPT-2`, `R-1`). **Never invent an id** — use the one returned.
 - A failure (`error:`) wrote nothing. It names what is missing or out of order; fix the input. A rule the change tripped means the record was not written — tell the user.
 
 ## The interview — one thing at a time, in this order
@@ -43,40 +42,21 @@ This skill drives the `yamlet_adr_*` tools from the yamlet pi extension. Without
    })
    ```
 
-   It is headless and cannot ask the user anything, so relay its findings in prose. Resolve every **BLOCKER**, put its **QUESTIONS** to the user. Dimensions are cheapest to change now; once options exist, a new or changed dimension means re-judging every option against it.
+   It is headless and cannot ask the user anything, so relay its findings in prose. Resolve every **BLOCKER**, put its **QUESTIONS** to the user. Dimensions are cheapest to change now.
 6. **Options.** At least two; the status quo counts and naming it is what makes the set honest. Each is judged against **every** dimension in one call: a cell states a fact, a measured cell carries a numeral, `n/a — <reason>` is allowed and a bare `n/a` is not. A selection needs a locator per option (`refs`).
    `yamlet_adr_add_option({ file, summary, reversibility: "reversible|costly|one-way", refs: [{ label: "project", locator: "URL" }], against: [{ dimension: "D-1", text: "..." }, ...] })`
 7. **Decision.** The user picks. `yamlet_adr_decide({ file, option: "OPT-n" })`
 8. **What it obliges, costs, and when it stops being right.** Obligations are work, imperative voice (`yamlet_adr_add_obligation`); costs are taken knowingly and never discharged (`yamlet_adr_add_accept`); a revisit condition with a threshold names its number (`yamlet_adr_add_revisit`).
-9. **Challenge before accept.** Spawn **`yamlet-adr-challenger`** again, with the record's path and the paths of what it touches — it can only `read`, so list them for it: every other `*.adr.yaml` in the directory with `status: accepted`, the specs its `arises_from` names, and the specs whose `adrs:` link any of those records.
-
-   ```
-   Agent({
-     subagent_type: "yamlet-adr-challenger",
-     description: "Challenge ADR before accept",
-     prompt: "Before accept: <path/to/record.adr.yaml>\nAccepted records:\n- <path>\nSpecs:\n- <path>"
-   })
-   ```
-
-   Revise the record for every BLOCKER it can fix. Put every ROUTE to the user: a record to supersede is done after accepting (below); a criterion to change goes to the **yamlet-author** skill — name the exact `SPEC#AC-n`, and if you are inside yamlet-techspec, hand it back there. Accept only once the user has settled every route.
+9. **Challenge before accept.** Spawn it again; it can only `read`, so name the other accepted records in the directory and the specs this record or they link: `Agent({ subagent_type: "yamlet-adr-challenger", description: "Challenge ADR before accept", prompt: "Before accept: <record>\nRecords:\n- <path>\nSpecs:\n- <path>" })`. Fix what the record can; put every other blocker's route to the user — an older record is superseded after accepting, a criterion to change goes to the yamlet-author skill (from yamlet-techspec, hand it back).
 10. **Accept.** `yamlet_verify({ file })` must report `OK`; then `yamlet_adr_accept({ file })`. Say plainly that the record is now frozen, and that the spec must link it: `yamlet_add_adr({ file: SPEC, adr: FILE, rq: "RQ-n" })` or `ac: "AC-n"` (the tech spec or author does this; if you are standalone, do it and verify the spec).
 
 ### If there is no `Agent` tool
 
-Both gates need [`@tintinweb/pi-subagents`](https://pi.dev/packages/@tintinweb/pi-subagents). Without it, do not skip it. Tell the user once that you are running the challenge inline, in your own context, and that it is a weaker check. Then work the real checklist — `yamlet_guide({ topic: "adr-challenge" })`, the section for the gate you are at — never your memory of it, and report in the same shape. Be harder on yourself to compensate.
+The gates need [`@tintinweb/pi-subagents`](https://pi.dev/packages/@tintinweb/pi-subagents). Without it, do not skip it. Tell the user once that you are running the challenge inline, in your own context, and that it is a weaker check. Then work the real checklist — `yamlet_guide({ topic: "adr-challenge" })` — never your memory of it, and report in the same shape. Be harder on yourself to compensate.
 
-## Revising a proposed record
+## Revising and rejecting
 
-Answer an objection on the record you have — never by rejecting it and starting a fresh one.
-
-- **Drop an element:** `yamlet_adr_remove({ file, id: "D-2" })`, or `list: "force"|"accept"|"revisit"` with `position` (from 1). A dimension takes its cells with it. The tool refuses what would dangle — the decided option (decide another first), a basis a dimension uses, a dimension an `n/a` cell cites, an obligation another record cites.
-- **Rewrite one in place:** `yamlet_adr_replace({ file, id, … })` with exactly what its add tool takes (an option: every cell again), or `text` for an obligation or a list entry. It keeps the id, so the decision and the cells still point at it. A dimension whose new unit leaves a cell without a numeral re-judges it in the same call (`against: [{ key: "OPT-n", text }]`).
-- **A dimension found late:** `yamlet_adr_add_dimension` with `against` for every existing option.
-- Re-run the challenger on what changed.
-
-## Rejecting
-
-Only a record that is abandoned — the question is moot, or it belongs to another record. `yamlet_adr_reject({ file, reason })`: the reason is required and stays in the record, which stays in the directory (it holds its id).
+`yamlet_adr_remove` drops an element (`id`, or `list` + `position`); `yamlet_adr_replace` rewrites one under the same id with what its add tool takes; `yamlet_adr_add_dimension` with `against` for every option adds one late. The tool refuses what would dangle and says why. `yamlet_adr_reject({ file, reason })` is for an abandoned record only.
 
 ## Superseding
 
