@@ -1146,6 +1146,37 @@ export function validate(
       }
     }
 
+    // ── W010: nothing a test can bind ──
+    // A criterion's binding points are the contract tokens it leaves verbatim
+    // ({input.X}, {output.X}, {alias.socket}; an example-backed one is data, not a
+    // binding) and the stored fields it declares. With none, `yamlet tests` gives
+    // it no manifest entry: the step definitions have nothing to assert on. Mirrors
+    // `bindings()` in tests.ts, so W010 fires exactly when the manifest omits it.
+    const exampleCols = new Set<string>();
+    for (const p of byPath.keys()) {
+      const cm = p.startsWith(exPrefix) ? p.match(/examples\[[0-9]+\]\.(.*)$/) : null;
+      if (cm) exampleCols.add(cm[1]!);
+    }
+    // Any entry counts, well-formed or not (E307 reports the rest), as in the manifest.
+    const declares = [...byPath.keys()].some((p) =>
+      new RegExp("^" + escRe(ab) + "\\.(?:reads|writes)\\[[0-9]+\\]$").test(p)
+    );
+    const bound = declares ||
+      proseLines.some((l) =>
+        [...l.text.matchAll(/\{([^}]*)\}/g)].some((m) =>
+          FIELD.test(m[1]!) && !exampleCols.has(m[1]!)
+        )
+      );
+    if (!bound) {
+      finding(
+        "W010",
+        acidLn,
+        ab,
+        acid + ": references no {input.X}, {output.X} or {alias.socket} and declares no " +
+          "reads/writes; a test has nothing to bind",
+      );
+    }
+
     nCriteria++;
     if (hasIf) anyIfClause = true;
 

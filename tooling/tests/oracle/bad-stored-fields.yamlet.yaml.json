@@ -5,5 +5,6 @@
   {"rule":"E306","severity":"error","line":39,"path":"requirements[0].acceptance-criteria[2].reads[0]","message":"requirements[0].acceptance-criteria[2].reads[0]: entry is not a plain string (an unquoted colon-space makes it a mapping); quote it: poll: state"}
 ],"warnings":[
   {"rule":"W008","severity":"warning","line":7,"path":"front","message":"front=internal but no composite under the working directory wires this spec as a member: the trusted caller it claims is unnamed"},
-  {"rule":"W009","severity":"warning","line":19,"path":"requirements[0].acceptance-criteria[0].reads[0]","message":"AC-1: reads poll.state, but no spec of system stored-fields-fixture under the working directory writes it"}
+  {"rule":"W009","severity":"warning","line":19,"path":"requirements[0].acceptance-criteria[0].reads[0]","message":"AC-1: reads poll.state, but no spec of system stored-fields-fixture under the working directory writes it"},
+  {"rule":"W010","severity":"warning","line":33,"path":"requirements[0].acceptance-criteria[2]","message":"AC-3: references no {input.X}, {output.X} or {alias.socket} and declares no reads/writes; a test has nothing to bind"}
 ],"summary":{"requirements":1,"acceptanceCriteria":3}}

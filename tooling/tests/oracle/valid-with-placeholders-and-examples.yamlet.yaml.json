@@ -1,3 +1,5 @@
 {"file":"valid-with-placeholders-and-examples.yamlet.yaml","valid":true,"errors":[
 ],"warnings":[
+  {"rule":"W010","severity":"warning","line":13,"path":"requirements[0].acceptance-criteria[0]","message":"AC-1: references no {input.X}, {output.X} or {alias.socket} and declares no reads/writes; a test has nothing to bind"},
+  {"rule":"W010","severity":"warning","line":28,"path":"requirements[0].acceptance-criteria[1]","message":"AC-2: references no {input.X}, {output.X} or {alias.socket} and declares no reads/writes; a test has nothing to bind"}
 ],"summary":{"requirements":1,"acceptanceCriteria":2}}

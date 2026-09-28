@@ -1,4 +1,5 @@
 {"file":"bad-exposes-inconsistent-input-column.yamlet.yaml","valid":false,"errors":[
   {"rule":"E402","severity":"error","line":25,"path":"requirements[0].acceptance-criteria[1].examples[0]","message":"AC-2: example row 0 missing binding for {input.channel}"}
 ],"warnings":[
+  {"rule":"W010","severity":"warning","line":25,"path":"requirements[0].acceptance-criteria[1]","message":"AC-2: references no {input.X}, {output.X} or {alias.socket} and declares no reads/writes; a test has nothing to bind"}
 ],"summary":{"requirements":1,"acceptanceCriteria":2}}

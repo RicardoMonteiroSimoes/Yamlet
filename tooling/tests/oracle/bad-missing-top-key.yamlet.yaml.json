@@ -3,4 +3,5 @@
   {"rule":"E101","severity":"error","line":0,"path":"front","message":"missing required top-level key: front"},
   {"rule":"E101","severity":"error","line":0,"path":"summary","message":"missing required top-level key: summary"}
 ],"warnings":[
+  {"rule":"W010","severity":"warning","line":10,"path":"requirements[0].acceptance-criteria[0]","message":"AC-1: references no {input.X}, {output.X} or {alias.socket} and declares no reads/writes; a test has nothing to bind"}
 ],"summary":{"requirements":1,"acceptanceCriteria":1}}

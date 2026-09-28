@@ -1,4 +1,5 @@
 {"file":"bad-front-enum.yamlet.yaml","valid":false,"errors":[
   {"rule":"E104","severity":"error","line":6,"path":"front","message":"front must be internal|external, got: public"}
 ],"warnings":[
+  {"rule":"W010","severity":"warning","line":11,"path":"requirements[0].acceptance-criteria[0]","message":"AC-1: references no {input.X}, {output.X} or {alias.socket} and declares no reads/writes; a test has nothing to bind"}
 ],"summary":{"requirements":1,"acceptanceCriteria":1}}

@@ -25,10 +25,11 @@
 // step definitions to bind.
 //
 // Alongside the features it writes <target>/manifest.json (`yamlet.tests/v1`):
-// per scenario, the inputs/outputs/member-sockets it leaves verbatim — the
-// machine-readable contract of what a consumer's step definitions must bind. It
-// is a second view of the same tokens the steps show (never a different truth),
-// so a downstream check can assert binding coverage without re-parsing Gherkin.
+// per scenario, the inputs/outputs/member-sockets it leaves verbatim, and the
+// stored fields it declares it reads/writes — the machine-readable contract of
+// what a consumer's step definitions must bind. The tokens are a second view of
+// the same ones the steps show (never a different truth), so a downstream check
+// can assert binding coverage without re-parsing Gherkin.
 //
 // Output layout groups scopes by system: <target>/<system>/<scope>.feature — so
 // `cucumber --tags @<system>` runs a whole system across its several files, and
@@ -65,6 +66,8 @@ interface Criterion {
   stray: string[];
   exampleKeys: string[]; // sorted union of column keys ("" when not an outline)
   exampleRows: Record<string, string>[];
+  reads: string[];
+  writes: string[];
 }
 interface Requirement {
   id: string;
@@ -129,6 +132,8 @@ function parseSpec(records: FlatRecord[]): SpecDoc {
         ].map((r) => r.value),
         exampleKeys: keys,
         exampleRows: rows,
+        reads: listUnder(records, `${acPrefix}.reads`),
+        writes: listUnder(records, `${acPrefix}.writes`),
       });
     }
     requirements.push({
@@ -207,6 +212,8 @@ interface Bindings {
   inputs: string[];
   outputs: string[];
   sockets: string[];
+  reads: string[];
+  writes: string[];
 }
 
 /**
@@ -215,6 +222,8 @@ interface Bindings {
  * are excluded: they render as Scenario Outline `<columns>` and carry their own
  * data, so nothing needs binding. Mirrors `subst`'s verbatim/`<column>` split, so
  * the manifest can never disagree with the rendered steps about what is a binding.
+ * The declared `reads`/`writes` ride along: a step definition asserts on stored
+ * state the steps don't show. A criterion with none of these is `W010`.
  */
 function bindings(c: Criterion): Bindings {
   const backed = new Set(c.exampleKeys);
@@ -234,8 +243,14 @@ function bindings(c: Criterion): Bindings {
       // A bare, non-example-backed placeholder can't survive `yamlet verify` — ignore.
     }
   }
-  const sorted = (s: Set<string>) => [...s].sort();
-  return { inputs: sorted(inputs), outputs: sorted(outputs), sockets: sorted(sockets) };
+  const sorted = (s: Iterable<string>) => [...new Set(s)].sort();
+  return {
+    inputs: sorted(inputs),
+    outputs: sorted(outputs),
+    sockets: sorted(sockets),
+    reads: sorted(c.reads),
+    writes: sorted(c.writes),
+  };
 }
 
 /** The full `.feature` text for one scope. */
@@ -303,7 +318,8 @@ function clearTarget(target: string): void {
 }
 
 // One feature's binding obligations: AC id → the contract tokens that scenario
-// leaves verbatim. Only scenarios with at least one obligation are recorded.
+// leaves verbatim and the fields it declares. Only scenarios with at least one
+// obligation are recorded.
 type FeatureBinds = Record<string, Bindings>;
 
 /** The binding obligations of every scenario in a scope that has any. */
@@ -312,7 +328,7 @@ function featureBinds(doc: SpecDoc): FeatureBinds {
   for (const rq of doc.requirements) {
     for (const ac of rq.criteria) {
       const b = bindings(ac);
-      if (b.inputs.length + b.outputs.length + b.sockets.length > 0) acs[ac.id] = b;
+      if (Object.values(b).some((l) => l.length > 0)) acs[ac.id] = b;
     }
   }
   return acs;
@@ -334,8 +350,8 @@ function acOrder(a: string, b: string): number {
 /**
  * The `yamlet.tests/v1` binding manifest: `<system>/<scope>.feature` → `AC-N` →
  * the inputs/outputs/member-sockets that scenario references but does not carry
- * as example data. It is the machine-readable contract of what a consumer's step
- * definitions must bind — a second view of the same tokens the steps show, so a
+ * as example data, and the stored fields it reads/writes. It is the machine-readable
+ * contract of what a consumer's step definitions must bind — a second view of the same tokens the steps show, so a
  * downstream check can assert coverage without re-parsing feature text. Keys are
  * ordered deterministically (features by path, scenarios by id) for a stable file.
  */
@@ -512,9 +528,10 @@ definitions and anything else in their own directory — TARGET holds only this
 projection and its whole contents are erased on each run.
 
 Beside the features it writes TARGET/manifest.json (yamlet.tests/v1): per
-scenario, the contract inputs/outputs/member-sockets it leaves verbatim — the
-list a consumer's step definitions must bind. A downstream check can read it to
-assert nothing was left unbound.
+scenario, the contract inputs/outputs/member-sockets it leaves verbatim and the
+stored fields it declares (reads/writes) — the list a consumer's step
+definitions must bind. A downstream check can read it to assert nothing was left
+unbound. A criterion with none of these has no entry (yamlet verify: W010).
 
 yamlet emits the feature files and stops there: step definitions, fixtures and
 the runner belong to whoever consumes them. Specs with no requirements are

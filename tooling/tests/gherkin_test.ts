@@ -53,6 +53,8 @@ Deno.test("tests: manifest lists each scenario's verbatim binding obligations", 
     inputs: ["attachment", "content", "recipient", "subject"],
     outputs: [],
     sockets: [],
+    reads: [],
+    writes: [],
   });
   // Outputs are captured too.
   assertEquals(
@@ -66,6 +68,48 @@ Deno.test("tests: manifest lists each scenario's verbatim binding obligations", 
   );
   // A scenario that binds nothing (no contract tokens) is absent, not empty.
   assertEquals("AC-1" in feats["e-mail-sending-service/email_service.feature"], false);
+});
+
+Deno.test("tests: a criterion's declared reads/writes are binding obligations too", () => {
+  const src = Deno.makeTempDirSync();
+  // AC-1 names no contract token, only the stored state it deletes: it still gets
+  // an entry, so a step definition has something to assert on.
+  Deno.writeTextFileSync(
+    `${src}/retention.yamlet.yaml`,
+    [
+      "system: polls",
+      "topic: Retention",
+      "summary: s",
+      "description: d",
+      "blast_radius: low",
+      "front: internal",
+      "requirements:",
+      "- id: RQ-1",
+      "  description: r",
+      "  acceptance-criteria:",
+      "  - id: AC-1",
+      "    pattern: event",
+      "    when: the retention sweep runs",
+      "    shall:",
+      "    - delete every poll closed more than 30 days ago",
+      "    reads:",
+      "    - poll.closed_at",
+      "    writes:",
+      "    - vote.option",
+      "    - poll.state",
+      "",
+    ].join("\n"),
+  );
+  const out = Deno.makeTempDirSync();
+  assertEquals(runTests([src, out]).exitCode, 0);
+  const manifest = JSON.parse(Deno.readTextFileSync(`${out}/manifest.json`));
+  assertEquals(manifest.features["polls/retention.feature"]["AC-1"], {
+    inputs: [],
+    outputs: [],
+    sockets: [],
+    reads: ["poll.closed_at"],
+    writes: ["poll.state", "vote.option"],
+  });
 });
 
 Deno.test("tests: no manifest is written when no features are produced", () => {
