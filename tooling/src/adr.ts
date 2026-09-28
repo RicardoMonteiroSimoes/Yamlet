@@ -5,7 +5,9 @@
 // option obliges future work to do, what it knowingly costs, and when it stops
 // being right. It is written once and frozen — after `status: accepted` only
 // `status`, `date` and `superseded_by` may change; a decision is revised by
-// superseding it with a new record.
+// superseding it with a new record. A proposed record that is abandoned is
+// rejected, and says why (`rejected_because`), so the directory it stays in
+// explains itself.
 //
 // The rules below are the ones an implementation must enforce (SPEC.md,
 // "Decision records"). A few properties of the format carry the checks:
@@ -74,6 +76,7 @@ const TOP_ALLOWED = new Set([
   "arises_from",
   "assumes",
   "superseded_by",
+  "rejected_because",
   "forces",
   "basis",
   "decision",
@@ -128,6 +131,7 @@ export interface Adr {
   arisesFrom: string[];
   assumes: string[];
   supersededBy: string;
+  rejectedBecause: string;
   question: string;
   forces: string[];
   basis: AdrBasis[];
@@ -190,6 +194,7 @@ export function parseAdr(records: readonly FlatRecord[]): Adr {
     arisesFrom: list("arises_from"),
     assumes: list("assumes"),
     supersededBy: val("superseded_by"),
+    rejectedBecause: val("rejected_because"),
     question: val("question"),
     forces: list("forces"),
     basis,
@@ -315,6 +320,7 @@ export function serializeAdr(a: Adr): string {
     for (const r of a.assumes) out += `- ${r}\n`;
   }
   if (a.supersededBy !== "") out += `superseded_by: ${a.supersededBy}\n`;
+  if (a.rejectedBecause !== "") out += prose("rejected_because", a.rejectedBecause, "");
 
   out += "\n" + prose("question", a.question, "");
 
@@ -488,6 +494,27 @@ export function validateAdr(file: string, records: readonly FlatRecord[]): AdrVa
         `superseded_by ${a.supersededBy} does not resolve to a record in ${dir || "."}`,
       );
     }
+  }
+
+  // rejected_because iff rejected: an abandoned record stays in the directory
+  // (it holds its id), so it must say why it was abandoned.
+  if (a.status === "rejected" && a.rejectedBecause === "") {
+    finding(
+      "E804",
+      lineOf("status"),
+      "status",
+      seenTop.has("rejected_because")
+        ? "rejected_because is empty"
+        : "status is rejected but rejected_because is missing",
+    );
+  }
+  if (seenTop.has("rejected_because") && a.status !== "rejected") {
+    finding(
+      "E804",
+      lineOf("rejected_because"),
+      "rejected_because",
+      "rejected_because requires status: rejected",
+    );
   }
 
   // ── E805/E806: date, kind ──

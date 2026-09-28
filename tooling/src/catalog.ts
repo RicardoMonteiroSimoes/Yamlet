@@ -314,7 +314,7 @@ export const CATALOG: Rule[] = [
     id: "E804",
     severity: "error",
     description:
-      "status must be proposed|accepted|rejected|superseded; superseded_by present iff superseded, a later record that resolves",
+      "status must be proposed|accepted|rejected|superseded; superseded_by present iff superseded, a later record that resolves; rejected_because present and non-empty iff rejected",
   },
   { id: "E805", severity: "error", description: "date must be YYYY-MM-DD" },
   {

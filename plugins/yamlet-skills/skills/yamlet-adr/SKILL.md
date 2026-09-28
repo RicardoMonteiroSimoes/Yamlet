@@ -15,12 +15,13 @@ Turn a choice into a **decision record**: the question, the forces, the dimensio
 ## The hard rules
 
 - **Never write a `.adr.yaml` yourself** — no Write, no Edit, no shell redirection. Every byte goes through `yamlet adr`, which mints every id and verifies the file on every call. `Read` a record to show it.
-- **A record is frozen after `accept`.** Nothing changes it afterwards but `reject`, `supersede` and their dates. A decision is revised by writing the next record, never by editing this one.
+- **A record is frozen after `accept`.** Nothing changes it afterwards but `supersede` and its date. A decision is revised by writing the next record, never by editing this one.
+- **Revise a draft; don't restart it.** While proposed, an objection is answered with `remove`/`replace` on the record you have. `reject` is for a record that is abandoned, not one that needs work.
 - **Options before opinions.** No option is written until every dimension is, and no decision until every option is judged against every dimension. The CLI enforces the order; you keep the conversation in it.
 
 ## Reading the tool's response
 
-- **exit 0** — `init` prints the record's path; `add-basis`/`add-dimension`/`add-option`/`add-obligation` print the minted id (`B-1`, `D-3`, `OPT-2`, `R-1`).
+- **exit 0** — `init` prints the record's path; `add-basis`/`add-dimension`/`add-option`/`add-obligation` print the minted id (`B-1`, `D-3`, `OPT-2`, `R-1`); `replace` keeps the id it was given.
 - **exit 2** — `error:` and nothing was written. It names what is missing or out of order; fix the input.
 - **exit 3** — the change tripped a rule and was not written. Tell the user.
 
@@ -31,12 +32,26 @@ Turn a choice into a **decision record**: the question, the forces, the dimensio
 2. **Forces.** Constraints *outside the author's control*: the trust boundary, a spec obligation, a distribution model. A prior record's obligation is **cited** (`ADR-nnnn#R-n`), never restated. `yamlet adr add-force FILE TEXT`
 3. **Basis, if anything will be measured.** The load a number is stated under (a volume, a horizon), each with a numeral and a source. `yamlet adr add-basis FILE --quantity Q --source S`
 4. **Dimensions.** The axes, each stated as *the threshold at which it decides anything*, not what the axis is. A measured one names its unit, the yardstick (`--source`) and the basis it is stated under. `yamlet adr add-dimension FILE --matters M [--unit U --source S --basis B-n]`
-5. **Challenge before the options.** Invoke **`yamlet-adr-challenger`** with the record's path (`/yamlet-adr-challenger FILE`). Resolve every **BLOCKER**, put its **QUESTIONS** to the user. Dimensions are the last thing that is cheap to change.
+5. **Challenge before the options.** Invoke **`yamlet-adr-challenger`** with the record's path (`/yamlet-adr-challenger FILE`). Resolve every **BLOCKER**, put its **QUESTIONS** to the user. Dimensions are cheapest to change now; once options exist, a new or changed dimension means re-judging every option against it.
 6. **Options.** At least two; the status quo counts and naming it is what makes the set honest. Each is judged against **every** dimension in one call: a cell states a fact, a measured cell carries a numeral, `n/a — <reason>` is allowed and a bare `n/a` is not. A selection needs a locator per option (`--ref project=URL`).
    `yamlet adr add-option FILE --summary S --reversibility reversible|costly|one-way [--ref L=URL] --against D-1=... --against D-2=...`
 7. **Decision.** The user picks. `yamlet adr decide FILE OPT-n`
 8. **What it obliges, costs, and when it stops being right.** Obligations are work, imperative voice (`add-obligation`); costs are taken knowingly and never discharged (`add-accept`); a revisit condition with a threshold names its number (`add-revisit`).
-9. **Accept.** `yamlet verify FILE` must print `OK`; then `yamlet adr accept FILE`. Say plainly that the record is now frozen, and that the spec must link it: `yamlet add-adr SPEC FILE --rq RQ-n | --ac AC-n` (the tech spec or author does this; if you are standalone, do it and verify the spec).
+9. **Challenge before accept.** Invoke **`yamlet-adr-challenger`** again: `/yamlet-adr-challenger FILE --before-accept`. It reads the other accepted records in the directory and the specs this one touches. Revise the record for every BLOCKER it can fix. Put every ROUTE to the user: a record to supersede is done after accepting (below); a criterion to change goes to **`yamlet-author`** — name the exact `SPEC#AC-n`, and if you are inside yamlet-techspec, hand it back there. Accept only once the user has settled every route.
+10. **Accept.** `yamlet verify FILE` must print `OK`; then `yamlet adr accept FILE`. Say plainly that the record is now frozen, and that the spec must link it: `yamlet add-adr SPEC FILE --rq RQ-n | --ac AC-n` (the tech spec or author does this; if you are standalone, do it and verify the spec).
+
+## Revising a proposed record
+
+Answer an objection on the record you have — never by `reject` and a fresh `init`.
+
+- **Drop an element:** `yamlet adr remove FILE B-n|D-n|OPT-n|R-n`, or `--force N` / `--accept N` / `--revisit N` (position, from 1). A dimension takes its cells with it. The tool refuses what would dangle — the decided option (`decide` another first), a basis a dimension uses, a dimension an `n/a` cell cites, an obligation another record cites.
+- **Rewrite one in place:** `yamlet adr replace FILE <id> …` with exactly the flags its `add-*` takes (an option: every cell again), or `replace FILE R-n TEXT` / `--force N TEXT`. It keeps the id, so the decision and the cells still point at it. A dimension whose new unit leaves a cell without a numeral re-judges it in the same call: `--against OPT-n=TEXT`.
+- **A dimension found late:** `add-dimension` with `--against OPT-n=TEXT` for every existing option.
+- Re-run the challenger on what changed.
+
+## Rejecting
+
+Only a record that is abandoned — the question is moot, or it belongs to another record. `yamlet adr reject FILE --reason TEXT`: the reason is required and stays in the record, which stays in the directory (it holds its id).
 
 ## Superseding
 

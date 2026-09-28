@@ -650,6 +650,7 @@ written only by `yamlet adr`, which mints every id and rewrites the file whole.
 adr: ADR-0001                        # ^ADR-[0-9]{4}$, unique in its directory  (E803)
 title: Structural PDF parsing
 status: accepted                     # proposed | accepted | rejected | superseded (E804)
+                                     # rejected needs rejected_because: >- <why> (E804)
 date: 2026-09-07                     # YYYY-MM-DD                                  (E805)
 kind: selection                      # selection | mechanism | policy | boundary | sequencing (E806)
 arises_from:                         # this or `assumes`, non-empty                (E807)
@@ -728,6 +729,19 @@ revisit:                             # (E815)
 order, so `assumes` may only point at a lower id and string comparison alone proves
 the graph acyclic. `B-n`, `D-n`, `OPT-n`, `R-n` are minted per record. An accepted
 record may not assume a non-accepted one (`E807`).
+
+**The lifecycle.** A `proposed` record is a draft and is revised in place:
+`yamlet adr remove` drops a basis, dimension, option or obligation (or a force,
+accepted cost or revisit condition by position), `yamlet adr replace` rewrites one
+whole under the same id. An objection to one dimension therefore costs that
+dimension, not the record. A dimension added once options exist judges every one of
+them in the same call, so the matrix never has a hole. What would dangle is refused:
+the decided option, a basis a dimension is stated under, a dimension an `n/a` cell
+cites, and an obligation another record cites (`ADR-nnnn#R-n` would change meaning
+under its author). A record abandoned while proposed is `rejected` and must say why
+in `rejected_because` (present iff rejected, `E804`); it stays in its directory,
+since the directory is the id namespace and moving it out would free its id for
+reuse.
 
 **What the matrix enforces.** Dimensions are declared before options so a hole is
 visible rather than absent: every option's `against` covers exactly the declared

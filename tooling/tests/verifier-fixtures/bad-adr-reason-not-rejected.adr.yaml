@@ -1,0 +1,33 @@
+adr: ADR-0097
+title: A reason on a record that was not rejected
+status: proposed
+date: 2026-09-07
+kind: policy
+assumes:
+- ADR-0002
+rejected_because: >-
+  Nobody rejected it.
+
+question: >-
+  How long is a verification result kept?
+
+dimensions:
+- id: D-1
+  matters: >-
+    Fit
+
+options:
+- id: OPT-1
+  summary: >-
+    A day
+  reversibility: reversible
+  against:
+    D-1: >-
+      fine
+- id: OPT-2
+  summary: >-
+    A week
+  reversibility: reversible
+  against:
+    D-1: >-
+      also fine

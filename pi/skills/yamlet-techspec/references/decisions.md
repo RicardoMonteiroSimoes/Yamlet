@@ -12,6 +12,8 @@ Load the **`yamlet-adr`** skill and follow it, with the records directory and th
 
 It runs in this session, not in a subagent: it is an interview, and a pi subagent cannot ask the user anything.
 
+Before accepting, it challenges the record against the other accepted records and the specs it touches. A criterion it routes back to you is a spec change: stop planning, have the user change it through the **yamlet-author** skill, and re-read that spec before recording any verdict on it. A record it routes to supersede is superseded as in step 5.
+
 ## 3. Link it into the spec
 
 ```

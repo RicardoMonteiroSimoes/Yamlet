@@ -1,0 +1,4 @@
+{"file":"bad-adr-reason-not-rejected.adr.yaml","valid":false,"errors":[
+  {"rule":"E804","severity":"error","line":8,"path":"rejected_because","message":"rejected_because requires status: rejected"}
+],"warnings":[
+],"summary":{"requirements":0,"acceptanceCriteria":0,"options":2,"obligations":0}}
