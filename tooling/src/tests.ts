@@ -64,7 +64,7 @@ interface Criterion {
   shalls: string[];
   /** `while`/`shall` entries read as a mapping (unquoted colon-space): text as written. */
   stray: string[];
-  exampleKeys: string[]; // sorted union of column keys ("" when not an outline)
+  exampleKeys: string[]; // union of column keys, in first-appearance order ([] when not an outline)
   exampleRows: Record<string, string>[];
   reads: string[];
   writes: string[];
@@ -84,7 +84,10 @@ interface SpecDoc {
   requirements: Requirement[];
 }
 
-/** Parse one criterion's `examples` rows into per-row key→value maps + the sorted key union. */
+/**
+ * Parse one criterion's `examples` rows into per-row key→value maps + the key union, in the
+ * order the keys first appear: the author's column order (records are flattened in file order).
+ */
 function examplesUnder(
   records: readonly FlatRecord[],
   prefix: string,
@@ -104,7 +107,7 @@ function examplesUnder(
     byRow.set(row, bucket);
   }
   const rows = [...byRow.keys()].sort((a, b) => a - b).map((i) => byRow.get(i)!);
-  return { keys: [...keys].sort(), rows };
+  return { keys: [...keys], rows };
 }
 
 /** Read a spec's flattened records into the structured view the renderer walks. */
@@ -278,14 +281,20 @@ function renderFeature(doc: SpecDoc): string {
       if (outline) {
         L.push("");
         L.push(`      Examples:`);
-        L.push(`        | ${ac.exampleKeys.map(cell).join(" | ")} |`);
-        for (const row of ac.exampleRows) {
-          L.push(`        | ${ac.exampleKeys.map((k) => cell(row[k] ?? "")).join(" | ")} |`);
-        }
+        for (const line of table(ac.exampleKeys, ac.exampleRows)) L.push(`        ${line}`);
       }
     }
   }
   return L.join("\n") + "\n";
+}
+
+/** An `Examples:` table, header then rows, each column padded to its widest cell. */
+function table(keys: string[], rows: Record<string, string>[]): string[] {
+  const grid = [keys.map(cell), ...rows.map((row) => keys.map((k) => cell(row[k] ?? "")))];
+  // Width in code points, so a non-ASCII cell doesn't throw its column out.
+  const len = (s: string) => [...s].length;
+  const widths = keys.map((_, i) => Math.max(...grid.map((r) => len(r[i]!))));
+  return grid.map((r) => `| ${r.map((c, i) => c + " ".repeat(widths[i]! - len(c))).join(" | ")} |`);
 }
 
 // ── command ────────────────────────────────────────────────────────────────

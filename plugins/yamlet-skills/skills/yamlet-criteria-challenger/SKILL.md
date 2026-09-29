@@ -26,7 +26,7 @@ Committed wording is final (criteria bind step definitions at once), but appendi
 
 ## Input
 
-`$ARGUMENTS` holds: the requirement description; each criterion (EARS pattern, clause(s) `while`/`when`/`where`/`if`, `shall` items, any placeholders/examples, reads/writes); and scope context (system, directory, front, declared contract inputs/outputs). Missing criteria for the requirement is your first finding.
+`$ARGUMENTS` holds: the requirement description; each criterion (EARS pattern, clause(s) `while`/`when`/`where`/`if`, `shall` items, any placeholders/examples, reads/writes); and scope context (system, directory, front, declared contract inputs/outputs, the spec's path once it exists, and for a composite each member's alias and spec path). Missing criteria for the requirement is your first finding.
 
 ## Checks — for each: object or clear it
 
@@ -47,10 +47,12 @@ Committed wording is final (criteria bind step definitions at once), but appendi
 10. **Stored state** (`reads`/`writes`; the system's fields via `yamlet systems DIR --system=S --state`). BLOCKER: stored data the text relies on, undeclared, that another scope writes; a changed field under `reads`. QUESTION: a new name for an existing field. Gap (9): a field shared with another scope, one writing, and no criterion on how they interleave. Never ask for types or descriptions.
 11. **System consistency** (`yamlet systems DIR --system=S --criteria`). BLOCKER: a rule a sibling scope states differently (limit, unit, character class, blank handling); the same condition under another error code; a hardcoded value a linked ADR makes configurable.
 12. **Altitude.** Would each clause and `shall` still hold if the implementation were swapped? A protocol, product, retry or backoff, cache, transaction, queue, table or status code is a *how* — BLOCKER: propose the observable outcome it protects, and name the *how* for an ADR or the tech spec. A business rule with a number (a size limit, a deadline) is a *what*; clear it. Never ask for detail below what the caller or the business observes.
+13. **Overlap.** Pair each proposed criterion with every other proposed one and every one already committed (`Read` the spec). Where both triggers can fire on one call and both states can hold at once, their `shall`s must agree. BLOCKER: one concrete input that satisfies both and demands opposite outcomes (record vs record none; two error codes). A criterion's examples do not narrow its clauses — a case they skip still counts. Fix it with a clause that excludes the overlap.
+14. **Member fidelity** (composite). For each criterion on a member's output (`{alias.socket}`) or on a behaviour a member owns, `Read` that member's spec. It must hold for **every** value the member can produce — take each error code in turn. BLOCKER: a member criterion that makes it false (a duplicate rejection reported for a record that does exist).
 
 ## Report — terse and ordered
 
-- **BLOCKERS** — will fail verify or freeze a defect (vague shall, unbound value, wrong pattern, unbound placeholder, bundled capabilities, missing `unwanted` on an external front, implementation detail).
+- **BLOCKERS** — will fail verify or freeze a defect (vague shall, unbound value, wrong pattern, unbound placeholder, bundled capabilities, missing `unwanted` on an external front, implementation detail, contradicting criteria).
 - **QUESTIONS** — real ambiguities for the user.
 - **SUGGESTIONS** — non-blocking improvements.
 - **BOTTOM LINE** — one line: `ready to commit` or `revise before committing`, with the single most important reason.

@@ -213,3 +213,31 @@ Deno.test("tests: manifest scenario keys order a suffixed id after its base", ()
   const keys = Object.keys(manifest.features["svc/s.feature"]);
   assertEquals(keys, ["AC-1", "AC-1a", "AC-1b", "AC-2"]);
 });
+
+Deno.test("tests: an Examples table keeps the author's column order and aligns its columns", () => {
+  const src = Deno.makeTempDirSync();
+  // Keys deliberately out of alphabetical order, including an `input.` column,
+  // with cells of differing widths (one non-ASCII) in each column.
+  Deno.writeTextFileSync(
+    `${src}/s.yamlet.yaml`,
+    "system: svc\ntopic: T\nsummary: s\ndescription: d\n" +
+      "blast_radius: low\nfront: internal\n" +
+      "exposes:\n  name: svc\n  intent: i\n  inputs:\n  - url\n" +
+      "requirements:\n- id: RQ-1\n  description: r\n  acceptance-criteria:\n" +
+      "  - id: AC-1\n    pattern: complex\n    while:\n    - '{registered} is registered'\n" +
+      "    when: '{input.url} is registered'\n    shall:\n    - record {input.url}\n" +
+      "    examples:\n" +
+      "    - registered: https://a.example/app\n      input.url: https://a.example/app.git\n" +
+      "    - registered: https://ä.example\n      input.url: x\n",
+  );
+  const out = Deno.makeTempDirSync();
+  assertEquals(runTests([src, out]).exitCode, 0);
+
+  const feature = Deno.readTextFileSync(`${out}/svc/s.feature`);
+  const table = feature.split("\n").filter((l) => l.trimStart().startsWith("|"));
+  assertEquals(table, [
+    "        | registered            | input.url                 |",
+    "        | https://a.example/app | https://a.example/app.git |",
+    "        | https://ä.example     | x                         |",
+  ]);
+});

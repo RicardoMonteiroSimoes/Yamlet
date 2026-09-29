@@ -12,4 +12,4 @@ Feature: Receipt submission portal — receipt-portal
 
       Examples:
         | max_submissions |
-        | 10 |
+        | 10              |
