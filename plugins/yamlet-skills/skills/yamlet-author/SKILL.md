@@ -70,7 +70,7 @@ A spec states what the caller, or the business, can observe — never how the co
 
 ### Challenge before you commit
 
-Draft the requirement's description **and** its full set of criteria in conversation first. Then invoke **`yamlet-criteria-challenger`** (`/yamlet-criteria-challenger <proposal>`) with: the description; every intended criterion (pattern, clauses, `shall` items, placeholders/examples, reads/writes); and the scope's system, directory, front and contract.
+Draft the requirement's description **and** its full set of criteria in conversation first. Then invoke **`yamlet-criteria-challenger`** (`/yamlet-criteria-challenger <proposal>`) with: the description; every intended criterion (pattern, clauses, `shall` items, placeholders/examples, reads/writes); and the scope's system, directory, front and contract; the spec's path, so it can check the new criteria against the committed ones; and for a composite, each member's alias and spec path, so it can check the criteria against what its members promise.
 
 Relay its findings in prose — you do not obey it blindly. Resolve every **BLOCKER** before committing, put its **QUESTIONS** to the user, and surface its **SUGGESTIONS** for a decision.
 

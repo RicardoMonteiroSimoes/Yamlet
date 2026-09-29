@@ -82,7 +82,7 @@ A `NOTE:` in a successful result means another scope shares a stored field; see 
 
 ### Challenge before you commit
 
-Draft the requirement's description **and** its full set of criteria in conversation first. Then spawn the **`yamlet-criteria-challenger`** agent with: the description; every intended criterion (pattern, clauses, `shall` items, placeholders/examples, reads/writes); and the scope's system, directory, front and contract.
+Draft the requirement's description **and** its full set of criteria in conversation first. Then spawn the **`yamlet-criteria-challenger`** agent with: the description; every intended criterion (pattern, clauses, `shall` items, placeholders/examples, reads/writes); and the scope's system, directory, front and contract; the spec's path, so it can check the new criteria against the committed ones; and for a composite, each member's alias and spec path, so it can check the criteria against what its members promise.
 
 ```
 Agent({
