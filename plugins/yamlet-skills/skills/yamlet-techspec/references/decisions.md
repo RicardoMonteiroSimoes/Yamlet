@@ -17,7 +17,7 @@ yamlet add-adr SPEC adr/ADR-0007-parser.adr.yaml --rq RQ-5
 yamlet add-adr SPEC adr/ADR-0007-parser.adr.yaml --ac AC-8
 ```
 
-`--rq` when the decision covers every criterion of the requirement, `--ac` when it is specific to one. Then `yamlet verify SPEC` must print `OK`.
+`--rq` when the decision covers every criterion of the requirement, `--ac` when it is specific to one. Then `yamlet verify SPEC` must print `OK`, and `/yamlet-refresh <specs-dir>` regenerates the features and the docs pages, which now show the record and its link.
 
 ## 4. Account for what it obliges
 
@@ -25,4 +25,4 @@ An accepted record's obligations (`ADR-nnnn#R-n`) are work, judged like criteria
 
 ## 5. Superseding
 
-A record that no longer holds is not edited. `yamlet-adr` writes the successor (`--assumes` the old id), then `yamlet adr supersede OLD --by NEW`, then `add-adr` the new record where the old one was linked.
+A record that no longer holds is not edited. `yamlet-adr` writes the successor (`--assumes` the old id), then `yamlet adr supersede OLD --by NEW`, then `add-adr` the new record where the old one was linked, then `/yamlet-refresh <specs-dir>`.

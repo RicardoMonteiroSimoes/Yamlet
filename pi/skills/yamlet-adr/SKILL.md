@@ -49,6 +49,7 @@ This skill drives the `yamlet_adr_*` tools from the yamlet pi extension. Without
 8. **What it obliges, costs, and when it stops being right.** Obligations are work, imperative voice (`yamlet_adr_add_obligation`); costs are taken knowingly and never discharged (`yamlet_adr_add_accept`); a revisit condition with a threshold names its number (`yamlet_adr_add_revisit`).
 9. **Challenge again.** Spawn it with prompt `Before accept: <record>` plus the paths of the other accepted records beside it and the specs they and it link; revise for its blockers, put the rest to the user (supersede after accepting; spec changes go to the yamlet-author skill).
 10. **Accept.** `yamlet_verify({ file })` must report `OK`; then `yamlet_adr_accept({ file })`. Say plainly that the record is now frozen, and that the spec must link it: `yamlet_add_adr({ file: SPEC, adr: FILE, rq: "RQ-n" })` or `ac: "AC-n"` (the tech spec or author does this; if you are standalone, do it and verify the spec).
+11. **Refresh the derived pages.** A record's status and its links show up in the Markdown docs, so once the last change is made — accepted and linked, rejected, or superseded — load the **`yamlet-refresh`** skill and follow it against the specs directory, the same one the author flow refreshes. Records render only from under that directory, so keep the records directory inside it. Inside yamlet-techspec's decision gate, skip this: the gate links the record and refreshes after.
 
 ### If there is no `Agent` tool
 
@@ -56,4 +57,4 @@ The gate needs [`@tintinweb/pi-subagents`](https://pi.dev/packages/@tintinweb/pi
 
 ## Superseding
 
-A decision that no longer holds gets a new record: `init` with `assumes` the old id, the same interview, `accept`, then `yamlet_adr_supersede({ file: OLD, by: "ADR-nnnn" })` and a fresh `yamlet_add_adr` where the old one was linked. The old link stays; it is history.
+A decision that no longer holds gets a new record: `init` with `assumes` the old id, the same interview, `accept`, then `yamlet_adr_supersede({ file: OLD, by: "ADR-nnnn" })` and a fresh `yamlet_add_adr` where the old one was linked. The old link stays; it is history. Then refresh (step 11).

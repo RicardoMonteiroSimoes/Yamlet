@@ -6,7 +6,7 @@ description: >-
   decision records). REQUIRES the specs source directory as its argument (e.g. `/yamlet-refresh
   specs`); optional second and third arguments are the tests and docs targets, defaulting to
   `<src>/tests` and `<src>/docs` — yamlet-owned directories wiped and rebuilt on every run. Use as
-  the closing step once a spec is authored or changed.
+  the closing step once a spec or a decision record is authored or changed.
 argument-hint: <specs-dir> [tests-dir] [docs-dir]
 allowed-tools: Bash(yamlet:*), Read
 ---

@@ -5,7 +5,7 @@ description: >-
   hand-writing YAML. Use when a design choice must be recorded — standalone (`/yamlet-adr adr`) or
   inside yamlet-techspec's decision gate.
 argument-hint: <records-dir> [what is being decided]
-allowed-tools: Bash(yamlet:*), Read, Skill(yamlet-adr-challenger *), Skill(yamlet-skills:yamlet-adr-challenger *)
+allowed-tools: Bash(yamlet:*), Read, Skill(yamlet-adr-challenger *), Skill(yamlet-skills:yamlet-adr-challenger *), Skill(yamlet-refresh *), Skill(yamlet-skills:yamlet-refresh *)
 ---
 
 # Yamlet ADR Skill
@@ -38,7 +38,8 @@ Turn a choice into a **decision record**: the question, the forces, the dimensio
 8. **What it obliges, costs, and when it stops being right.** Obligations are work, imperative voice (`add-obligation`); costs are taken knowingly and never discharged (`add-accept`); a revisit condition with a threshold names its number (`add-revisit`).
 9. **Challenge again.** `/yamlet-adr-challenger FILE --before-accept`; revise for its blockers, put the rest to the user (supersede after accepting; spec changes go to `yamlet-author`).
 10. **Accept.** `yamlet verify FILE` must print `OK`; then `yamlet adr accept FILE`. Say plainly that the record is now frozen, and that the spec must link it: `yamlet add-adr SPEC FILE --rq RQ-n | --ac AC-n` (the tech spec or author does this; if you are standalone, do it and verify the spec).
+11. **Refresh the derived pages.** A record's status and its links show up in the Markdown docs, so once the last change is made — accepted and linked, rejected, or superseded — invoke **`yamlet-refresh`** with the specs directory (`/yamlet-refresh <specs-dir>`), the same one the author flow refreshes. Records render only from under that directory, so keep the records directory inside it. Inside yamlet-techspec's decision gate, skip this: the gate links the record and refreshes after.
 
 ## Superseding
 
-A decision that no longer holds gets a new record: `init` with `--assumes` the old id, the same interview, `accept`, then `yamlet adr supersede OLD --by NEW` and a fresh `add-adr` where the old one was linked. The old link stays; it is history.
+A decision that no longer holds gets a new record: `init` with `--assumes` the old id, the same interview, `accept`, then `yamlet adr supersede OLD --by NEW` and a fresh `add-adr` where the old one was linked. The old link stays; it is history. Then refresh (step 11).

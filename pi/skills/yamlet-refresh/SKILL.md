@@ -6,7 +6,7 @@ description: >-
   decision records). REQUIRES the specs source directory as its argument (e.g.
   `/skill:yamlet-refresh specs`); optional second and third arguments are the tests and docs
   targets, defaulting to `<src>/tests` and `<src>/docs` — yamlet-owned directories wiped and rebuilt
-  on every run. Use as the closing step once a spec is authored or changed.
+  on every run. Use as the closing step once a spec or a decision record is authored or changed.
 ---
 
 Regenerates the two views derived from a directory of specs: the Gherkin `.feature` tree a test runner binds to, and the Markdown pages a teammate or stakeholder reads in a browser. This skill **only projects** — it turns the YAML into those two trees and stops at that boundary. Step definitions, fixtures, the runner and CI belong to whoever consumes them; you **never** touch them, and you never hand-edit a generated page.
