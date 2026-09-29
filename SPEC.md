@@ -75,7 +75,9 @@ untrusted input enters the graph.
 
 An `external` leaf with no `if` clause in any criterion is a warning (`W006`) — a
 sibling scope may own that behaviour, so not an error. Composites are exempt: they
-may hold no criteria at all.
+may hold no criteria at all. So is a leaf whose `exposes` declares no `inputs`: it
+takes nothing from the caller, so there is no malformed input to specify. A leaf
+without `exposes` is not exempt — its inputs are unknown, not absent.
 
 **`internal` names a caller, and a composite is where it is named (`W008`).**
 `internal` claims "a component we control calls me"; the only place yamlet records

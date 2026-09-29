@@ -1,0 +1,21 @@
+# W006 exempt: an external leaf whose contract takes no input has no bad input to specify
+system: intake
+topic: Intake listing
+summary: Lists every recorded submission
+description: A service.
+blast_radius: low
+front: external
+exposes:
+  name: intake-listing
+  intent: list every recorded submission
+  outputs:
+  - submissions
+requirements:
+- id: RQ-1
+  description: Lists the submissions
+  acceptance-criteria:
+  - id: AC-1
+    pattern: event
+    when: a listing is requested
+    shall:
+    - return every recorded submission in {output.submissions}

@@ -404,7 +404,7 @@ export const CATALOG: Rule[] = [
     id: "W006",
     severity: "warning",
     description:
-      "front=external but no criterion carries an if clause (no unwanted-condition behaviour)",
+      "front=external, inputs declared or unknown, but no criterion carries an if clause (no unwanted-condition behaviour)",
   },
   {
     id: "W007",

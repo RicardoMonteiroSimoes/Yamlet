@@ -301,8 +301,15 @@ export function validate(
 
   // ── W006: an untrusted boundary that never says what it does with bad input ──
   // A leaf only: where the trust boundary of a composite sits is undecided
-  // (SPEC.md, "Composition"), and a composite may hold no criteria at all.
-  if (!isComposite && byPath.get("front") === "external" && nCriteria > 0 && !anyIfClause) {
+  // (SPEC.md, "Composition"), and a composite may hold no criteria at all. A
+  // contract that declares no inputs takes nothing from the caller, so there is
+  // no bad input to specify; without `exposes` the inputs are unknown and it fires.
+  const declaresNoInputs = seenTop.has("exposes") &&
+    ![...byPath.keys()].some((p) => /^exposes\.inputs\[[0-9]+\]$/.test(p));
+  if (
+    !isComposite && byPath.get("front") === "external" && nCriteria > 0 && !anyIfClause &&
+    !declaresNoInputs
+  ) {
     finding(
       "W006",
       byLine.get("front")!,

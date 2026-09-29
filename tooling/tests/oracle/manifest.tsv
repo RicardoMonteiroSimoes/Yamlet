@@ -62,6 +62,7 @@ valid-composite.yamlet.yaml	0
 valid-example.yamlet.yaml	0
 valid-exposes-outputs.yamlet.yaml	0
 valid-exposes.yamlet.yaml	0
+valid-external-no-inputs.yamlet.yaml	0
 valid-optional-pattern.yamlet.yaml	0
 valid-techspec-obligations.techspec.yaml	0
 valid-techspec-scope.techspec.yaml	0
