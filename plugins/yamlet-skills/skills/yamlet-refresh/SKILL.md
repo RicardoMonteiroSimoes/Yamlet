@@ -5,9 +5,10 @@ description: >-
   `.feature` tree (`yamlet tests`) and the Markdown pages people read (`yamlet docs` — specs and
   decision records). REQUIRES the specs source directory as its argument (e.g. `/yamlet-refresh
   specs`); optional second and third arguments are the tests and docs targets, defaulting to
-  `<src>/tests` and `<src>/docs` — yamlet-owned directories wiped and rebuilt on every run. Use as
-  the closing step once a spec or a decision record is authored or changed.
-argument-hint: <specs-dir> [tests-dir] [docs-dir]
+  `<src>/tests` and `<src>/docs` — yamlet-owned directories wiped and rebuilt on every run; an
+  optional fourth names a records directory kept outside it. Use as the closing step once a spec
+  or a decision record is authored or changed.
+argument-hint: <specs-dir> [tests-dir] [docs-dir] [adr-dir]
 allowed-tools: Bash(yamlet:*), Read
 ---
 
@@ -29,11 +30,13 @@ Both targets are **yamlet-owned directories**. Every run **wipes and rebuilds** 
 
 The pages are meant to be committed, so they can go stale; `yamlet docs SRC DOCS --check` is the CI gate that fails when they do. Running this skill after every spec change is what keeps that gate green.
 
+Decision records render from under the specs directory. When a repository keeps them beside it instead (a sibling `adr/`), pass that directory as the fourth argument (`/yamlet-refresh specs specs/tests specs/docs adr`) — on every run, or their pages vanish and the specs' links to them turn to plain text.
+
 ## Result for `$ARGUMENTS`
 
-!`set -- $ARGUMENTS; SRC="${1:?usage: /yamlet-refresh SRC [TESTS] [DOCS]}"; TESTS="${2:-$SRC/tests}"; yamlet tests "$SRC" "$TESTS" 2>&1`
+!`set -- $ARGUMENTS; SRC="${1:?usage: /yamlet-refresh SRC [TESTS] [DOCS] [ADRS]}"; TESTS="${2:-$SRC/tests}"; yamlet tests "$SRC" "$TESTS" 2>&1`
 
-!`set -- $ARGUMENTS; SRC="${1:?usage: /yamlet-refresh SRC [TESTS] [DOCS]}"; DOCS="${3:-$SRC/docs}"; yamlet docs "$SRC" "$DOCS" 2>&1`
+!`set -- $ARGUMENTS; SRC="${1:?usage: /yamlet-refresh SRC [TESTS] [DOCS] [ADRS]}"; DOCS="${3:-$SRC/docs}"; yamlet docs "$SRC" "$DOCS" ${4:+"--adrs=$4"} 2>&1`
 
 Read the two outputs above and narrate the actionable deltas to the user in plain prose:
 

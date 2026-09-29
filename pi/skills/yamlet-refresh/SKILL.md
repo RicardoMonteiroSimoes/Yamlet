@@ -5,8 +5,9 @@ description: >-
   `.feature` tree (`yamlet tests`) and the Markdown pages people read (`yamlet docs` — specs and
   decision records). REQUIRES the specs source directory as its argument (e.g.
   `/skill:yamlet-refresh specs`); optional second and third arguments are the tests and docs
-  targets, defaulting to `<src>/tests` and `<src>/docs` — yamlet-owned directories wiped and rebuilt
-  on every run. Use as the closing step once a spec or a decision record is authored or changed.
+  targets, defaulting to `<src>/tests` and `<src>/docs` — yamlet-owned directories wiped and
+  rebuilt on every run; an optional fourth names a records directory kept outside it. Use as the
+  closing step once a spec or a decision record is authored or changed.
 ---
 
 Regenerates the two views derived from a directory of specs: the Gherkin `.feature` tree a test runner binds to, and the Markdown pages a teammate or stakeholder reads in a browser. This skill **only projects** — it turns the YAML into those two trees and stops at that boundary. Step definitions, fixtures, the runner and CI belong to whoever consumes them; you **never** touch them, and you never hand-edit a generated page.
@@ -25,13 +26,15 @@ Both targets are **yamlet-owned directories**. Every run **wipes and rebuilds** 
 
 The pages are meant to be committed, so they can go stale; `yamlet_docs` with `check: true` is the CI gate that fails when they do. Running this skill after every spec change is what keeps that gate green.
 
+Decision records render from under the specs directory. When a repository keeps them beside it instead (a sibling `adr/`), pass that directory in `adrs` — on every run, or their pages vanish and the specs' links to them turn to plain text.
+
 ## Run it
 
-Take `src` (and optionally the tests and docs targets) from the invocation. If no source directory was supplied, ask the user for one and stop — **do not guess a directory, because the targets are wiped.** Confirm a target with the user if it is anything other than `<src>/tests` or `<src>/docs`.
+Take `src` (and optionally the tests and docs targets, and a records directory outside `src`) from the invocation. If no source directory was supplied, ask the user for one and stop — **do not guess a directory, because the targets are wiped.** Confirm a target with the user if it is anything other than `<src>/tests` or `<src>/docs`.
 
 ```
 yamlet_tests({ src: "<SRC>", target: "<TESTS, default SRC/tests>" })
-yamlet_docs({ src: "<SRC>", target: "<DOCS, default SRC/docs>" })
+yamlet_docs({ src: "<SRC>", target: "<DOCS, default SRC/docs>", adrs: ["<records dir, only if outside SRC>"] })
 ```
 
 Run both, even if the first fails — they are independent. Unlike the Claude Code build, pi cannot pre-execute the commands and hand you their output — you must actually call the tools before interpreting anything. **Never report a projection you did not run**, and never claim a tree was regenerated if its call failed.

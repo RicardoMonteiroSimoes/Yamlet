@@ -17,7 +17,7 @@ yamlet add-adr SPEC adr/ADR-0007-parser.adr.yaml --rq RQ-5
 yamlet add-adr SPEC adr/ADR-0007-parser.adr.yaml --ac AC-8
 ```
 
-`--rq` when the decision covers every criterion of the requirement, `--ac` when it is specific to one. Then `yamlet verify SPEC` must print `OK`, and `/yamlet-refresh <specs-dir>` regenerates the features and the docs pages, which now show the record and its link.
+`--rq` when the decision covers every criterion of the requirement, `--ac` when it is specific to one. Then `yamlet verify SPEC` must print `OK`, and `/yamlet-refresh <specs-dir>` (plus `<tests-dir> <docs-dir> <records-dir>` when the records live outside the specs directory) regenerates the features and the docs pages, which now show the record and its link.
 
 ## 4. Account for what it obliges
 

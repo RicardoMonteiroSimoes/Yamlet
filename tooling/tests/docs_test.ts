@@ -116,3 +116,63 @@ Deno.test("docs: usage errors", () => {
   assertEquals(runDocs([SPECS, "a", "--bogus"]).exitCode, 2);
   assertEquals(runDocs(["/nonexistent", "a"]).exitCode, 2);
 });
+
+/** specs/ and a sibling adr/, linked both ways across the boundary. */
+function siblingLayout(): string {
+  const root = Deno.makeTempDirSync();
+  Deno.mkdirSync(`${root}/specs`);
+  Deno.mkdirSync(`${root}/adr`);
+  const spec = Deno.readTextFileSync(`${FIXTURES}/pdf-verify.yamlet.yaml`)
+    .replace(/^(\s*- )(ADR-\d{4}-\S+\.adr\.yaml)$/gm, "$1../adr/$2");
+  Deno.writeTextFileSync(`${root}/specs/pdf-verify.yamlet.yaml`, spec);
+  for (const e of Deno.readDirSync(FIXTURES)) {
+    if (!e.name.endsWith(".adr.yaml")) continue;
+    const adr = Deno.readTextFileSync(`${FIXTURES}/${e.name}`)
+      .replace(/^- pdf-verify\.yamlet\.yaml/gm, "- ../specs/pdf-verify.yamlet.yaml");
+    Deno.writeTextFileSync(`${root}/adr/${e.name}`, adr);
+  }
+  return root;
+}
+
+Deno.test("docs: --adrs renders records kept beside SRC, linked both ways", () => {
+  const root = siblingLayout();
+  const out = `${root}/out`;
+  const r = runDocs([`${root}/specs`, out, `--adrs=${root}/adr`]);
+  assertEquals(r.exitCode, 0, r.stderr);
+  const spec = Deno.readTextFileSync(`${out}/pdf-service/pdf-verify.md`);
+  assertStringIncludes(
+    spec,
+    "Decided by [ADR-0001 · Structural PDF parsing](../decisions/adr/ADR-0001-structural-pdf-parsing.md)",
+  );
+  const adr = Deno.readTextFileSync(`${out}/decisions/adr/ADR-0001-structural-pdf-parsing.md`);
+  assertStringIncludes(adr, "[PDF verification · AC-8](../../pdf-service/pdf-verify.md#ac-8)");
+  assertStringIncludes(adr, "(../../../adr/ADR-0001-structural-pdf-parsing.adr.yaml)");
+  assertEquals(runDocs([`${root}/specs`, out, `--adrs=${root}/adr`, "--check"]).exitCode, 0);
+
+  // Without --adrs the link stays visible, as plain text, and no record page is written.
+  const bare = runDocs([`${root}/specs`, `${root}/bare`]);
+  assertEquals(bare.exitCode, 0);
+  assert(!existsSync(`${root}/bare/decisions`));
+  assertStringIncludes(
+    Deno.readTextFileSync(`${root}/bare/pdf-service/pdf-verify.md`),
+    "`../adr/ADR-0001-structural-pdf-parsing.adr.yaml` (not found",
+  );
+});
+
+Deno.test("docs: a record reached from SRC and from --adrs renders once", () => {
+  const out = Deno.makeTempDirSync();
+  const r = runDocs([FIXTURES, out, `--adrs=${FIXTURES}`]);
+  assertEquals(r.exitCode, 0, r.stderr);
+  assertStringIncludes(r.stdout, "4 decisions");
+});
+
+Deno.test("docs: --adrs must be a directory and must not sit inside TARGET", () => {
+  const root = siblingLayout();
+  assertEquals(runDocs([`${root}/specs`, `${root}/out`, `--adrs=${root}/nope`]).exitCode, 2);
+  Deno.mkdirSync(`${root}/site`);
+  Deno.renameSync(`${root}/adr`, `${root}/site/adr`);
+  const r = runDocs([`${root}/specs`, `${root}/site`, `--adrs=${root}/site/adr`]);
+  assertEquals(r.exitCode, 2);
+  assertStringIncludes(r.stderr, "would erase the records");
+  assert(existsSync(`${root}/site/adr/ADR-0001-structural-pdf-parsing.adr.yaml`));
+});

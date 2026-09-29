@@ -898,12 +898,16 @@ export default function (pi: ExtensionAPI) {
 		parameters: Type.Object({
 			src: Type.String({ description: "Directory to scan for *.yamlet.yaml specs and *.adr.yaml records" }),
 			target: Type.String({ description: "Directory to write the pages into — WIPED on every run" }),
+			adrs: Type.Optional(Type.Array(Type.String(), {
+				description: "Directories of decision records kept outside src (e.g. a sibling adr/); records under src are always read",
+			})),
 			check: Type.Optional(Type.Boolean({
 				description: "Write nothing; exit 1 if the pages in target differ from what a run would write",
 			})),
 		}),
 		async execute(_id, params, signal, _onUpdate, ctx) {
 			const args = ["docs", cleanPath(params.src), cleanPath(params.target)];
+			for (const d of params.adrs ?? []) args.push(`--adrs=${cleanPath(d)}`);
 			if (params.check) args.push("--check");
 			return run(ctx, args, signal);
 		},

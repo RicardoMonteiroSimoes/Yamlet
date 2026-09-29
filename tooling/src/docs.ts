@@ -13,6 +13,11 @@
 //   TARGET/decisions/<…>/<adr>.md    one per decision record, every status — a rejected or
 //                                    superseded record is history, rendered and marked as such
 //
+// Records are read from under SRC and from any `--adrs=DIR`, for a repository that
+// keeps them beside the specs rather than inside. Keys are paths relative to SRC,
+// resolved through absolute paths, so a spec's `../adr/…` link and a record's
+// `../specs/…#AC-n` meet on the same keys wherever the files live.
+//
 // Tech specs are deliberately not rendered: they are disposable plans, and a
 // committed rendering would outlive the plan it shows. Progress is `yamlet trace`.
 //
@@ -300,6 +305,15 @@ interface Site {
   linkedFrom: Map<string, { spec: string; id: string }[]>;
 }
 
+/**
+ * The key of `rel` written in a file whose directory key is `dir`. Goes through
+ * the absolute path, so a reference that leaves SRC and comes back (a record
+ * outside SRC naming `../specs/x.yamlet.yaml`) lands on the same key as the spec.
+ */
+function resolveKey(site: Site, dir: string, rel: string): string {
+  return relative(site.srcAbs, joinNorm(joinNorm(site.srcAbs, dir), rel));
+}
+
 function adrInDir(site: Site, dir: string, id: string): AdrPage | undefined {
   for (const a of site.adrs.values()) {
     if (dirOf(a.key) === dir && a.adr.id === id) return a;
@@ -321,7 +335,7 @@ function adrLabel(a: AdrPage): string {
 /** A link to an ADR page from `page`, with its status; plain text when not rendered. */
 function adrRef(site: Site, page: string, key: string, raw: string): string {
   const a = site.adrs.get(key);
-  if (!a) return `${code(raw)} (not found under the source directory)`;
+  if (!a) return `${code(raw)} (not found under the source or records directories)`;
   return `[${adrLabel(a)}](${href(relative(dirOf(page), a.page))}) (${
     a.adr.status || "no status"
   })`;
@@ -351,7 +365,7 @@ function mermaid(site: Site, doc: SpecDoc): string {
   }
   for (const i of doc.inputs.filter((x) => ins.has(x))) L.push(`  in_${id(i)}([${q(i)}])`);
   for (const m of doc.members) {
-    const member = site.specs.get(joinNorm(dir, m.path));
+    const member = site.specs.get(resolveKey(site, dir, m.path));
     const topic = member?.doc.topic ?? baseOf(m.path);
     L.push(`  m_${id(m.alias)}[${q(`${m.alias}<br/>${topic}`)}]`);
   }
@@ -404,7 +418,7 @@ function renderSpec(site: Site, sp: SpecPage): string {
     s += table(
       ["Alias", "Scope", "Summary"],
       doc.members.map((m) => {
-        const key = joinNorm(dir, m.path);
+        const key = resolveKey(site, dir, m.path);
         return [
           code(m.alias),
           specRef(site, page, key),
@@ -428,7 +442,9 @@ function renderSpec(site: Site, sp: SpecPage): string {
   const decided = (adrs: string[]): string =>
     adrs.length === 0
       ? ""
-      : `Decided by ${adrs.map((a) => adrRef(site, page, joinNorm(dir, a), a)).join(", ")}\n\n`;
+      : `Decided by ${
+        adrs.map((a) => adrRef(site, page, resolveKey(site, dir, a), a)).join(", ")
+      }\n\n`;
   for (const rq of doc.requirements) {
     s += `<a id="${anchor(rq.id)}"></a>\n\n### ${rq.id} · ${esc(rq.description)}\n\n`;
     s += decided(rq.adrs);
@@ -500,7 +516,7 @@ function renderAdr(site: Site, ap: AdrPage): string {
       "Arises from",
       a.arisesFrom.map((r) => {
         const m = r.match(SPEC_REF_RE);
-        return m ? specRef(site, page, joinNorm(dir, m[1]!), m[2]!) : code(r);
+        return m ? specRef(site, page, resolveKey(site, dir, m[1]!), m[2]!) : code(r);
       }).join(", "),
     ]);
   }
@@ -617,7 +633,7 @@ function renderIndex(site: Site, title: string): string {
     for (const c of composites) {
       used.add(c.doc.key);
       for (const m of c.doc.members) {
-        const key = joinNorm(dirOf(c.doc.key), m.path);
+        const key = resolveKey(site, dirOf(c.doc.key), m.path);
         if (!nodeId.has(key)) continue;
         used.add(key);
         edges.push(`  ${nodeId.get(c.doc.key)} -->|${q(m.alias)}| ${nodeId.get(key)}`);
@@ -655,6 +671,7 @@ interface Skipped {
 function buildSite(
   src: string,
   targetAbs: string,
+  adrDirs: readonly string[],
 ): { pages: Map<string, string>; skipped: Skipped[] } | string {
   const skipped: Skipped[] = [];
   const srcAbs = absPath(src);
@@ -706,29 +723,40 @@ function buildSite(
     site.specs.set(key, { page, doc });
   }
 
-  for (const f of listFiles(src, ".adr.yaml")) {
-    const loaded = loadAdr(f);
-    if (!loaded) {
-      skipped.push({ file: f, reason: "parse error (run `yamlet verify`)" });
-      continue;
+  // Records under SRC keep their path below it; records under a --adrs DIR sit below
+  // that directory's name. A record reached both ways is rendered once.
+  const roots: [string, string][] = [
+    [src, ""],
+    ...adrDirs.map((d): [string, string] => [d, baseOf(absPath(d))]),
+  ];
+  for (const [root, prefix] of roots) {
+    const rootAbs = absPath(root);
+    for (const f of listFiles(root, ".adr.yaml")) {
+      const key = keyOf(f);
+      if (site.adrs.has(key)) continue;
+      const loaded = loadAdr(f);
+      if (!loaded) {
+        skipped.push({ file: f, reason: "parse error (run `yamlet verify`)" });
+        continue;
+      }
+      const below = relative(rootAbs, absPath(f)).replace(/\.adr\.yaml$/, "");
+      const page = `decisions/${prefix === "" ? "" : `${prefix}/`}${below}.md`;
+      const clash = claim(page, f);
+      if (clash) return clash;
+      site.adrs.set(key, { key, page, adr: loaded.adr });
     }
-    const key = keyOf(f);
-    const page = `decisions/${key.replace(/\.adr\.yaml$/, "")}.md`;
-    const clash = claim(page, f);
-    if (clash) return clash;
-    site.adrs.set(key, { key, page, adr: loaded.adr });
   }
 
   // Inverse indexes: the format holds none on purpose; a derived page may.
   for (const { doc } of site.specs.values()) {
     const dir = dirOf(doc.key);
     for (const m of doc.members) {
-      const k = joinNorm(dir, m.path);
+      const k = resolveKey(site, dir, m.path);
       site.usedBy.set(k, [...(site.usedBy.get(k) ?? []), { composite: doc.key, alias: m.alias }]);
     }
     const link = (adrs: string[], id: string) => {
       for (const a of adrs) {
-        const k = joinNorm(dir, a);
+        const k = resolveKey(site, dir, a);
         site.linkedFrom.set(k, [...(site.linkedFrom.get(k) ?? []), { spec: doc.key, id }]);
       }
     };
@@ -773,8 +801,10 @@ function readOr(p: string): string | null {
 export function runDocs(args: string[]): CmdResult {
   let check = false;
   const positionals: string[] = [];
+  const adrDirs: string[] = [];
   for (const a of args) {
     if (a === "--check") check = true;
+    else if (a.startsWith("--adrs=")) adrDirs.push(a.slice("--adrs=".length));
     else if (a.startsWith("-")) return die(`unknown flag for docs: ${a}`);
     else positionals.push(a);
   }
@@ -805,7 +835,19 @@ export function runDocs(args: string[]): CmdResult {
     return die(`TARGET ${target} contains SRC ${src}: a run would erase the specs`);
   }
 
-  const built = buildSite(src, targetAbs);
+  for (const d of adrDirs) {
+    try {
+      if (!Deno.statSync(d).isDirectory) return die(`--adrs is not a directory: ${d}`);
+    } catch {
+      return die(`--adrs directory not found: ${d}`);
+    }
+    const dAbs = absPath(d);
+    if (dAbs === targetAbs || dAbs.startsWith(targetAbs + "/")) {
+      return die(`TARGET ${target} contains --adrs ${d}: a run would erase the records`);
+    }
+  }
+
+  const built = buildSite(src, targetAbs, adrDirs);
   if (typeof built === "string") return die(built);
   const { pages, skipped } = built;
   const skippedText = skipped.length === 0 ? "" : `skipped ${plural(skipped.length, "file")}:\n` +
@@ -871,16 +913,20 @@ export const docsCommand: Command = {
   help: `yamlet docs — render specs and decision records as Markdown pages
 
 Usage:
-  yamlet docs SRC TARGET [--check]
+  yamlet docs SRC TARGET [--adrs=DIR ...] [--check]
 
 Arguments:
   SRC      directory to scan for *.yamlet.yaml specs and *.adr.yaml decision records
   TARGET   directory to write the pages into (created if absent)
 
 Options:
-  --check  write nothing; compare TARGET with what a run would write and exit 1
-           if any page is missing, changed or no longer produced. Use it in CI so
-           committed pages cannot drift from their sources.
+  --adrs=DIR  also render the decision records under DIR, for records kept
+              outside SRC (e.g. a sibling adr/ directory). Repeatable. Records
+              under SRC are always rendered; their pages go under
+              decisions/<path below SRC>, these under decisions/<name of DIR>/.
+  --check     write nothing; compare TARGET with what a run would write and exit
+              1 if any page is missing, changed or no longer produced. Use it in
+              CI so committed pages cannot drift from their sources.
 
 Writes, for readers who never run yamlet (teammates, stakeholders, a browser on
 the code host):
@@ -899,7 +945,7 @@ The pages are a view; the YAML stays the source. Every page says so in its
 first line and links its source file. TARGET is a yamlet-owned directory: every
 run wipes it and rebuilds, so a renamed or deleted spec leaves no orphan page. A
 non-empty TARGET without a generated index.md is refused rather than erased, and
-so is a TARGET that contains SRC.
+so is a TARGET that contains SRC or a --adrs directory.
 
 It parses, it does not validate: an unparseable file is skipped and listed, and
 a link that resolves to nothing renders as plain text. Run \`yamlet verify\` first.

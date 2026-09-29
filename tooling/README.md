@@ -97,12 +97,14 @@ yamlet tests SRC TARGET                            -> project every scope's acce
                                                       Outlines) plus a manifest.json of per-scenario binding obligations.
                                                       Wipes and rebuilds TARGET each run; emits features and stops; step
                                                       defs belong to the consumer, in their own directory
-yamlet docs SRC TARGET [--check]                   -> render specs and decision records as Markdown for people: an
+yamlet docs SRC TARGET [--adrs=DIR ...] [--check]
+                                                   -> render specs and decision records as Markdown for people: an
                                                       index, TARGET/<system>/<scope>.md per spec, and
                                                       TARGET/decisions/<path>.md per ADR in any status. Tech specs
-                                                      are not rendered. Wipes and rebuilds TARGET (refuses one it
-                                                      did not write, or one containing SRC); --check writes nothing
-                                                      and exits 1 when TARGET differs from what a run would write
+                                                      are not rendered. --adrs=DIR adds records kept outside SRC.
+                                                      Wipes and rebuilds TARGET (refuses one it did not write, or one
+                                                      containing SRC or a --adrs DIR); --check writes nothing and
+                                                      exits 1 when TARGET differs from what a run would write
 yamlet init FILE --system s --topic t --summary s --description d \
                  --blast-radius low|medium|high --front internal|external \
                  [--expose-name n --expose-intent i --input NAME... --output NAME...]
@@ -463,13 +465,15 @@ longer produced, without writing anything.
 ```sh
 yamlet docs specs docs/specs            # write (or rebuild) the pages
 yamlet docs specs docs/specs --check    # in CI: fail when the pages lag the specs
+yamlet docs specs docs/specs --adrs=adr # records kept beside the specs, not inside
 ```
 
 `TARGET` is yamlet-owned, as for `yamlet tests`: each run wipes and rebuilds it, so a renamed or
 deleted spec leaves no orphan page. A docs directory is a plausible home for hand-written pages, so
 the wipe is guarded: a non-empty `TARGET` whose `index.md` does not carry the generated marker is
-refused, and so is a `TARGET` that contains `SRC`. Page paths collide only when two specs of one
-system share a basename (or two ADRs share a path), and that aborts before anything is written.
+refused, and so is a `TARGET` that contains `SRC` or a `--adrs` directory. Page paths collide only
+when two specs of one system share a basename (or two ADRs share a path), and that aborts before
+anything is written.
 
 ## Architecture
 

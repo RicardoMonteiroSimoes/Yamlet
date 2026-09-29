@@ -279,8 +279,8 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 	// docs: two positionals, --check only when asked.
 	await tools.get("yamlet_docs").execute("id", { src: "@specs", target: "@docs/specs" }, undefined, undefined, ctx);
 	ok("docs argv", same(calls.at(-1), ["yamlet", "docs", "specs", "docs/specs"]), JSON.stringify(calls.at(-1)));
-	await tools.get("yamlet_docs").execute("id", { src: "specs", target: "docs/specs", check: true }, undefined, undefined, ctx);
-	ok("docs --check argv", same(calls.at(-1), ["yamlet", "docs", "specs", "docs/specs", "--check"]),
+	await tools.get("yamlet_docs").execute("id", { src: "specs", target: "docs/specs", adrs: ["@adr", "more"], check: true }, undefined, undefined, ctx);
+	ok("docs --adrs/--check argv", same(calls.at(-1), ["yamlet", "docs", "specs", "docs/specs", "--adrs=adr", "--adrs=more", "--check"]),
 		JSON.stringify(calls.at(-1)));
 }
 
