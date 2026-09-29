@@ -9,6 +9,8 @@
 //   yamlet impact FILE [DIR] [--format=human|json]
 //   yamlet graph FILE|DIR --out=FILE [--format=dot|json|html] [--recursive]
 //   yamlet trace [DIR] --out=FILE [--format=html|json] [--techspec=FILE ...]
+//   yamlet tests SRC TARGET
+//   yamlet docs SRC TARGET [--check]
 //   yamlet init FILE ...
 //   yamlet add-requirement FILE --description "..."
 //   yamlet add-criterion FILE --rq RQ-N --pattern P ...
@@ -16,7 +18,7 @@
 //   yamlet techspec init|analysis|criterion|obligation|task ...
 //   yamlet adr init|add-force|add-basis|add-dimension|add-option|decide|... ...
 //
-// Exit codes: 0 success · 1 verify found errors · 2 usage/validation · 3 mutation
+// Exit codes: 0 success · 1 verify found errors (or docs --check found drift) · 2 usage/validation · 3 mutation
 // rolled back by the commit gate.
 //
 // Commands are a data-driven registry: each command module exports a self-
@@ -42,6 +44,7 @@ import { impactCommand } from "./src/impact.ts";
 import { graphCommand } from "./src/graph.ts";
 import { traceCommand } from "./src/trace.ts";
 import { testsCommand } from "./src/tests.ts";
+import { docsCommand } from "./src/docs.ts";
 import { helpFor, USAGE } from "./src/help.ts";
 import { VERSION } from "./src/version.ts";
 import type { CmdResult, Command } from "./src/types.ts";
@@ -160,6 +163,7 @@ export const COMMANDS: Command[] = [
   graphCommand,
   traceCommand,
   testsCommand,
+  docsCommand,
   initCommand,
   addComponentCommand,
   addConnectionCommand,

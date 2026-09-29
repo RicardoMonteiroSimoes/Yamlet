@@ -118,6 +118,7 @@ Every write goes through the CLI. It allocates all IDs (`RQ-1`, `AC-3`, `T-2`,
 | `yamlet graph [FILE\|DIR] --out=F` | DOT, JSON, or interactive HTML view of a spec or a whole directory |
 | `yamlet trace [DIR] --out=F` | interactive HTML (or JSON) trace: criteria → verdicts → ADRs → tasks, per spec |
 | `yamlet tests SRC TARGET` | project every criterion into a Gherkin `.feature` tree |
+| `yamlet docs SRC TARGET` | render specs and decision records as Markdown pages for readers who never run yamlet; `--check` fails when committed pages are stale |
 | `yamlet init` · `add-requirement` · `add-criterion` | author a spec |
 | `yamlet add-component` · `add-connection` | wire a composite |
 | `yamlet add-adr` | link a decision record to a requirement or criterion |

@@ -13,6 +13,7 @@
     "tests/oracle/",
     "tests/oracle-author/",
     "tests/oracle-gherkin/",
+    "tests/oracle-docs/",
     "tests/verifier-fixtures/",
     "tests/trace-fixtures/",
     "src/viewer/vendor/"

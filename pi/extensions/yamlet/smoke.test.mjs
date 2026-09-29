@@ -48,6 +48,7 @@ Commands:
   graph             write a DOT, JSON, or HTML graph model of a spec or a directory to a file
   trace             write a traceability model (specs → criteria → ADRs → tasks) of a directory
   tests             project spec acceptance criteria into Gherkin feature files
+  docs              render specs and decision records as Markdown pages for people
   init              create a new spec, correct by construction
   add-component     declare a composite member (echoes its contract)
   add-connection    wire a composite member's inputs (or the composite outputs)
@@ -63,7 +64,9 @@ Commands:
 const OLD_SYSTEMS = (h) => h.replace(/  systems .*\n/, "  systems           list existing systems grouped by their scope files\n");
 // The release before ADR revision (remove, replace, reject --reason): \`adr\` is there, its summary says only "write".
 const OLD_ADR = (h) => h.replace(/  adr .*\n/, "  adr               write a decision record (.adr.yaml), correct by construction\n");
-const HELP_0_5 = OLD_ADR(OLD_SYSTEMS(HELP));
+// The release before \`docs\`.
+const HELP_0_5_1 = HELP.replace(/  docs .*\n/, "");
+const HELP_0_5 = OLD_ADR(OLD_SYSTEMS(HELP_0_5_1));
 
 // The release before tech specs and decision records: every authoring command,
 // none of the planning ones.
@@ -138,7 +141,7 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 {
 	const { tools } = makePi();
 	const names = [...tools.keys()].sort();
-	ok("33 tools registered", names.length === 33, names.join(","));
+	ok("34 tools registered", names.length === 34, names.join(","));
 	ok("impact and guide are registered",
 		names.includes("yamlet_impact") && names.includes("yamlet_guide"), names.join(","));
 	const planning = [
@@ -272,6 +275,13 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 		JSON.stringify(calls.at(-1)));
 	ok("trace schema requires out", tools.get("yamlet_trace").parameters.required?.includes("out") === true,
 		JSON.stringify(tools.get("yamlet_trace").parameters.required));
+
+	// docs: two positionals, --check only when asked.
+	await tools.get("yamlet_docs").execute("id", { src: "@specs", target: "@docs/specs" }, undefined, undefined, ctx);
+	ok("docs argv", same(calls.at(-1), ["yamlet", "docs", "specs", "docs/specs"]), JSON.stringify(calls.at(-1)));
+	await tools.get("yamlet_docs").execute("id", { src: "specs", target: "docs/specs", check: true }, undefined, undefined, ctx);
+	ok("docs --check argv", same(calls.at(-1), ["yamlet", "docs", "specs", "docs/specs", "--check"]),
+		JSON.stringify(calls.at(-1)));
 }
 
 // ── 2b. yamlet_guide serves the skills' procedures ─────────────────────────
@@ -678,13 +688,29 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 		notes[0]?.[0] === "error" && (notes[0]?.[1] ?? "").includes("add-connection") && (notes[0]?.[1] ?? "").includes("tests"), JSON.stringify(notes));
 }
 {
+	// The release before \`docs\` must keep loading: one warning naming it, and
+	// yamlet_docs fails with the upgrade hint before running.
+	resetNotes();
+	const { handlers, tools, calls } = makePi({ help: HELP_0_5_1 });
+	await handlers.session_start({}, ctx);
+	ok("0.5.1 CLI: one startup warning naming docs",
+		notes.length === 1 && notes[0][0] === "warning" && notes[0][1].includes("no docs command") &&
+		notes[0][1].includes("Markdown docs"), JSON.stringify(notes));
+	const before = calls.length;
+	let msg = "";
+	try { await tools.get("yamlet_docs").execute("id", { src: "s", target: "t" }, undefined, undefined, ctx); } catch (e) { msg = e.message; }
+	ok("0.5.1 CLI: yamlet_docs fails with the upgrade hint, before running",
+		msg.includes("needs: docs.") && msg.includes("brew upgrade yamlet") &&
+		!calls.slice(before).some((c) => c[1] === "docs"), msg || JSON.stringify(calls.slice(before)));
+}
+{
 	// The release before \`systems --criteria\`: one warning naming it; systems
 	// with the flag is refused up front, without it still runs.
 	resetNotes();
 	const { handlers, tools, calls } = makePi({ help: HELP_0_5 });
 	await handlers.session_start({}, ctx);
 	ok("0.5 CLI: one startup warning naming systems --criteria and adr revise",
-		notes.length === 1 && notes[0][0] === "warning" && notes[0][1].includes("no systems --criteria/adr revise command") &&
+		notes.length === 1 && notes[0][0] === "warning" && notes[0][1].includes("no systems --criteria/adr revise/docs command") &&
 		notes[0][1].includes("system criteria") && notes[0][1].includes("ADR revision"), JSON.stringify(notes));
 	const before = calls.length;
 	let msg = "";
@@ -760,7 +786,7 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 	const { handlers, tools, calls } = makePi({ help: HELP_0_4_0 });
 	await handlers.session_start({}, ctx);
 	ok("0.4.0 CLI: one startup warning naming trace, the one-spec techspec and add-state, not adr",
-		notes.length === 1 && notes[0][0] === "warning" && notes[0][1].includes("no techspec/trace/add-state/systems --criteria/adr revise command") && notes[0][1].includes("stored state") &&
+		notes.length === 1 && notes[0][0] === "warning" && notes[0][1].includes("no techspec/trace/add-state/systems --criteria/adr revise/docs command") && notes[0][1].includes("stored state") &&
 		notes[0][1].includes("traceability") && notes[0][1].includes("tech spec") &&
 		!notes[0][1].includes("decision record"), JSON.stringify(notes));
 	// (\`adr\` itself is there — only its revision commands are missing, and that is "ADR revision".)

@@ -85,7 +85,7 @@ ones need a restart or `/reload`.
 | `yamlet_systems` | `yamlet_init` | `yamlet_tests` | `yamlet_techspec_init` | `yamlet_adr_init` |
 | `yamlet_verify` | `yamlet_add_component` | `yamlet_graph` | `yamlet_techspec_analysis` | `yamlet_adr_add_force` |
 | `yamlet_impact` | `yamlet_add_connection` | `yamlet_trace` | `yamlet_techspec_criterion` | `yamlet_adr_add_basis` |
-| `yamlet_guide` | `yamlet_add_requirement` | | `yamlet_techspec_obligation` | `yamlet_adr_add_dimension` |
+| `yamlet_guide` | `yamlet_add_requirement` | `yamlet_docs` | `yamlet_techspec_obligation` | `yamlet_adr_add_dimension` |
 | | `yamlet_add_criterion` | | `yamlet_techspec_task` | `yamlet_adr_add_option` |
 | | `yamlet_add_adr` | | | `yamlet_adr_decide` |
 | | `yamlet_add_state` | | | `yamlet_adr_add_obligation` |
@@ -105,7 +105,7 @@ code root, so the SHA is what git says and never a remembered string; pass
 `commit` only to pin a different one.
 
 The **project** column writes yamlet-owned artifacts — a Gherkin tree, a graph, a
-trace page — and never a spec. All three take their destination as a required argument and return
+trace page, a tree of Markdown pages — and never a spec. All four take their destination as a required argument and return
 only a summary of what they wrote. For `yamlet_graph` and `yamlet_trace` that is the whole point:
 `--format=html` is a whole viewer before the first spec (tens of KB, ~1.6 MB
 with `--libs=embed`), so returning the payload as a tool result would burn the
@@ -208,9 +208,10 @@ Honest residue, in descending order of how much it should bother you:
    and drops the rest, so the skills here carry no `allowed-tools` line — an inert
    field that looks like a permission boundary is worse than no field. Tool scoping
    exists only at the subagent boundary and in the extension's gate.
-3. **`yamlet_tests` wipes its target directory.** That is the design (the projection
-   can never drift), but it is a destructive call reachable by a tool, so the tool
-   carries a `promptGuidelines` warning and the skill refuses to guess a directory.
+3. **`yamlet_tests` and `yamlet_docs` wipe their target directory.** That is the design
+   (the projection can never leave an orphan), but it is a destructive call reachable by
+   a tool, so both tools carry a `promptGuidelines` warning, the tester skill refuses to
+   guess a directory, and `docs` itself refuses a non-empty target it did not write.
 
 ## Layout
 
