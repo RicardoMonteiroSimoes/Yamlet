@@ -105,4 +105,4 @@ When you hit one of these, say which change is blocked, why, and what you did in
 
 Once the change is committed, return to `SKILL.md` and run its closing steps: read the file back to the user, **verify**, then **project the tests**.
 
-The test projection matters more after an edit than after a creation: it regenerates the whole tree, so a changed scenario's step definitions may now be orphaned or unbound. Bring the tester's report back to the user and say which scenarios changed.
+The test projection matters more after an edit than after a creation: it regenerates the whole tree, so a changed scenario's step definitions may now be orphaned or unbound. Bring the refresh report back to the user and say which scenarios changed.

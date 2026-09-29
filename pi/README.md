@@ -210,7 +210,7 @@ Honest residue, in descending order of how much it should bother you:
    exists only at the subagent boundary and in the extension's gate.
 3. **`yamlet_tests` and `yamlet_docs` wipe their target directory.** That is the design
    (the projection can never leave an orphan), but it is a destructive call reachable by
-   a tool, so both tools carry a `promptGuidelines` warning, the tester skill refuses to
+   a tool, so both tools carry a `promptGuidelines` warning, the refresh skill refuses to
    guess a directory, and `docs` itself refuses a non-empty target it did not write.
 
 ## Layout
@@ -240,7 +240,7 @@ pi/
     │       ├── composites.md           #   members and wiring
     │       └── patterns.md             #   EARS patterns and {token} kinds
     ├── yamlet-verifier/SKILL.md
-    ├── yamlet-tester/SKILL.md
+    ├── yamlet-refresh/SKILL.md
     ├── yamlet-techspec/
     │   ├── SKILL.md                    # one plan per change: verdicts, then tasks, through yamlet_techspec_*
     │   └── references/decisions.md     # the decision gate (served as `decisions`)
@@ -271,7 +271,7 @@ question.** A pi subagent therefore runs headless and cannot interview anyone.
 | `yamlet-contract-challenger` (`context: fork`) | **agent** | Autonomous reviewer, takes a serialized proposal, returns a report. Exactly what a subagent is for. |
 | `yamlet-criteria-challenger` (`context: fork`) | **agent** | Same. |
 | `yamlet-verifier` skill | **skill** | In Claude Code the `` !`cmd` `` body pre-executes and the output is already in the prompt. pi has no equivalent, so it becomes "call the tool, then interpret." |
-| `yamlet-tester` skill | **skill** | Same. |
+| `yamlet-refresh` skill | **skill** | Same. |
 | `yamlet-techspec` skill | **skill** | It puts the decision gate to the user and relays every `DECIDED` notice. Stays where the human is. |
 | `yamlet-code-research` (`context: fork`) | **agent** | Autonomous: a code root and one requirement in, `file:line` facts out. `tools: read, grep, find, ls`, `extensions: false`. |
 | `yamlet-evidence-challenger` (`context: fork`) | **agent** | Autonomous, and narrower still: `tools: read` only, so it can check the offered references and cannot go looking for others. |

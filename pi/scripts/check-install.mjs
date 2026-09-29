@@ -43,7 +43,7 @@ for (const err of [...(extResult?.errors ?? []), ...(skillResult?.errors ?? [])]
 const failures = [];
 const ext = extensions.filter((p) => p.replace(/\\/g, "/").endsWith("/pi/extensions/yamlet/index.ts"));
 if (ext.length !== 1) failures.push(`expected exactly one yamlet extension, got: ${JSON.stringify(extensions)}`);
-for (const name of ["yamlet-author", "yamlet-verifier", "yamlet-tester", "yamlet-techspec", "yamlet-adr"]) {
+for (const name of ["yamlet-author", "yamlet-verifier", "yamlet-refresh", "yamlet-techspec", "yamlet-adr"]) {
 	if (!skills.has(name)) failures.push(`skill not resolved: ${name}`);
 }
 const strays = [...skills.keys()].filter((n) => !n.startsWith("yamlet-"));
