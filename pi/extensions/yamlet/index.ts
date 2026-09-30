@@ -97,7 +97,7 @@ const REQUIRED_COMMANDS = [
 /**
  * Subcommands that arrived after the authoring set, each with the tools that
  * need it: the planning tools (`yamlet_add_adr`, `yamlet_techspec_*`,
- * `yamlet_adr_*`) and `yamlet_trace`. A CLI that has the required commands but
+ * `yamlet_adr_*`), `yamlet_trace` and `yamlet_docs`. A CLI that has the required commands but
  * not these is *older*, not broken: the authoring tools keep working, and only
  * a tool call that needs a missing command fails — with the upgrade hint, not a
  * raw usage error — so a user on a previous release loses nothing they had.
@@ -114,6 +114,7 @@ const OPTIONAL_COMMANDS: Record<string, string> = {
 	// Revising a proposed record (remove, replace, a late dimension) and a reject
 	// that says why: present once `adr`'s summary says "revise".
 	"adr revise": "ADR revision",
+	docs: "Markdown docs",
 };
 
 /**
@@ -880,6 +881,30 @@ export default function (pi: ExtensionAPI) {
 		}),
 		async execute(_id, params, signal, _onUpdate, ctx) {
 			return run(ctx, ["tests", cleanPath(params.src), cleanPath(params.target)], signal);
+		},
+	});
+
+	pi.registerTool({
+		name: "yamlet_docs",
+		label: "yamlet docs",
+		description:
+			"Render the specs and decision records in `src` as Markdown pages in `target`. With `check`, " +
+			"write nothing; exit 1 if the pages are stale.",
+		promptSnippet: "Render specs and ADRs as Markdown pages",
+		promptGuidelines: [
+			"yamlet_docs wipes and rebuilds its target — confirm it first; never hand-edit the pages.",
+		],
+		parameters: Type.Object({
+			src: Type.String({ description: "Specs directory" }),
+			target: Type.String({ description: "Pages directory — WIPED on every run" }),
+			adrs: Type.Optional(Type.Array(Type.String(), { description: "Record directories outside src" })),
+			check: Type.Optional(Type.Boolean({ description: "Compare only; exit 1 if stale" })),
+		}),
+		async execute(_id, params, signal, _onUpdate, ctx) {
+			const args = ["docs", cleanPath(params.src), cleanPath(params.target)];
+			for (const d of params.adrs ?? []) args.push(`--adrs=${cleanPath(d)}`);
+			if (params.check) args.push("--check");
+			return run(ctx, args, signal);
 		},
 	});
 

@@ -29,7 +29,7 @@ Run \`yamlet --version\` to print the version.
 
 Exit codes:
   0  success
-  1  verify found errors
+  1  verify found errors, or docs --check found stale pages
   2  usage or validation error (nothing written)
   3  a mutation produced an unexpected finding and was rolled back
 `;

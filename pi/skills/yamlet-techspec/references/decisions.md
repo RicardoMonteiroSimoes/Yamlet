@@ -19,7 +19,7 @@ yamlet_add_adr({ file: SPEC, adr: "adr/ADR-0007-parser.adr.yaml", rq: "RQ-5" })
 yamlet_add_adr({ file: SPEC, adr: "adr/ADR-0007-parser.adr.yaml", ac: "AC-8" })
 ```
 
-`rq` when the decision covers every criterion of the requirement, `ac` when it is specific to one — exactly one of the two. Then `yamlet_verify({ file: SPEC })` must report `OK`.
+`rq` when the decision covers every criterion of the requirement, `ac` when it is specific to one — exactly one of the two. Then `yamlet_verify({ file: SPEC })` must report `OK`; then the `yamlet-refresh` skill.
 
 ## 4. Account for what it obliges
 
@@ -27,4 +27,4 @@ An accepted record's obligations (`ADR-nnnn#R-n`) are work, judged like criteria
 
 ## 5. Superseding
 
-A record that no longer holds is not edited. `yamlet-adr` writes the successor (`assumes` the old id), then `yamlet_adr_supersede({ file: OLD, by: "ADR-nnnn" })`, then `yamlet_add_adr` the new record where the old one was linked.
+A record that no longer holds is not edited. `yamlet-adr` writes the successor (`assumes` the old id), then `yamlet_adr_supersede({ file: OLD, by: "ADR-nnnn" })`, then `yamlet_add_adr` the new record where the old one was linked, then the `yamlet-refresh` skill.

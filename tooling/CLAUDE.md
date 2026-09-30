@@ -52,6 +52,8 @@ src/impact.ts     `yamlet impact` — reverse dependency index: which composites
 src/graph.ts      `yamlet graph` -> DOT | JSON model | HTML viewer (read-only)
 src/trace.ts      `yamlet trace` -> traceability model (spec/techspec/ADR) as JSON | HTML viewer (read-only)
 src/tests.ts      `yamlet tests` -> project criteria into Gherkin .feature files + binding manifest.json (wipes + rebuilds TARGET)
+src/docs.ts       `yamlet docs` -> specs + ADRs as Markdown pages for people (wipes + rebuilds TARGET, guarded;
+                  --check for CI). Tech specs are deliberately not rendered
 src/viewer/       the HTML viewers (graph + trace pages, shared common.js/viewer.css, assembler); elk vendored.
                   The whole directory is `--include`d by deno.json's compile task and
                   scripts/build-release.sh; the release build smoke-tests the HTML output
@@ -75,6 +77,9 @@ rolled back.
 - `tests/oracle-gherkin/**/*.feature` + `manifest.json` — exact `yamlet tests` feature tree and
   binding manifest for `specs_example/`; `gherkin_test.ts` replays. Re-freeze:
   `gen-gherkin-oracle.ts`.
+- `tests/oracle-docs/{specs_example,trace-fixtures}/**/*.md` — exact `yamlet docs` pages;
+  `docs_test.ts` replays them in place with `--check` (pages link sources relatively). Re-freeze:
+  `gen-docs-oracle.ts`.
 
 Oracle dirs are captured data — excluded from fmt/lint. A moved oracle without an intentional rule
 change is a regression, not a re-freeze.

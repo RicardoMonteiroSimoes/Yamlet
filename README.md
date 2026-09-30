@@ -91,7 +91,7 @@ Ten skills, bundled as the `yamlet-skills` plugin under
 | `yamlet-contract-challenger` | gate before `yamlet init` freezes the contract |
 | `yamlet-criteria-challenger` | gate before each requirement is committed |
 | `yamlet-verifier` | runs `yamlet verify`, reports violations by rule ID |
-| `yamlet-tester` | regenerates the Gherkin `.feature` tree |
+| `yamlet-refresh` | regenerates the Gherkin `.feature` tree and the Markdown docs pages |
 | `yamlet-techspec` | one plan per change across a system's specs: verdicts, then tasks; the second entry point |
 | `yamlet-code-research` | finds where each criterion (and ADR obligation) lives in the code; documents, never judges |
 | `yamlet-evidence-challenger` | gate before a criterion or obligation is recorded as met |
@@ -118,6 +118,7 @@ Every write goes through the CLI. It allocates all IDs (`RQ-1`, `AC-3`, `T-2`,
 | `yamlet graph [FILE\|DIR] --out=F` | DOT, JSON, or interactive HTML view of a spec or a whole directory |
 | `yamlet trace [DIR] --out=F` | interactive HTML (or JSON) trace: criteria → verdicts → ADRs → tasks, per spec |
 | `yamlet tests SRC TARGET` | project every criterion into a Gherkin `.feature` tree |
+| `yamlet docs SRC TARGET` | render specs and decision records as Markdown pages for readers who never run yamlet; `--check` fails when committed pages are stale |
 | `yamlet init` · `add-requirement` · `add-criterion` | author a spec |
 | `yamlet add-component` · `add-connection` | wire a composite |
 | `yamlet add-adr` | link a decision record to a requirement or criterion |

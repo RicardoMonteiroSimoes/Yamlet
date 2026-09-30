@@ -85,7 +85,7 @@ ones need a restart or `/reload`.
 | `yamlet_systems` | `yamlet_init` | `yamlet_tests` | `yamlet_techspec_init` | `yamlet_adr_init` |
 | `yamlet_verify` | `yamlet_add_component` | `yamlet_graph` | `yamlet_techspec_analysis` | `yamlet_adr_add_force` |
 | `yamlet_impact` | `yamlet_add_connection` | `yamlet_trace` | `yamlet_techspec_criterion` | `yamlet_adr_add_basis` |
-| `yamlet_guide` | `yamlet_add_requirement` | | `yamlet_techspec_obligation` | `yamlet_adr_add_dimension` |
+| `yamlet_guide` | `yamlet_add_requirement` | `yamlet_docs` | `yamlet_techspec_obligation` | `yamlet_adr_add_dimension` |
 | | `yamlet_add_criterion` | | `yamlet_techspec_task` | `yamlet_adr_add_option` |
 | | `yamlet_add_adr` | | | `yamlet_adr_decide` |
 | | `yamlet_add_state` | | | `yamlet_adr_add_obligation` |
@@ -105,7 +105,7 @@ code root, so the SHA is what git says and never a remembered string; pass
 `commit` only to pin a different one.
 
 The **project** column writes yamlet-owned artifacts — a Gherkin tree, a graph, a
-trace page — and never a spec. All three take their destination as a required argument and return
+trace page, a tree of Markdown pages — and never a spec. All four take their destination as a required argument and return
 only a summary of what they wrote. For `yamlet_graph` and `yamlet_trace` that is the whole point:
 `--format=html` is a whole viewer before the first spec (tens of KB, ~1.6 MB
 with `--libs=embed`), so returning the payload as a tool result would burn the
@@ -208,9 +208,10 @@ Honest residue, in descending order of how much it should bother you:
    and drops the rest, so the skills here carry no `allowed-tools` line — an inert
    field that looks like a permission boundary is worse than no field. Tool scoping
    exists only at the subagent boundary and in the extension's gate.
-3. **`yamlet_tests` wipes its target directory.** That is the design (the projection
-   can never drift), but it is a destructive call reachable by a tool, so the tool
-   carries a `promptGuidelines` warning and the skill refuses to guess a directory.
+3. **`yamlet_tests` and `yamlet_docs` wipe their target directory.** That is the design
+   (the projection can never leave an orphan), but it is a destructive call reachable by
+   a tool, so both tools carry a `promptGuidelines` warning, the refresh skill refuses to
+   guess a directory, and `docs` itself refuses a non-empty target it did not write.
 
 ## Layout
 
@@ -239,7 +240,7 @@ pi/
     │       ├── composites.md           #   members and wiring
     │       └── patterns.md             #   EARS patterns and {token} kinds
     ├── yamlet-verifier/SKILL.md
-    ├── yamlet-tester/SKILL.md
+    ├── yamlet-refresh/SKILL.md
     ├── yamlet-techspec/
     │   ├── SKILL.md                    # one plan per change: verdicts, then tasks, through yamlet_techspec_*
     │   └── references/decisions.md     # the decision gate (served as `decisions`)
@@ -270,7 +271,7 @@ question.** A pi subagent therefore runs headless and cannot interview anyone.
 | `yamlet-contract-challenger` (`context: fork`) | **agent** | Autonomous reviewer, takes a serialized proposal, returns a report. Exactly what a subagent is for. |
 | `yamlet-criteria-challenger` (`context: fork`) | **agent** | Same. |
 | `yamlet-verifier` skill | **skill** | In Claude Code the `` !`cmd` `` body pre-executes and the output is already in the prompt. pi has no equivalent, so it becomes "call the tool, then interpret." |
-| `yamlet-tester` skill | **skill** | Same. |
+| `yamlet-refresh` skill | **skill** | Same. |
 | `yamlet-techspec` skill | **skill** | It puts the decision gate to the user and relays every `DECIDED` notice. Stays where the human is. |
 | `yamlet-code-research` (`context: fork`) | **agent** | Autonomous: a code root and one requirement in, `file:line` facts out. `tools: read, grep, find, ls`, `extensions: false`. |
 | `yamlet-evidence-challenger` (`context: fork`) | **agent** | Autonomous, and narrower still: `tools: read` only, so it can check the offered references and cannot go looking for others. |

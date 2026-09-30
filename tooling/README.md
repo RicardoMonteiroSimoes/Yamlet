@@ -97,6 +97,14 @@ yamlet tests SRC TARGET                            -> project every scope's acce
                                                       Outlines) plus a manifest.json of per-scenario binding obligations.
                                                       Wipes and rebuilds TARGET each run; emits features and stops; step
                                                       defs belong to the consumer, in their own directory
+yamlet docs SRC TARGET [--adrs=DIR ...] [--check]
+                                                   -> render specs and decision records as Markdown for people: an
+                                                      index, TARGET/<system>/<scope>.md per spec, and
+                                                      TARGET/decisions/<path>.md per ADR in any status. Tech specs
+                                                      are not rendered. --adrs=DIR adds records kept outside SRC.
+                                                      Wipes and rebuilds TARGET (refuses one it did not write, or one
+                                                      containing SRC or a --adrs DIR); --check writes nothing and
+                                                      exits 1 when TARGET differs from what a run would write
 yamlet init FILE --system s --topic t --summary s --description d \
                  --blast-radius low|medium|high --front internal|external \
                  [--expose-name n --expose-intent i --input NAME... --output NAME...]
@@ -430,6 +438,43 @@ disconnected boundary. Only scenarios with at least one obligation appear (one w
 `yamlet verify`'s `W010`); a feature with none is omitted; when no feature is produced, no manifest
 is written.
 
+### The Markdown pages (`yamlet docs`)
+
+`trace` and `graph` answer questions for someone running the CLI; `yamlet docs SRC TARGET` is for
+the teammate or stakeholder who reads the repository in a browser and never runs yamlet. It renders
+committed Markdown that the code host displays as-is:
+
+| page                  | from                | shows                                                                                                                                                                                          |
+| --------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `index.md`            | the whole directory | systems and their scopes (summary, caller, blast radius), a Mermaid map of which composite holds which scope, every decision with its status                                                   |
+| `<system>/<scope>.md` | one `.yamlet.yaml`  | summary and description, the contract, members and wiring (Mermaid + table) for a composite, each criterion as an EARS sentence, linked decisions, composites using it                         |
+| `decisions/<path>.md` | one `.adr.yaml`     | status (a callout for proposed, rejected and superseded), question, forces, decision, obligations, accepted costs, revisit conditions, then the options and the dimensions they were judged on |
+
+Criterion prose keeps its references visible: `{input.file}` renders as `` `file` ``, a member
+reference as `` `alias.socket` ``, and an example-backed placeholder as `` `<key>` `` above its
+examples table. Every record renders, whatever its status — a rejected or superseded record is the
+history a reader needs to understand why the current one exists. **Tech specs are not rendered**:
+they are disposable plans, and a committed page would outlive the plan it shows.
+
+The pages are a view, never a source. Each opens with a "generated, do not edit" comment and links
+its source file; the fix for a wrong page is a change to the YAML and a re-run. Because the output
+is meant to be committed, it can go stale, so `--check` exists for CI: it builds every page in
+memory, compares with `TARGET`, and exits `1` listing each page that is missing, changed or no
+longer produced, without writing anything.
+
+```sh
+yamlet docs specs docs/specs            # write (or rebuild) the pages
+yamlet docs specs docs/specs --check    # in CI: fail when the pages lag the specs
+yamlet docs specs docs/specs --adrs=adr # records kept beside the specs, not inside
+```
+
+`TARGET` is yamlet-owned, as for `yamlet tests`: each run wipes and rebuilds it, so a renamed or
+deleted spec leaves no orphan page. A docs directory is a plausible home for hand-written pages, so
+the wipe is guarded: a non-empty `TARGET` whose `index.md` does not carry the generated marker is
+refused, and so is a `TARGET` that contains `SRC` or a `--adrs` directory. Page paths collide only
+when two specs of one system share a basename (or two ADRs share a path), and that aborts before
+anything is written.
+
 ## Architecture
 
 ```
@@ -441,6 +486,7 @@ src/blocks.ts          address an existing RQ-N/AC-N by id and know its line ext
 src/graph.ts           `yamlet graph` — write DOT, the JSON graph model, or the HTML viewer to --out
 src/trace.ts           `yamlet trace` — the traceability model (specs, verdicts, ADRs, tasks) as JSON or the HTML viewer
 src/tests.ts           `yamlet tests` — project criteria into Gherkin `.feature` files + a binding manifest (wipes + rebuilds TARGET)
+src/docs.ts            `yamlet docs` — render specs and ADRs as Markdown pages (wipes + rebuilds TARGET; --check for CI)
 src/viewer/            the HTML viewers (graph: template.html + viewer.js; trace: trace.html + trace.js/.css),
                        their shared `common.js` helpers + `viewer.css`, the `html.ts` assembler; elk vendored
 src/types.ts           shared shapes (Finding, FlatRecord, Result, Command, CmdResult, …)
@@ -503,6 +549,11 @@ first two were once captured from has been retired):
   into a temp dir and asserts a byte-identical tree, the manifest's per-scenario obligations, plus
   the wipe/skip/usage paths. Re-freeze after a projection or example-spec change with
   `deno run --allow-read --allow-write tests/gen-gherkin-oracle.ts`.
+- **docs** — `tests/oracle-docs/{specs_example,trace-fixtures}/**/*.md`: the exact pages
+  `yamlet docs` renders for `specs_example/` and for `tests/trace-fixtures/` (ADRs in every status,
+  and a tech spec that must not be rendered). Pages link their sources relatively, so `docs_test.ts`
+  replays them in place with `--check`, then covers drift reporting and the wipe guards. Re-freeze
+  with `deno run --allow-read --allow-write tests/gen-docs-oracle.ts`.
 
 The oracle directories are excluded from `deno fmt`/`lint` (they are captured data, not source).
 

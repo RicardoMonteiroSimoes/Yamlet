@@ -10,7 +10,7 @@ description: >-
   the working directory). Use when specs are done and the question is "what is already there, and
   what do we build?". Not for writing or changing a spec — that is yamlet-author.
 argument-hint: <spec.yamlet.yaml>... [--since <git-ref>] [code-root]
-allowed-tools: Bash(yamlet:*), Bash(git rev-parse:*), Bash(git diff:*), Bash(git show:*), Read, Skill(yamlet-code-research *), Skill(yamlet-skills:yamlet-code-research *), Skill(yamlet-evidence-challenger *), Skill(yamlet-skills:yamlet-evidence-challenger *), Skill(yamlet-adr *), Skill(yamlet-skills:yamlet-adr *)
+allowed-tools: Bash(yamlet:*), Bash(git rev-parse:*), Bash(git diff:*), Bash(git show:*), Read, Skill(yamlet-code-research *), Skill(yamlet-skills:yamlet-code-research *), Skill(yamlet-evidence-challenger *), Skill(yamlet-skills:yamlet-evidence-challenger *), Skill(yamlet-adr *), Skill(yamlet-skills:yamlet-adr *), Skill(yamlet-refresh *), Skill(yamlet-skills:yamlet-refresh *)
 ---
 
 # Yamlet Tech Spec Skill

@@ -5,11 +5,11 @@ minimal, testable `.yamlet.yaml` specs with EARS acceptance criteria.
 
 | Skill | What it does |
 | --- | --- |
-| `yamlet-author` | Interviews you to build **or change** a spec, driving the `yamlet` CLI (never writing YAML directly). Routes on "new spec, or changing an existing one?" and loads the matching procedure from its `references/` directory. Orchestrates the challengers, verifier and tester below. |
+| `yamlet-author` | Interviews you to build **or change** a spec, driving the `yamlet` CLI (never writing YAML directly). Routes on "new spec, or changing an existing one?" and loads the matching procedure from its `references/` directory. Orchestrates the challengers, verifier and refresh below. |
 | `yamlet-contract-challenger` | Adversarial gate before `yamlet init` freezes a scope's contract. |
 | `yamlet-criteria-challenger` | Adversarial gate before each requirement + acceptance-criteria is committed. |
 | `yamlet-verifier` | Verifies a `.yamlet.yaml` against the format rules and reports violations. |
-| `yamlet-tester` | Projects a specs directory into a Gherkin `.feature` tree, wiping and rebuilding the target every run so the tests never drift. Disconnected: it writes features only, never step definitions. |
+| `yamlet-refresh` | Projects a specs directory into a Gherkin `.feature` tree and Markdown docs pages (specs and decision records), wiping and rebuilding both targets every run so neither drifts. Disconnected: it writes features and pages only, never step definitions or hand-written docs. |
 | `yamlet-techspec` | Plans one change across every **finished** spec it touches (one system, or only the criteria changed since a git ref): reads the code, records a verdict per criterion and per obligation of the linked decision records with `file:line` evidence, then one task list covering every unmet one — all through `yamlet techspec` into a disposable `.techspec.yaml`. Where a task needs a decision, it hands off to `yamlet-adr` and links the record into the spec with `yamlet add-adr`. Orchestrates the two below. |
 | `yamlet-code-research` | Read-only research inside the tech spec flow: per requirement, where each in-scope criterion's behaviour (and each obligation of the records deciding it) lives, what the code does there, deviations from each `shall`, related tests, where the code declares each stored field the criteria read or write and who writes it, and stored state a criterion touches without declaring it. Documents, never judges. |
 | `yamlet-evidence-challenger` | Adversarial gate before a criterion or obligation is recorded as met: opens exactly the offered `file:line` references and says, per `shall`, whether it is really satisfied there. Nothing else. |
