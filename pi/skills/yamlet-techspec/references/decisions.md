@@ -19,7 +19,7 @@ yamlet_add_adr({ file: SPEC, adr: "adr/ADR-0007-parser.adr.yaml", rq: "RQ-5" })
 yamlet_add_adr({ file: SPEC, adr: "adr/ADR-0007-parser.adr.yaml", ac: "AC-8" })
 ```
 
-`rq` when the decision covers every criterion of the requirement, `ac` when it is specific to one — exactly one of the two. Then `yamlet_verify({ file: SPEC })` must report `OK`; then load the `yamlet-refresh` skill and follow it against the specs directory (and the records directory, when it lies outside), so the features and the docs pages show the record and its link.
+`rq` when the decision covers every criterion of the requirement, `ac` when it is specific to one — exactly one of the two. Then `yamlet_verify({ file: SPEC })` must report `OK`; then the `yamlet-refresh` skill.
 
 ## 4. Account for what it obliges
 

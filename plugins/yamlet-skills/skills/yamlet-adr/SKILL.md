@@ -38,7 +38,7 @@ Turn a choice into a **decision record**: the question, the forces, the dimensio
 8. **What it obliges, costs, and when it stops being right.** Obligations are work, imperative voice (`add-obligation`); costs are taken knowingly and never discharged (`add-accept`); a revisit condition with a threshold names its number (`add-revisit`).
 9. **Challenge again.** `/yamlet-adr-challenger FILE --before-accept`; revise for its blockers, put the rest to the user (supersede after accepting; spec changes go to `yamlet-author`).
 10. **Accept.** `yamlet verify FILE` must print `OK`; then `yamlet adr accept FILE`. Say plainly that the record is now frozen, and that the spec must link it: `yamlet add-adr SPEC FILE --rq RQ-n | --ac AC-n` (the tech spec or author does this; if you are standalone, do it and verify the spec).
-11. **Refresh the derived pages.** A record's status and its links show up in the Markdown docs, so once the last change is made — accepted and linked, rejected, or superseded — invoke **`yamlet-refresh`** with the specs directory (`/yamlet-refresh <specs-dir>`), the same one the author flow refreshes. If the records directory is not inside it, pass the records directory too (the fourth argument; `adrs` on pi), or the record gets no page. Inside yamlet-techspec's decision gate, skip this: the gate links the record and refreshes after.
+11. **Refresh.** Standalone, after the last change (accepted and linked, rejected, superseded): `/yamlet-refresh <specs-dir>`, records outside it as the fourth argument. Inside yamlet-techspec's gate, skip — it refreshes after linking.
 
 ## Superseding
 

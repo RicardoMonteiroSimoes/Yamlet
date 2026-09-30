@@ -110,7 +110,7 @@ On an `E###`, work the correction back through the author tools. `yamlet_verify(
 
 ## Project the tests
 
-Once verification passes, load the **`yamlet-refresh`** skill and follow it against the specs **directory** — never a single file; the feature tree and the docs pages are whole-tree. Once, at the end, not per requirement. The work is not complete until it has run.
+Once verification passes, load the **`yamlet-refresh`** skill and follow it against the specs **directory** — never a single file; the projection is whole-tree. Once, at the end, not per requirement. The work is not complete until it has run.
 
 Carry its report back to the user: new or changed scenarios need step definitions, and those live in the consumer's own directory, never in the generated tree.
 

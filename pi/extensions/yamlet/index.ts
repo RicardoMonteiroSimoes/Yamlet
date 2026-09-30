@@ -888,22 +888,17 @@ export default function (pi: ExtensionAPI) {
 		name: "yamlet_docs",
 		label: "yamlet docs",
 		description:
-			"Render every spec and decision record in `src` as Markdown pages in `target` (an index, one page " +
-			"per scope, one per ADR in any status) for readers who never run yamlet. With `check`, write " +
-			"nothing and report the pages that are missing, changed or orphaned (exit 1).",
-		promptSnippet: "Render specs and ADRs as Markdown pages, or check committed pages are current",
+			"Render the specs and decision records in `src` as Markdown pages in `target`. With `check`, " +
+			"write nothing; exit 1 if the pages are stale.",
+		promptSnippet: "Render specs and ADRs as Markdown pages",
 		promptGuidelines: [
-			"yamlet_docs wipes and rebuilds its TARGET directory on every run (it refuses one it did not write) — confirm the target before calling it, and never hand-edit the pages: change the YAML and re-render.",
+			"yamlet_docs wipes and rebuilds its target — confirm it first; never hand-edit the pages.",
 		],
 		parameters: Type.Object({
-			src: Type.String({ description: "Directory to scan for *.yamlet.yaml specs and *.adr.yaml records" }),
-			target: Type.String({ description: "Directory to write the pages into — WIPED on every run" }),
-			adrs: Type.Optional(Type.Array(Type.String(), {
-				description: "Directories of decision records kept outside src (e.g. a sibling adr/); records under src are always read",
-			})),
-			check: Type.Optional(Type.Boolean({
-				description: "Write nothing; exit 1 if the pages in target differ from what a run would write",
-			})),
+			src: Type.String({ description: "Specs directory" }),
+			target: Type.String({ description: "Pages directory — WIPED on every run" }),
+			adrs: Type.Optional(Type.Array(Type.String(), { description: "Record directories outside src" })),
+			check: Type.Optional(Type.Boolean({ description: "Compare only; exit 1 if stale" })),
 		}),
 		async execute(_id, params, signal, _onUpdate, ctx) {
 			const args = ["docs", cleanPath(params.src), cleanPath(params.target)];
