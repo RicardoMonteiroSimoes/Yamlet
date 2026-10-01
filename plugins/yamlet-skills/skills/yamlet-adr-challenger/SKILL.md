@@ -1,4 +1,5 @@
 ---
+# Generated from skills/yamlet-adr-challenger/SKILL.md by scripts/build-skills.ts — edit the source, then rebuild.
 name: yamlet-adr-challenger
 description: >-
   Adversarial gate INSIDE the yamlet-adr flow, before options and before accept: checks the

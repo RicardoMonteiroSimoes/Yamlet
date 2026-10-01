@@ -1,4 +1,5 @@
 ---
+# Generated from skills/yamlet-code-research/SKILL.md by scripts/build-skills.ts — edit the source, then rebuild.
 description: >-
   Read-only code research used INSIDE the yamlet-techspec flow. Given a code root, a spec's contract
   and one requirement with its EARS criteria (plus the obligations of the ADRs deciding it), it finds
