@@ -1,4 +1,5 @@
 ---
+# Generated from skills/yamlet-evidence-challenger/SKILL.md by scripts/build-skills.ts — edit the source, then rebuild.
 description: >-
   Adversarial gate used INSIDE the yamlet-techspec flow, before a criterion or an ADR obligation is
   recorded as met. Given one EARS criterion (or obligation) and the exact `file:line` references
