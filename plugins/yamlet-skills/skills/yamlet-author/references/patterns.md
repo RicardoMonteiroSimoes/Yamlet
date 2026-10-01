@@ -1,3 +1,4 @@
+<!-- Generated from skills/yamlet-author/references/patterns.md by scripts/build-skills.ts — edit the source, then rebuild. -->
 # EARS patterns, tokens and examples
 
 Read this when you get to acceptance-criteria, whichever route you took.

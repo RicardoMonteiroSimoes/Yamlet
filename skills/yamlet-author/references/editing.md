@@ -1,7 +1,6 @@
-<!-- Generated from skills/yamlet-author/references/editing.md by scripts/build-skills.ts — edit the source, then rebuild. -->
 # Changing a spec that already exists
 
-The setup procedure for changing an existing spec. Everything from the drafting of a requirement onward is in `SKILL.md` — the drill-down, the challenger gate, verify, and the test projection are identical to the creating route. Only the way in differs.
+The setup procedure for changing an existing spec. Everything from the drafting of a requirement onward is in {{ `SKILL.md` || the skill body }} — the drill-down, the challenger gate, verify, and the test projection are identical to the creating route. Only the way in differs.
 
 ## 1. Find the right file — never guess it
 
@@ -10,27 +9,27 @@ The setup procedure for changing an existing spec. Everything from the drafting 
 **a. See which systems exist.**
 
 ```
-yamlet systems specs
+{{cmd systems specs}}
 ```
 
-Map the user's words onto one `system:` slug. If nothing matches, the change may actually be a *new* spec — say so and re-route.
+Map the user's words onto one {{ `system:` || `system` }} slug. If nothing matches, the change may actually be a *new* spec — say so and {{ re-route || load `{{ref creating}}` instead }}.
 
 **b. Ask which behaviour they mean, in their terms.** Before touching anything, ask the user what the spec should *do* differently. Do not ask them to pick a filename — they are thinking about behaviour, not files.
 
 **c. Read the candidates.**
 
 ```
-yamlet systems specs --system=e-mail-sending-service --details
+{{cmd systems specs --system=e-mail-sending-service --details}}
 ```
 
-`--details` prints each scope's summary and description. Two scopes of one service routinely carry near-interchangeable topics ("Send plain e-mail" / "Send e-mail with attachment"); the prose is what separates them. Add `--contracts` when the inputs and outputs would help decide.
+{{ `--details` || `details` }} prints each scope's summary and description. Two scopes of one service routinely carry near-interchangeable topics ("Send plain e-mail" / "Send e-mail with attachment"); the prose is what separates them. Add {{ `--contracts` || `contracts: true` }} when the inputs and outputs would help decide.
 
 **d. Propose one file, with your reason, and confirm it.** Say which scope you think they mean and why the summary matches what they described. **Get an explicit yes before the first change.**
 
 ## 2. Read the blast radius before proposing anything
 
 ```
-yamlet impact specs/email_service.yamlet.yaml specs
+{{cmd impact specs/email_service.yamlet.yaml specs}}
 ```
 
 This lists every composite that declares this spec as a member, under which alias, and which of its sockets each one binds, consumes, or names in prose. It always reports how many specs it scanned — if that number looks too small, the search root was too narrow, so pass the directory that actually holds all the specs.
@@ -41,7 +40,7 @@ An `exposes` contract is **total**: every composite must bind every input of eve
 
 ## 3. Show the user the current state
 
-`Read` the spec and walk the user through what is there now — the requirements, their ids, and their criteria. Anchor the conversation on ids (`RQ-2`, `AC-5`), because that is how every change is addressed.
+{{ `Read` || `read` }} the spec and walk the user through what is there now — the requirements, their ids, and their criteria. Anchor the conversation on ids (`RQ-2`, `AC-5`), because that is how every change is addressed.
 
 ## 4. Make the change
 
@@ -50,33 +49,33 @@ An `exposes` contract is **total**: every composite must bind every input of eve
 Supported, to **any** requirement — not just the most recent one:
 
 ```
-yamlet add-criterion specs/email.yamlet.yaml --rq RQ-1 --pattern unwanted \
+{{cmd add-criterion specs/email.yamlet.yaml --rq RQ-1 --pattern unwanted \
   --if "the mailbox of {input.recipient} refuses the e-mail" \
-  --shall "tell the caller the e-mail was refused"
+  --shall "tell the caller the e-mail was refused"}}
 ```
 
 To place it at a specific position rather than at the end of that requirement's criteria, name the sibling it should follow:
 
 ```
-yamlet add-criterion specs/email.yamlet.yaml --rq RQ-1 --after AC-1 --pattern unwanted \
-  --if "{input.recipient} has unsubscribed" --shall "skip the send"
+{{cmd add-criterion specs/email.yamlet.yaml --rq RQ-1 --after AC-1 --pattern unwanted \
+  --if "{input.recipient} has unsubscribed" --shall "skip the send"}}
 ```
 
-An inserted criterion gets a letter-suffixed id (`AC-1a`, then `AC-1b`) so it sorts into position and **no existing id changes**. `--after` must name a criterion of the requirement in `--rq`; if it doesn't, the tool says which requirement it actually belongs to.
+An inserted criterion gets a letter-suffixed id (`AC-1a`, then `AC-1b`) so it sorts into position and **no existing id changes**. {{ `--after` || `after` }} must name a criterion of the requirement in {{ `--rq` || `rq` }}; if it doesn't, the tool says which requirement it actually belongs to.
 
 ### Stored state on an existing criterion
 
-`yamlet add-state FILE --ac AC-2 --reads poll.state` merges into its lists (`patterns.md`, "Stored state").
+`{{cmd add-state FILE --ac AC-2 --reads poll.state}}` merges into its lists ({{ `patterns.md`, || `patterns` guide, }} "Stored state").
 
 ### Adding a new requirement
 
-Unchanged — `yamlet add-requirement`, then its criteria. Drafted and challenged exactly as in `SKILL.md`.
+Unchanged — `{{tool add-requirement}}`, then its criteria. Drafted and challenged exactly as in {{ `SKILL.md` || the skill body }}.
 
 ### Changing behaviour something already depends on
 
 **Do not look for a way to rewrite in place. Add the replacement alongside the original, then remove the original once the new path is live.** Two requirements may describe the same capability, and the verifier will not object — a temporary duplicate is a correct intermediate state, not a mistake.
 
-1. `add-requirement` the new wording, and `add-criterion` its criteria. New ids throughout; the old ones keep passing.
+1. {{ `add-requirement` || `yamlet_add_requirement` }} the new wording, and {{ `add-criterion` || `yamlet_add_criterion` }} its criteria. New ids throughout; the old ones keep passing.
 2. Re-project the tests. Both old and new scenarios exist, so the consumer can write step definitions for the new ones while the old stay green.
 3. Remove the original once the new path is live.
 
@@ -86,24 +85,29 @@ The tree is valid at every step and nothing breaks in between. Tell the user thi
 
 ## 5. What this version cannot do yet
 
+{{#claude}}
 Be straight with the user about these. Do not attempt a workaround, and never hand-edit the YAML to get around one — `yamlet` will refuse anyway, and the file's correctness guarantee comes from the tool owning every byte.
+{{/claude}}
+{{#pi}}
+Be straight with the user about these. Do not attempt a workaround, and do not try to hand-edit the YAML to get around one — the extension's gate blocks `write`/`edit` on a `*.yamlet.yaml` and blocks the shell equivalents, so the attempt will fail anyway. That gate is the rule working.
+{{/pi}}
 
 | Not yet supported | What to do instead |
 |---|---|
 | Revising a requirement's or criterion's text | Add the replacement alongside it (step 4 above) and note the removal as follow-up |
 | Removing a requirement or criterion | Note it for the user as follow-up work |
 | Changing header fields (`topic`, `summary`, `description`, `blast_radius`, `front`) | Note it; nothing in the tool can change them today |
-| Adding, removing or renaming a contract input/output | Note it, **and run `yamlet impact` so the user knows the real cost** — every composite listed would need rewiring |
+| Adding, removing or renaming a contract input/output | Note it, **and run `{{tool impact}}` so the user knows the real cost** — every composite listed would need rewiring |
 | Adding a component or connection to a spec that already has requirements | The tool refuses: all wiring must precede the first requirement |
 
 When you hit one of these, say which change is blocked, why, and what you did instead. A clear "this needs a later editing pass, here is exactly what it is" is a good outcome; a silent workaround is not.
 
 ## 5a. Decided requirements
 
-`adrs:` on a requirement or criterion links the decisions behind it; adding a criterion under a linked requirement prints a `WARNING:` naming them. Relay it and point to `/yamlet-techspec`; never remove or rewrite a link.
+`adrs:` on a requirement or criterion links the decisions behind it; adding a criterion under a linked requirement {{ prints || returns }} a `WARNING:` naming them. Relay it and point to {{ `/yamlet-techspec`; || the `yamlet-techspec` skill; }} never remove or rewrite a link.
 
 ## 6. Then rejoin the shared flow
 
-Once the change is committed, return to `SKILL.md` and run its closing steps: read the file back to the user, **verify**, then **project the tests**.
+Once the change is committed, return to {{ `SKILL.md` || the skill body }} and run its closing steps: read the file back to the user, **verify**, then **project the tests**.
 
 The test projection matters more after an edit than after a creation: it regenerates the whole tree, so a changed scenario's step definitions may now be orphaned or unbound. Bring the refresh report back to the user and say which scenarios changed.

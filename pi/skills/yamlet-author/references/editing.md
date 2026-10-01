@@ -1,3 +1,4 @@
+<!-- Generated from skills/yamlet-author/references/editing.md by scripts/build-skills.ts — edit the source, then rebuild. -->
 # Changing a spec that already exists
 
 The setup procedure for changing an existing spec. Everything from the drafting of a requirement onward is in the skill body — the drill-down, the challenger gate, verify, and the test projection are identical to the creating route. Only the way in differs.
@@ -61,8 +62,7 @@ To place it at a specific position rather than at the end of that requirement's 
 ```
 yamlet_add_criterion({
   file: "specs/email.yamlet.yaml", rq: "RQ-1", after: "AC-1", pattern: "unwanted",
-  if: "{input.recipient} has unsubscribed",
-  shall: ["skip the send"]
+  if: "{input.recipient} has unsubscribed", shall: ["skip the send"]
 })
 ```
 
@@ -70,7 +70,7 @@ An inserted criterion gets a letter-suffixed id (`AC-1a`, then `AC-1b`) so it so
 
 ### Stored state on an existing criterion
 
-`yamlet_add_state({ file, ac: "AC-2", reads: ["poll.state"] })` merges into its lists (`patterns` guide, "Stored state").
+`yamlet_add_state({ file: FILE, ac: "AC-2", reads: ["poll.state"] })` merges into its lists (`patterns` guide, "Stored state").
 
 ### Adding a new requirement
 

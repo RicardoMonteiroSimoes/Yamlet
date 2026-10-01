@@ -28,6 +28,7 @@ Deno.test("tool, ref and invoke", () => {
     "yamlet add-criterion",
     "yamlet_add_criterion",
   ]);
+  assertEquals(both("{{flag --depends-on}}"), ["--depends-on", "depends_on"]);
   assertEquals(both("{{ref creating}}"), [
     "references/creating.md",
     'yamlet_guide({ topic: "creating" })',
@@ -104,6 +105,13 @@ Deno.test("cmd: continuation lines become object lines; Claude keeps the source"
   assertEquals(
     pi,
     'yamlet_add_criterion({\n  file: F, rq: "RQ-1", pattern: "unwanted",\n  if: "x",\n  shall: ["y"]\n})',
+  );
+});
+
+Deno.test("cmd: over several lines, several pairs go one per line", () => {
+  assertEquals(
+    directives("{{cmd add-connection F up \\\n  a=input.a b=input.b}}", "pi"),
+    'yamlet_add_connection({\n  file: F, group: "up",\n  wires: [\n    { socket: "a", source: "input.a" },\n    { socket: "b", source: "input.b" }\n  ]\n})',
   );
 });
 

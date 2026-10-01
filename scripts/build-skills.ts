@@ -21,7 +21,6 @@
 
 import { COMMANDS } from "./skills/commands.ts";
 import {
-  type Harness,
   parse,
   renderReference,
   renderSkill,
@@ -71,50 +70,76 @@ function read(path: string): string | undefined {
 const outputs = new Map<string, string>();
 const problems: string[] = [];
 
+/** yamlet_guide topic → the file pi serves it from, relative to the pi package. */
+const guides = new Map<string, string>();
+/** The agents the extension must offer to install. */
+const agents: string[] = [];
+/** Every `{{ref TOPIC}}` a source uses, with where. */
+const refsUsed: [string, string][] = [];
+
 for (const name of dirs(SOURCE)) {
   const sourcePath = `${SOURCE}/${name}/SKILL.md`;
-  const text = read(sourcePath);
-  if (text === undefined) continue;
+  let current = sourcePath;
   try {
-    const src = parse(sourcePath, text);
-    if (src.name !== name) {
-      throw new SourceError(
-        `${sourcePath}: name '${src.name}' does not match its directory`,
+    const text = read(sourcePath);
+    const src = text === undefined ? undefined : parse(sourcePath, text);
+    if (src) {
+      if (src.name !== name) {
+        throw new SourceError(
+          `name '${src.name}' does not match its directory`,
+        );
+      }
+      const pi = src.kind === "agent"
+        ? `${PI_AGENTS}/${name}.md`
+        : `${PI_SKILLS}/${name}/SKILL.md`;
+      outputs.set(
+        `${CLAUDE}/${name}/SKILL.md`,
+        renderSkill(src, sourcePath, "claude"),
       );
+      outputs.set(pi, renderSkill(src, sourcePath, "pi"));
+      if (src.kind === "agent") {
+        agents.push(`${name}.md`);
+        if (!src.guide) {
+          throw new SourceError(
+            "an agent needs `guide:` — the yamlet_guide topic pi serves its checklist under",
+          );
+        }
+        guides.set(src.guide, `agents/${name}.md`);
+      }
+      for (const m of text!.matchAll(/\{\{ref\s+(\S+?)\s*\}\}/g)) {
+        refsUsed.push([m[1]!, sourcePath]);
+      }
     }
-    const targets: [Harness, string][] = [
-      ["claude", `${CLAUDE}/${name}/SKILL.md`],
-      [
-        "pi",
-        src.kind === "agent"
-          ? `${PI_AGENTS}/${name}.md`
-          : `${PI_SKILLS}/${name}/SKILL.md`,
-      ],
-    ];
-    for (const [harness, out] of targets) {
-      outputs.set(out, renderSkill(src, sourcePath, harness));
-    }
+    // A directory may carry references/ before its SKILL.md is ported.
     const refs = files(`${SOURCE}/${name}/references`);
-    if (refs.length > 0 && src.kind === "agent") {
-      throw new SourceError(`${sourcePath}: an agent cannot carry references/`);
+    if (refs.length > 0 && src?.kind === "agent") {
+      throw new SourceError("an agent cannot carry references/");
     }
     for (const ref of refs) {
-      const refPath = `${SOURCE}/${name}/references/${ref}`;
-      const refText = read(refPath)!;
+      current = `${SOURCE}/${name}/references/${ref}`;
+      const refText = read(current)!;
       outputs.set(
         `${CLAUDE}/${name}/references/${ref}`,
-        renderReference(refText, refPath, "claude"),
+        renderReference(refText, current, "claude"),
       );
       outputs.set(
         `${PI_SKILLS}/${name}/references/${ref}`,
-        renderReference(refText, refPath, "pi"),
+        renderReference(refText, current, "pi"),
       );
+      const topic = ref.replace(/\.md$/, "");
+      if (guides.has(topic)) {
+        throw new SourceError(
+          `topic '${topic}' is already served from ${guides.get(topic)}`,
+        );
+      }
+      guides.set(topic, `skills/${name}/references/${ref}`);
+      for (const m of refText.matchAll(/\{\{ref\s+(\S+?)\s*\}\}/g)) {
+        refsUsed.push([m[1]!, current]);
+      }
     }
   } catch (e) {
     if (!(e instanceof SourceError)) throw e;
-    problems.push(
-      e.message.startsWith(SOURCE) ? e.message : `${sourcePath}: ${e.message}`,
-    );
+    problems.push(`${current}: ${e.message}`);
   }
 }
 
@@ -150,6 +175,58 @@ if (extension === undefined) {
           `scripts/skills/commands.ts: ${command.tool} has no parameter '${arg.param}' in ${EXTENSION}`,
         );
       }
+    }
+  }
+}
+
+// What the extension serves and installs must be exactly what skills/ generates.
+if (extension !== undefined) {
+  const table = /const GUIDE_FILES = \{([\s\S]*?)\} as const;/.exec(extension)
+    ?.[1];
+  const served = new Map<string, string>();
+  for (
+    const m of (table ?? "").matchAll(
+      /"?([a-z-]+)"?: \["([^"]+)", "([^"]+)"\]/g,
+    )
+  ) {
+    served.set(m[1]!, `${m[2]}/${m[3]}`);
+  }
+  if (served.size === 0) problems.push(`${EXTENSION}: cannot find GUIDE_FILES`);
+  for (const [topic, path] of guides) {
+    const at = served.get(topic);
+    if (at === undefined) {
+      problems.push(
+        `${EXTENSION}: GUIDE_FILES has no '${topic}' (generated at pi/${path})`,
+      );
+    } else if (at !== path) {
+      problems.push(
+        `${EXTENSION}: GUIDE_FILES serves '${topic}' from ${at}, but skills/ generates pi/${path}`,
+      );
+    }
+  }
+  for (const [topic, path] of served) {
+    // A topic whose file is still hand-written is fine until it is ported.
+    if (!guides.has(topic) && read(`pi/${path}`)?.includes(MARK)) {
+      problems.push(
+        `${EXTENSION}: GUIDE_FILES serves '${topic}', which skills/ no longer generates`,
+      );
+    }
+  }
+  const listed = /const AGENT_FILES = \[([\s\S]*?)\];/.exec(extension)?.[1] ??
+    "";
+  const installs = [...listed.matchAll(/"([^"]+\.md)"/g)].map((m) => m[1]!)
+    .sort();
+  const expected = [...agents].sort();
+  if (expected.some((a) => !installs.includes(a))) {
+    problems.push(
+      `${EXTENSION}: AGENT_FILES lists ${
+        installs.join(", ")
+      }; skills/ generates agents ${expected.join(", ")}`,
+    );
+  }
+  for (const [topic, where] of refsUsed) {
+    if (!served.has(topic)) {
+      problems.push(`${where}: {{ref ${topic}}} — no such yamlet_guide topic`);
     }
   }
 }
