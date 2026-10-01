@@ -13,6 +13,12 @@ Two separate products, one repo:
   plugin carrying *no binary*; skills call bare `yamlet` on PATH. `.claude/skills/*`
   are symlinks into the plugin — one source, don't edit both.
 
+  **`skills/` is becoming the one source of both builds.** A unit there renders
+  to `plugins/yamlet-skills/` *and* `pi/` through `scripts/build-skills.ts`; the
+  outputs are committed and carry a "Generated from …" banner — edit the source,
+  rebuild, commit both. CI fails on drift (`--check`). Format: [`skills/README.md`](skills/README.md).
+  Units without a source in `skills/` are still hand-written twice.
+
   A second harness port lives in `pi/` for the [pi coding agent](https://pi.dev).
   Unlike `.claude/skills/*`, its `.pi/` wiring is **not** tracked — run
   `./pi/install.sh --project` to generate it; `pi/` is the source of truth. It is a **separate port,

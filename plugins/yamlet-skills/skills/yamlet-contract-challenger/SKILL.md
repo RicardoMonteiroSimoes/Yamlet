@@ -1,4 +1,5 @@
 ---
+# Generated from skills/yamlet-contract-challenger/SKILL.md by scripts/build-skills.ts — edit the source, then rebuild.
 name: yamlet-contract-challenger
 description: >-
   Adversarial gate used INSIDE the yamlet-author flow, immediately before `yamlet init` freezes a
