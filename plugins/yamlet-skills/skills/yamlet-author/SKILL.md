@@ -1,4 +1,5 @@
 ---
+# Generated from skills/yamlet-author/SKILL.md by scripts/build-skills.ts — edit the source, then rebuild.
 name: yamlet-author
 description: >-
   Creates and changes EARS spec files (.yamlet.yaml) by interviewing the user and driving the

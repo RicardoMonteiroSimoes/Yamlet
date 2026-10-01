@@ -1,4 +1,5 @@
 ---
+# Generated from skills/yamlet-refresh/SKILL.md by scripts/build-skills.ts — edit the source, then rebuild.
 name: yamlet-refresh
 description: >-
   Regenerates what is derived from a specs directory: the Gherkin `.feature` tree (`yamlet tests`)

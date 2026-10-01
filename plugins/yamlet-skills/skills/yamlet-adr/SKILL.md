@@ -1,4 +1,5 @@
 ---
+# Generated from skills/yamlet-adr/SKILL.md by scripts/build-skills.ts — edit the source, then rebuild.
 name: yamlet-adr
 description: >-
   Writes a decision record (.adr.yaml) by interviewing the user and driving `yamlet adr`, never by
@@ -35,11 +36,11 @@ Turn a choice into a **decision record**: the question, the forces, the dimensio
 6. **Options.** At least two; the status quo counts and naming it is what makes the set honest. Each is judged against **every** dimension in one call: a cell states a fact, a measured cell carries a numeral, `n/a — <reason>` is allowed and a bare `n/a` is not. A selection needs a locator per option (`--ref project=URL`).
    `yamlet adr add-option FILE --summary S --reversibility reversible|costly|one-way [--ref L=URL] --against D-1=... --against D-2=...`
 7. **Decision.** The user picks. `yamlet adr decide FILE OPT-n`
-8. **What it obliges, costs, and when it stops being right.** Obligations are work, imperative voice (`add-obligation`); costs are taken knowingly and never discharged (`add-accept`); a revisit condition with a threshold names its number (`add-revisit`).
+8. **What it obliges, costs, and when it stops being right.** Obligations are work, imperative voice (`yamlet adr add-obligation`); costs are taken knowingly and never discharged (`yamlet adr add-accept`); a revisit condition with a threshold names its number (`yamlet adr add-revisit`).
 9. **Challenge again.** `/yamlet-adr-challenger FILE --before-accept`; revise for its blockers, put the rest to the user (supersede after accepting; spec changes go to `yamlet-author`).
 10. **Accept.** `yamlet verify FILE` must print `OK`; then `yamlet adr accept FILE`. Say plainly that the record is now frozen, and that the spec must link it: `yamlet add-adr SPEC FILE --rq RQ-n | --ac AC-n` (the tech spec or author does this; if you are standalone, do it and verify the spec).
 11. **Refresh.** Standalone, after the last change (accepted and linked, rejected, superseded): `/yamlet-refresh <specs-dir>`, records outside it as the fourth argument. Inside yamlet-techspec's gate, skip — it refreshes after linking.
 
 ## Superseding
 
-A decision that no longer holds gets a new record: `init` with `--assumes` the old id, the same interview, `accept`, then `yamlet adr supersede OLD --by NEW` and a fresh `add-adr` where the old one was linked. The old link stays; it is history. Then refresh (step 11).
+A decision that no longer holds gets a new record: `init` with `--assumes` the old id, the same interview, `accept`, then `yamlet adr supersede OLD --by NEW` and a fresh `yamlet add-adr` where the old one was linked. The old link stays; it is history. Then refresh (step 11).

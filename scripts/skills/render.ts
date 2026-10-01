@@ -260,6 +260,9 @@ function frontmatterFor(src: Source, harness: Harness): string {
 
 // ── body directives ─────────────────────────────────────────────────────────
 
+/** A block's body: anything up to the nearest tag, so one block never swallows the next. */
+const INNER = String.raw`(?:(?!\{\{[#/])[\s\S])*?`;
+
 /** Apply every directive for one harness to a piece of source text. */
 export function directives(text: string, harness: Harness): string {
   let out = text;
@@ -269,13 +272,13 @@ export function directives(text: string, harness: Harness): string {
     const keep = h === harness;
     out = out.replace(
       new RegExp(
-        `^\\{\\{#${h}\\}\\}\\n([\\s\\S]*?)^\\{\\{/${h}\\}\\}\\n`,
+        `^\\{\\{#${h}\\}\\}\\n(${INNER})^\\{\\{/${h}\\}\\}\\n`,
         "gm",
       ),
       (_, inner: string) => (keep ? inner : ""),
     );
     out = out.replace(
-      new RegExp(`\\{\\{#${h}\\}\\}([\\s\\S]*?)\\{\\{/${h}\\}\\}`, "g"),
+      new RegExp(`\\{\\{#${h}\\}\\}(${INNER})\\{\\{/${h}\\}\\}`, "g"),
       (_, inner: string) => (keep ? inner : ""),
     );
   }
@@ -345,7 +348,12 @@ function invoke(arg: string, harness: Harness): string {
 function words(line: string): string[] {
   const out: string[] = [];
   const re = /"(?:[^"\\]|\\.)*"|\[|\]|[^\s"[\]]+(?:"(?:[^"\\]|\\.)*")?/g;
-  for (const m of line.matchAll(re)) out.push(m[0]);
+  for (const m of line.matchAll(re)) {
+    // `SPEC...` is a placeholder and "more of them".
+    const more = /^([A-Z][A-Z0-9_]*)\.\.\.$/.exec(m[0]);
+    if (more) out.push(more[1]!, "...");
+    else out.push(m[0]);
+  }
   return out;
 }
 
@@ -494,7 +502,9 @@ function pair(arg: Arg, word: string): string {
   const at = unquoted.indexOf("=");
   if (at < 0) throw new SourceError(`expected K=V, got ${word}`);
   const [k, v] = arg.keys!;
-  const half = (s: string) => literal(word.startsWith('"') ? `"${s}"` : s);
+  // Inside a pair, `...` is elided text, not "more elements".
+  const half = (s: string) =>
+    s === "..." ? '"..."' : literal(word.startsWith('"') ? `"${s}"` : s);
   return `{ ${k}: ${half(unquoted.slice(0, at))}, ${v}: ${
     half(unquoted.slice(at + 1))
   } }`;

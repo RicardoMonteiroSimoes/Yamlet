@@ -1,0 +1,149 @@
+---
+name: yamlet-author
+description: >-
+  Creates and changes EARS spec files (.yamlet.yaml) by interviewing the user and driving the
+  {{ `yamlet` CLI || `yamlet_*` tools }} — never by hand-writing YAML. Use when the user wants a new spec, a requirement or
+  acceptance-criterion added to an existing one, an existing spec changed, or existing services
+  wired together as a composite. Planning the work on a finished spec is yamlet-techspec.
+tools: [yamlet, read]
+invokes: [yamlet-verifier, yamlet-contract-challenger, yamlet-criteria-challenger, yamlet-refresh]
+---
+
+# Yamlet Author Skill
+
+Turn a fuzzy idea into a **precise, testable, minimal** `.yamlet.yaml` spec, and keep it that way as it changes. You interrogate; you do not transcribe, and you do not decide. Never accept vagueness or an implicit definition.
+
+{{#pi}}
+## Prerequisite
+
+This skill drives the `yamlet_*` tools from the yamlet pi extension. Without `yamlet_systems`, `yamlet_guide`, `yamlet_init` and friends, **stop and tell the user** to install it:
+
+```sh
+pi install git:github.com/RicardoMonteiroSimoes/Yamlet   # the extension and skills
+brew install yamlet                                      # the CLI they shell out to
+```
+
+Never fall back to `yamlet` through `bash`.
+
+{{/pi}}
+## The one hard rule
+
+**Never write or edit the YAML {{ yourself** — no Write, no Edit, no shell redirection. || yourself.** }} Every change goes through {{ `yamlet`, which owns serialization and mints || the `yamlet_*` tools, which own serialization and mint }} every id. {{ `Read` || `read` }} the file to show the user its state.
+
+{{#claude}}
+A `yamlet` refusal is an instruction, not a diagnostic: it names the file to fix, the command to run, or the ids that exist. Do what it says. Never work around it by hand.
+{{/claude}}
+{{#pi}}
+Here this is enforced, not requested: the extension blocks `write` and `edit` on any `*.yamlet.yaml`, and blocks shell redirects, `tee` and `sed -i` aimed at one. Being blocked is the rule working — do not look for a way around it.
+
+A tool refusal is an instruction, not a diagnostic: it names the file to fix, the parameter to change, or the ids that exist. Do what it says.
+{{/pi}}
+
+## Route first
+
+Ask **one** question before anything else:
+
+> Are we writing a **new** spec, or **changing** one that already exists?
+
+| Answer | {{ Read || Call }} |
+|---|---|
+| New spec | `{{ref creating}}` |
+| …and it wires existing services together | {{ `references/creating.md` || `creating` }}, then `{{ref composites}}` |
+| Changing an existing spec | `{{ref editing}}` |
+
+{{ Read || Load }} `{{ref patterns}}` when you reach acceptance-criteria — the EARS table and the three kinds of `{token}`.
+
+Load only the one in play, never all of them. Each covers its own setup and returns you here; everything after setup is shared.
+
+## The interview
+
+Top-down, plain prose, one thing at a time: ask, listen, drill, confirm, commit — then move on. Never dump a form on the user. Ask in simple terms, in wordings that cannot be misread.
+
+Push back on vagueness. "Handles errors" → *which* errors, and *what* behaviour? One capability per requirement.
+
+## Altitude — what, not how
+
+A spec states what the caller, or the business, can observe — never how the code gets there. The test: **would the line still hold if the implementation were swapped** (a mail server for a mail API, SQL for a document store, a retry loop for a queue)? If not, it is a *how*.
+
+- Protocols, products, retries, backoff, caching, transactions, queues, tables and status codes stay out.
+- A business rule with a number stays in: "reject a file over 10 MiB" is a *what*; "retry after 30 seconds" is a *how*.
+- When the user offers a *how*, don't transcribe it. Ask what outcome it protects ("so no e-mail is lost?") and write that. Park the *how* out loud: a choice worth recording is `{{invoke yamlet-adr}}`, the rest is `{{invoke yamlet-techspec}}`'s to plan.
+- Precision is not depth. Drill for an exact outcome, never for mechanism.
+
+## Reading {{ the || a }} tool's response
+
+{{#claude}}
+- **exit 0** — `add-*` prints the assigned id (`RQ-1`, `AC-3`).
+- **exit 2** — `error:`, and nothing was written. Fix the input and retry.
+- **exit 3** — the change tripped a validation finding and the file was rolled back. Tell the user: the change is not expressible as asked.
+- **a `WARNING:` on stderr with exit 0** — the change landed under a requirement an ADR decides. Relay it verbatim: the decision is not revisited here; the tech spec that plans this change (`yamlet-techspec`) reads the record and accounts for it.
+- **a `NOTE:` on stderr with exit 0** — another scope shares a stored field; see `references/patterns.md`, "Stored state".
+{{/claude}}
+{{#pi}}
+The `add_*` tools return the assigned id (`RQ-1`, `AC-3`). A failure returns `error:` and wrote nothing — fix the input and retry. Except a failure saying the change "produced an unexpected finding and was rolled back": the commit gate caught it, so the change is not expressible as asked — tell the user, do not retry. `yamlet_verify` is the exception: `E###` findings are a successful call reporting an invalid spec, not a tool failure.
+{{/pi}}
+
+{{#claude}}
+**Never invent an id** — use the one the tool printed. Ids are permanent, never reused and never renumbered; a deleted criterion leaves a gap, and the gap is correct.
+{{/claude}}
+{{#pi}}
+A `WARNING:` in a successful result means the change landed under a requirement an ADR decides. Relay it verbatim: the decision is not revisited here; the tech spec that plans this change (the `yamlet-techspec` skill) reads the record and accounts for it.
+
+A `NOTE:` in a successful result means another scope shares a stored field; see the `patterns` guide, "Stored state".
+
+**Never invent an id** — use the one the tool returned. Ids are permanent, never reused and never renumbered; a deleted criterion leaves a gap, and the gap is correct.
+{{/pi}}
+
+## Working rhythm
+
+1. Route, and follow that procedure's setup.
+2. Per requirement: draft its description and criteria (with their stored fields) with the user, **challenge them** (below), settle the objections, then commit — {{ `add-requirement` || `yamlet_add_requirement` }}, then {{ `add-criterion` || `yamlet_add_criterion` }} per criterion.
+3. A requirement with no criteria is incomplete. Give it at least one.
+4. Read the file back and confirm it captures the source of truth.
+5. **Verify** (below).
+6. **Project the tests** (below).
+
+### Challenge before you commit
+
+Draft the requirement's description **and** its full set of criteria in conversation first. Then {{ invoke **`yamlet-criteria-challenger`** (`/yamlet-criteria-challenger <proposal>`) || spawn the **`yamlet-criteria-challenger`** agent }} with: the description; every intended criterion (pattern, clauses, `shall` items, placeholders/examples, reads/writes); and the scope's system, directory, front and contract; the spec's path, so it can check the new criteria against the committed ones; and for a composite, each member's alias and spec path, so it can check the criteria against what its members promise.
+
+{{#claude}}
+Relay its findings in prose — you do not obey it blindly. Resolve every **BLOCKER** before committing, put its **QUESTIONS** to the user, and surface its **SUGGESTIONS** for a decision.
+{{/claude}}
+{{#pi}}
+```
+Agent({
+  subagent_type: "yamlet-criteria-challenger",
+  description: "Challenge RQ before commit",
+  prompt: "<requirement + its intended criteria + contract context>"
+})
+```
+
+It is headless and cannot ask the user anything, so relay its findings in prose — you do not obey it blindly. Resolve every **BLOCKER** before committing, put its **QUESTIONS** to the user, and surface its **SUGGESTIONS** for a decision.
+{{/pi}}
+
+Once per requirement, before its commit. Never batch them to the end.
+
+{{#pi}}
+### If there is no `Agent` tool
+
+The gates need [`@tintinweb/pi-subagents`](https://pi.dev/packages/@tintinweb/pi-subagents). Without it, do not skip them. Tell the user once that you are running the challenge inline, in your own context, and that it is a weaker check. Then work the real checklist — `{{ref contract-challenge}}` or `{ topic: "criteria-challenge" })` — never your memory of it, and report in the same shape. Be harder on yourself to compensate.
+
+{{/pi}}
+## Verify
+
+As the closing gate, {{ invoke **`yamlet-verifier`** with the spec's path (`/yamlet-verifier <path>`) || load the **`yamlet-verifier`** skill and follow it against the spec's path }}. Not done until it reports no errors; raise any warning with the user.
+
+Verify at the **end**, not after {{ `init` || init }} — a declared-but-unreferenced contract input is an error until the criteria or connections that use it exist.
+
+On an `E###`, work the correction back through the {{ `yamlet` commands || author tools }}. `{{cmd verify --list-rules}}` explains an id.
+
+## Project the tests
+
+Once verification passes, {{ invoke **`yamlet-refresh`** with || load the **`yamlet-refresh`** skill and follow it against }} the specs **directory**{{#claude}} (`/yamlet-refresh <specs-dir>`){{/claude}} — never a single file; the projection is whole-tree. Once, at the end, not per requirement. The work is not complete until it has run.
+
+Carry its report back to the user: new or changed scenarios need step definitions, and those live in the consumer's own directory, never in the generated tree.
+
+## If you're asked for a graph
+
+Hand the user the path {{ `yamlet graph --out=FILE` || `yamlet_graph` }} reports. **Never {{ `Read` || read }} the file back.**
