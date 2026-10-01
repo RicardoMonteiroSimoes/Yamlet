@@ -1,3 +1,4 @@
+<!-- Generated from skills/yamlet-author/references/composites.md by scripts/build-skills.ts — edit the source, then rebuild. -->
 # Wiring a composite
 
 A composite carries the same header and contract as a leaf, but instead of describing behaviour it declares **members** (`components:`) and **connections** between them.

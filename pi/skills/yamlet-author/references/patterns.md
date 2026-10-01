@@ -1,3 +1,4 @@
+<!-- Generated from skills/yamlet-author/references/patterns.md by scripts/build-skills.ts — edit the source, then rebuild. -->
 # EARS patterns, tokens and examples
 
 Read this when you get to acceptance-criteria, whichever route you took.
@@ -39,7 +40,8 @@ Every criterion needs one or more `shall` items: the concrete, verifiable obliga
 
 ```
 yamlet_add_criterion({
-  file: "specs/email.yamlet.yaml", rq: "RQ-1", pattern: "event",
+  file: "specs/email.yamlet.yaml",
+  rq: "RQ-1", pattern: "event",
   when: "a send is requested for {input.recipient}",
   shall: ["deliver an e-mail with {input.subject} and {input.content} to {input.recipient}"]
 })
@@ -50,7 +52,7 @@ yamlet_add_criterion({
 
 ## Stored state — `reads` / `writes`
 
-Ask per requirement what the business remembers or changes — facts like an order's status, not tables or columns — then put each on the criterion that touches it: `reads`, `writes` (`entity.field`; a write covers the read). Reuse the system's names: `yamlet_systems({ dir, system, state: true })` (`details: true` shows each field's criteria — its only description). An index, not a schema.
+Ask per requirement what the business remembers or changes — facts like an order's status, not tables or columns — then put each on the criterion that touches it: `reads`, `writes` (`entity.field`; a write covers the read). Reuse the system's names: `yamlet_systems({ dir: DIR, system: S, state: true })` (`details: true` shows each field's criteria — its only description). An index, not a schema.
 
 A `NOTE:` means another scope touches the field and one side writes it: ask what happens when they interleave; cite the criterion that says so, or draft one. `W009`: a read field no scope writes — a missing scope, a typo, or external data.
 
@@ -72,7 +74,8 @@ An `{input.NAME}` may *also* be tabulated (as an `input.NAME` example column) wh
 
 ```
 yamlet_add_criterion({
-  file: "specs/email.yamlet.yaml", rq: "RQ-1", pattern: "complex",
+  file: "specs/email.yamlet.yaml",
+  rq: "RQ-1", pattern: "complex",
   while: ["the sender is on the {plan} plan"],
   if: "more than {daily_limit} e-mails are requested in one day",
   shall: ["reject the send"], reads: ["account.plan", "account.sent_today"],

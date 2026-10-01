@@ -1,7 +1,6 @@
-<!-- Generated from skills/yamlet-author/references/creating.md by scripts/build-skills.ts — edit the source, then rebuild. -->
 # Creating a new spec
 
-The setup procedure for a spec that does not exist yet. Everything from the first requirement onward is in the skill body; this file ends at `yamlet_init` (or, for a composite, hands off to the `composites` guide).
+The setup procedure for a spec that does not exist yet. Everything from the first requirement onward is in {{ `SKILL.md` || the skill body }}; this file ends at `{{ init || yamlet_init }}` (or, for a composite, hands off to {{ `references/composites.md` || the `composites` guide }}).
 
 ## 0. Get the rough idea, and a home for it
 
@@ -13,12 +12,12 @@ Unless it's clear, ask which `directory` the file should go in. A dedicated fold
 
 **This is the highest-stakes decision in the setup, and the easiest to get wrong.** Silently minting a new system when the user meant a new scope of an existing one **fragments the service**, and nothing downstream ever flags it — the file verifies perfectly either way.
 
-You cannot judge it from a file listing. A `system` slug carries no description of its own: what a service *is* lives in the summaries and descriptions of its scopes. Those are what you have to read.
+You cannot judge it from a file listing. A {{ `system:` || `system` }} slug carries no description of its own: what a service *is* lives in the summaries and descriptions of its scopes. Those are what you have to read.
 
 **a. See the landscape.**
 
 ```
-yamlet_systems({ dir: "specs" })
+{{cmd systems specs}}
 ```
 
 How many systems are there, and how many scopes does each hold? If the scan lists no systems at all, say so and proceed with a new one.
@@ -26,21 +25,21 @@ How many systems are there, and how many scopes does each hold? If the scan list
 **b. Read the prose — always, before forming an opinion.**
 
 ```
-yamlet_systems({ dir: "specs", details: true })
+{{cmd systems specs --details}}
 ```
 
-`details` prints each scope's summary and description. On a large tree, narrow to the two or three plausible candidates instead of dumping everything:
+`{{flag --details}}` prints each scope's summary and description. On a large tree, narrow to the two or three plausible candidates instead of dumping everything:
 
 ```
-yamlet_systems({ dir: "specs", system: "e-mail-sending-service", details: true })
+{{cmd systems specs --system=e-mail-sending-service --details}}
 ```
 
 > **Rule: never recommend a system whose scopes you have not read.** A slug and a topic tell you what something is *called*; only the prose tells you what it *covers*. Matching on the name alone is how a second `email-sending-service-plain` gets created next to `email-sending-service`.
 
 **c. Ask two questions of what you read.**
 
-1. **Does one of these systems already cover this?** If so, reuse its **exact** `system` slug at init — do not coin a variant (`e-mail-sending-service`, never `…-plain`). A variant slug is the fragmentation, not a way of avoiding it.
-2. **Does one of these scopes already cover this?** If a scope's summary already describes what the user is asking for, the answer may be that no new file is needed — this is a *change* to that spec, not a creation. Say so, then load `yamlet_guide({ topic: "editing" })` instead.
+1. **Does one of these systems already cover this?** If so, reuse its **exact** {{ `system:` || `system` }} slug at {{ `init` || init }} — do not coin a variant (`e-mail-sending-service`, never `…-plain`). A variant slug is the fragmentation, not a way of avoiding it.
+2. **Does one of these scopes already cover this?** If a scope's summary already describes what the user is asking for, the answer may be that no new file is needed — this is a *change* to that spec, not a creation. {{ Say so and re-route to `{{ref editing}}`. || Say so, then load `{{ref editing}}` instead. }}
 
 **d. Recommend, never decide.** Present your reading to the user — which system you think this belongs to and which summary made you think so — and let them choose. If it's genuinely new, agree on a fresh, generic slug with them.
 
@@ -87,18 +86,22 @@ A scope may expose a contract: named `input` and `output` attributes. These expo
 
 **No bag inputs.** If criteria will reach into an input's *fields* — "the identity's subject, email and display name" — the fields are the inputs (`subject`, `email`, `display_name`), not one `identity`; prose fields are invisible to the binding checks. The producer exposes them as separate outputs to match — a socket never destructures.
 
-The contract needs its own slug, `expose_name`, which is **different from `system`** and unique per scope. The system `email-service` might have two topics whose contract names are `e-mail-plain-sending` and `e-mail-attachment-sending`, so a system referencing both can tell them apart.
+The contract needs its own slug, {{ `exposes.name` || `expose_name` }}, which is **different from `system`** and unique per scope. The system `email-service` might have two topics whose contract names are `e-mail-plain-sending` and `e-mail-attachment-sending`, so a system referencing both can tell them apart.
 
-**Two different name rules — do not conflate them.** `expose_name` is a **slug** (`^[a-z0-9]+(-[a-z0-9]+)*$`, dash-separated, e.g. `pdf-upload`). Each `inputs`/`outputs` entry is a **token** (`^[a-z][a-z0-9_]*$`, underscore-separated, e.g. `target_email`, `pdf_file`). Dashes in an input name, or underscores in the contract name, are rejected. `inputs`/`outputs` **require `expose_name`** (which itself requires `expose_intent`). An input and an output *may* share a name — uniqueness is per-list, not global.
+**Two different name rules — do not conflate them.** `{{flag --expose-name}}` is a **slug** (`^[a-z0-9]+(-[a-z0-9]+)*$`, dash-separated, e.g. `pdf-upload`). Each {{ `--input`/`--output` name || `inputs`/`outputs` entry }} is a **token** (`^[a-z][a-z0-9_]*$`, underscore-separated, e.g. `target_email`, `pdf_file`). Dashes in an input name, or underscores in the contract name, are rejected. {{ `--input`/`--output` are repeatable and || `inputs`/`outputs` }} **require `{{flag --expose-name}}`** (which itself requires `{{flag --expose-intent}}`). An input and an output *may* share a name — uniqueness is per-list, not global.
 
 Every declared input **must** be referenced by some criterion as `{input.NAME}`, and every declared output as `{output.NAME}`, before the spec is complete. So only declare inputs and outputs the behaviour actually uses.
 
-**Get this right now.** Adding an input to a contract later is not yet supported, and even once it is, it will reach every composite that wires this spec — contracts are total, so a new input leaves every parent with an unbound member input. If you are unsure how costly a mistake here would be, `yamlet_impact` on a comparable spec shows you the shape of it.
+**Get this right now.** Adding an input to a contract later is not yet supported, and even once it is, it will reach every composite that wires this spec — contracts are total, so a new input leaves every parent with an unbound member input. {{ Run `yamlet impact FILE` on any spec you're unsure about to see what that would mean. || If you are unsure how costly a mistake here would be, `yamlet_impact` on a comparable spec shows you the shape of it. }}
 
 **Leaf or composite?** Decide here, because it changes what the contract *means*. A **leaf** does the work itself; its inputs and outputs are referenced by its own criteria. A **composite** does none of the work — it wires *existing* scopes together and its contract is a **boundary**: inputs it accepts from its caller and routes to members, outputs it surfaces from what members produce. If the behaviour is "take these inputs, run them through services X and Y, hand back their results," it's a composite. If unsure, it's a leaf.
 
 ## 7. Challenge the contract before you freeze it
 
+{{#claude}}
+The contract is set at `init` and cannot yet be changed afterwards — this is your last cheap chance to catch a mistake. Before running `init`, invoke the **`yamlet-contract-challenger`** skill (`/yamlet-contract-challenger <proposal>`) with a compact serialization of everything decided so far: the six header fields (system, topic, front, blast-radius, summary, description), the contract (expose-name, expose-intent, every input, every output), whether this is a **leaf** or **composite**, and the target directory. It returns `BLOCKERS` / `QUESTIONS` / `SUGGESTIONS` / `BOTTOM LINE`.
+{{/claude}}
+{{#pi}}
 The contract is set at init and cannot be changed afterwards — this is your last cheap chance to catch a mistake. Before calling `yamlet_init`, spawn the **`yamlet-contract-challenger`** agent with a compact serialization of everything decided so far: the six header fields (system, topic, front, blast_radius, summary, description), the contract (expose_name, expose_intent, every input, every output), whether this is a **leaf** or **composite**, and the target directory:
 
 ```
@@ -110,29 +113,36 @@ Agent({
 ```
 
 It runs in an isolated context whose only tools are `read` and `yamlet_systems` — it cannot mutate anything — and returns `BLOCKERS` / `QUESTIONS` / `SUGGESTIONS` / `BOTTOM LINE`. Because it is headless it **cannot ask the user anything**; relaying its questions is your job.
+{{/pi}}
 
 You do **not** obey it blindly and it does not decide — bring its findings back to the user in plain prose:
 
-- Any **BLOCKER** (unused input, bag input, forgeable input, missing output, misclassified leaf/composite, fragmented system) must be resolved with the user *before* init.
+- Any **BLOCKER** (unused input, bag input, forgeable input, missing output, misclassified leaf/composite, fragmented system) must be resolved with the user *before* {{ `init` || init }}.
 - Put its **QUESTIONS** to the user and its **SUGGESTIONS** up for a decision.
 
-Run this gate **once**, right before init. Do not skip it: a contract mistake is the most expensive error in the whole flow. If you have no `Agent` tool, see the skill body's fallback — do not silently skip the gate.
+Run this gate **once**, right before {{ `init` || init }}. Do not skip it: a contract mistake is the most expensive error in the whole flow.{{#pi}} If you have no `Agent` tool, see the skill body's fallback — do not silently skip the gate.{{/pi}}
 
 ## 8. Create the spec
 
 ```
-yamlet_init({
-  file: "specs/email.yamlet.yaml",
-  system: "email-sending-service", topic: "E-Mail sending service",
-  summary: "A service that sends e-mails on behalf of the platform",
-  description: "The generic e-mail sending service delivers any e-mail the platform needs to send.",
-  blast_radius: "high", front: "internal"
-})
+{{cmd init specs/email.yamlet.yaml \
+  --system email-sending-service --topic "E-Mail sending service" \
+  --summary "A service that sends e-mails on behalf of the platform" \
+  --description "The generic e-mail sending service delivers any e-mail the platform needs to send." \
+  --blast-radius high --front internal}}
 ```
 
 With a contract:
 
 ```
+{{#claude}}
+yamlet init specs/upload.yamlet.yaml <the six flags above> \
+  --expose-name pdf-upload \
+  --expose-intent "verify a file is a well-formed PDF and return it" \
+  --input file --input filename \
+  --output pdf_file
+{{/claude}}
+{{#pi}}
 yamlet_init({
   file: "specs/upload.yamlet.yaml",
   ...the six fields above...,
@@ -141,6 +151,11 @@ yamlet_init({
   inputs: ["file", "filename"],
   outputs: ["pdf_file"]
 })
+{{/pi}}
 ```
 
-**Next:** if this is a composite, load `yamlet_guide({ topic: "composites" })` before adding any requirement. Otherwise return to the skill body's working rhythm and start eliciting requirements.
+{{#claude}}
+If it fails, run `yamlet init --help`.
+
+{{/claude}}
+**Next:** if this is a composite, {{ go to || load }} `{{ref composites}}` before adding any requirement. Otherwise return to {{ `SKILL.md`'s || the skill body's }} working rhythm and start eliciting requirements.

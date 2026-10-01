@@ -1,3 +1,4 @@
+<!-- Generated from skills/yamlet-author/references/creating.md by scripts/build-skills.ts — edit the source, then rebuild. -->
 # Creating a new spec
 
 The setup procedure for a spec that does not exist yet. Everything from the first requirement onward is in `SKILL.md`; this file ends at `init` (or, for a composite, hands off to `references/composites.md`).

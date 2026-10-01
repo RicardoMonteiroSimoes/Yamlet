@@ -1,0 +1,40 @@
+# The decision gate
+
+Run this when a task needs a choice the user owns, or a `DECIDED:` record no longer fits. It ends with an accepted record linked into the spec.
+
+## 1. Name the choice
+
+State the criteria that force it and the options you see, one line each. Do not decide.
+
+## 2. Write the record
+
+{{#claude}}
+Invoke **`yamlet-adr`** (`/yamlet-adr <records-dir> <the choice, with the criteria ids>`). It interviews the user and drives `yamlet adr`; it ends with `yamlet adr accept` and prints the record's path. Records live in one directory per system (`adr/` unless the repository already has one).
+{{/claude}}
+{{#pi}}
+Load the **`yamlet-adr`** skill and follow it, with the records directory and the choice (with the criteria ids) as its input. It interviews the user and drives the `yamlet_adr_*` tools; it ends with `yamlet_adr_accept` and reports the record's path. Records live in one directory per system (`adr/` unless the repository already has one).
+
+It runs in this session, not in a subagent: it is an interview, and a pi subagent cannot ask the user anything.
+{{/pi}}
+
+## 3. Link it into the spec
+
+```
+{{cmd add-adr SPEC adr/ADR-0007-parser.adr.yaml --rq RQ-5}}
+{{cmd add-adr SPEC adr/ADR-0007-parser.adr.yaml --ac AC-8}}
+```
+
+`{{flag --rq}}` when the decision covers every criterion of the requirement, `{{flag --ac}}` when it is specific to one{{#pi}} — exactly one of the two{{/pi}}. Then `{{cmd verify SPEC}}` must {{ print `OK`, || report `OK`; }} then {{ `/yamlet-refresh <specs-dir>` || the `yamlet-refresh` skill }}.
+
+## 4. Account for what it obliges
+
+An accepted record's obligations (`ADR-nnnn#R-n`) are work, judged like criteria: record a verdict for each (`{{cmd techspec obligation TS --of ADR-0007#R-1 --met true|false ...}}`), or `{{tool verify}}` on the tech spec reports E716. One the code already discharges is met, with evidence; every unmet one is covered by the tasks you write next (`{{ --covers ADR-0007#R-1 || covers: ["ADR-0007#R-1"] }}`). The `DECIDED:` notice on a verdict lists the ones still without a verdict.
+
+## 5. Superseding
+
+{{#claude}}
+A record that no longer holds is not edited. `yamlet-adr` writes the successor (`--assumes` the old id), then `yamlet adr supersede OLD --by NEW`, then `add-adr` the new record where the old one was linked, then `/yamlet-refresh <specs-dir>`.
+{{/claude}}
+{{#pi}}
+A record that no longer holds is not edited. `yamlet-adr` writes the successor (`assumes` the old id), then `yamlet_adr_supersede({ file: OLD, by: "ADR-nnnn" })`, then `yamlet_add_adr` the new record where the old one was linked, then the `yamlet-refresh` skill.
+{{/pi}}

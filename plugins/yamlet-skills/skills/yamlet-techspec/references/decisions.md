@@ -1,3 +1,4 @@
+<!-- Generated from skills/yamlet-techspec/references/decisions.md by scripts/build-skills.ts — edit the source, then rebuild. -->
 # The decision gate
 
 Run this when a task needs a choice the user owns, or a `DECIDED:` record no longer fits. It ends with an accepted record linked into the spec.

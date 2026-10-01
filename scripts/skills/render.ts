@@ -9,6 +9,7 @@
  *   {{ A || B }}                A in the Claude Code build, B in the pi build
  *   {{cmd ARGV}}                a `yamlet` invocation, written in CLI syntax
  *   {{tool SUB}}                a command's name: `yamlet SUB` / `yamlet_SUB`
+ *   {{flag --NAME}}             a flag named in prose: `--NAME` / `NAME` (dashes → underscores)
  *   {{ref TOPIC}}               a reference: `references/TOPIC.md` / `yamlet_guide(...)`
  *   {{invoke SKILL ARGS}}       how a user invokes a skill: `/SKILL` / `/skill:SKILL`
  *
@@ -280,13 +281,15 @@ export function directives(text: string, harness: Harness): string {
   }
 
   out = out.replace(
-    /\{\{(cmd|tool|ref|invoke)\s+([\s\S]*?)\}\}/g,
+    /\{\{(cmd|tool|flag|ref|invoke)\s+([\s\S]*?)\}\}/g,
     (_, macro: string, arg: string) => {
       switch (macro) {
         case "cmd":
           return cmd(arg, harness);
         case "tool":
           return toolName(arg.trim(), harness);
+        case "flag":
+          return flag(arg.trim(), harness);
         case "ref":
           return ref(arg.trim(), harness);
         default:
@@ -317,6 +320,13 @@ function toolName(sub: string, harness: Harness): string {
   return harness === "claude"
     ? `yamlet ${sub}`
     : `yamlet_${sub.replace(/[ -]/g, "_")}`;
+}
+
+function flag(name: string, harness: Harness): string {
+  if (!/^--[a-z][a-z-]*$/.test(name)) {
+    throw new SourceError(`{{flag ${name}}}: expected --name`);
+  }
+  return harness === "claude" ? name : name.slice(2).replaceAll("-", "_");
 }
 
 function ref(topic: string, harness: Harness): string {
@@ -394,8 +404,11 @@ function cmd(source: string, harness: Harness): string {
         skip--;
         continue;
       }
-      if (w === "..." && last) {
-        add(last, "...", line);
+      if (w === "...") {
+        // After a list it is one more element; anywhere else, "and more fields".
+        if (last && (last.kind === "list" || last.kind === "pairs")) {
+          add(last, "...", line);
+        } else add({ param: "...", kind: "value" }, "...", line);
         continue;
       }
       if (w.startsWith("--")) {
@@ -450,6 +463,7 @@ function cmd(source: string, harness: Harness): string {
   });
 
   const field = (param: string, e: { values: string[]; arg: Arg }) => {
+    if (param === "...") return "...";
     const many = e.arg.kind === "list" || e.arg.kind === "pairs";
     const value = many ? `[${e.values.join(", ")}]` : e.values[0]!;
     return `${param}: ${value}`;
@@ -461,8 +475,13 @@ function cmd(source: string, harness: Harness): string {
       ? `${command.tool}()`
       : `${command.tool}({ ${fields.join(", ")} })`;
   }
+  // Spread over lines, a list of several objects reads best one per line.
   const lines: string[][] = groups.map(() => []);
-  for (const [k, e] of params) lines[e.line]!.push(field(k, e));
+  for (const [k, e] of params) {
+    if (e.arg.kind === "pairs" && e.values.length > 1) {
+      lines[e.line]!.push(`${k}: [\n    ${e.values.join(",\n    ")}\n  ]`);
+    } else lines[e.line]!.push(field(k, e));
+  }
   const body = lines.filter((l) => l.length > 0).map((l) =>
     "  " + l.join(", ")
   );

@@ -18,7 +18,13 @@ deno test --allow-read scripts/skills/                               # the rende
 ```
 
 Units not yet in `skills/` are still hand-written in both places; the migration
-moves them over one at a time.
+moves them over one at a time. A directory may carry `references/` before its
+`SKILL.md` is ported.
+
+The build also holds `pi/extensions/yamlet/index.ts` to what it generates:
+`GUIDE_FILES` must serve every reference (topic = file name) and every agent's
+`guide:` from the path it is generated at, `AGENT_FILES` must list every agent,
+and every `{{ref TOPIC}}` must name a served topic.
 
 ## Frontmatter
 
@@ -67,10 +73,12 @@ the skill it is:
 | `{{ A \|\| B }}` | `A` | `B` |
 | `{{cmd systems DIR --system=S --criteria}}` | `yamlet systems DIR --system=S --criteria` | `yamlet_systems({ dir: DIR, system: S, criteria: true })` |
 | `{{tool techspec init}}` | `yamlet techspec init` | `yamlet_techspec_init` |
+| `{{flag --depends-on}}` | `--depends-on` | `depends_on` |
 | `{{ref creating}}` | `references/creating.md` | `yamlet_guide({ topic: "creating" })` |
 | `{{invoke yamlet-verifier ARGS}}` | `/yamlet-verifier ARGS` | `/skill:yamlet-verifier ARGS` |
 
-A block tag alone on its line takes the line with it. Nothing nests.
+A block tag alone on its line takes the line with it. Macros resolve first, so one
+may sit inside a block or an alternation; blocks and alternations do not nest.
 
 `{{cmd …}}` is written in CLI syntax, and `scripts/skills/commands.ts` maps it to
 the pi tool: subcommand → tool, positional/flag → parameter. In the pi call a bare
