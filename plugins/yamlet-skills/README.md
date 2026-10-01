@@ -48,7 +48,10 @@ The tech spec and decision record flows are ported too: the two interviewing ski
 
 ## Source
 
-These skills live at [`plugins/yamlet-skills/skills/`](./skills) in the
-[yamlet repo](https://github.com/RicardoMonteiroSimoes/Yamlet). The repo's own
-`.claude/skills/` entries are symlinks into this directory, so there is a single
-source of truth — edit the files here.
+These skills are served from [`plugins/yamlet-skills/skills/`](./skills) in the
+[yamlet repo](https://github.com/RicardoMonteiroSimoes/Yamlet), but they are
+**generated** — from [`skills/`](../../skills) at the repo root, which also
+generates the pi build. Edit the source there and run
+`deno run --allow-read --allow-write scripts/build-skills.ts`; the files here carry
+a banner saying so, and CI fails if they drift. The repo's own `.claude/skills/`
+entries are symlinks into this directory.

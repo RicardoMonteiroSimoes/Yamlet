@@ -89,8 +89,10 @@ The `yamlet-skills` Claude Code plugin ([`plugins/yamlet-skills/`](plugins/yamle
 is **served live from this repo's git tree**, not built or published by the release
 workflow. Its marketplace catalog is [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json).
 Merging a skill change to the branch users track is the "release" — there is nothing to
-tag or upload. The ten skills have a single source of truth under
-`plugins/yamlet-skills/skills/`; the repo's `.claude/skills/` entries are symlinks into it
+tag or upload. The ten skills are generated from [`skills/`](skills/) into
+`plugins/yamlet-skills/skills/` (and the pi build) by `scripts/build-skills.ts`, and the
+output is committed — so what merges is what users get, and the Skills workflow fails on
+any drift. The repo's `.claude/skills/` entries are symlinks into the plugin
 (dereferenced to real files when Claude Code installs the plugin from the marketplace).
 
 Users install with `/plugin marketplace add RicardoMonteiroSimoes/Yamlet` then

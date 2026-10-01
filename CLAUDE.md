@@ -9,23 +9,27 @@ Two separate products, one repo:
 - **`yamlet` CLI** — one TypeScript codebase (`tooling/`) compiled to a
   self-contained binary by Deno. Shipped via Homebrew tap. The only
   implementation of the verifier and author. See [`tooling/CLAUDE.md`](tooling/CLAUDE.md).
-- **Skills** — `plugins/yamlet-skills/` ships as a Claude Code marketplace
-  plugin carrying *no binary*; skills call bare `yamlet` on PATH. `.claude/skills/*`
-  are symlinks into the plugin — one source, don't edit both.
+- **Skills** — **`skills/` is the one source of every skill and agent, for both
+  harnesses.** `scripts/build-skills.ts` renders each unit to the Claude Code build
+  (`plugins/yamlet-skills/skills/`) and the pi build (`pi/skills/`, `pi/agents/`).
+  The outputs are **committed** — the marketplace and `pi install git:…` read them
+  as-is — and carry a "Generated from …" banner: edit the source, rebuild, commit
+  both. CI fails on any drift (`--check`). Format: [`skills/README.md`](skills/README.md).
 
-  **`skills/` is becoming the one source of both builds.** A unit there renders
-  to `plugins/yamlet-skills/` *and* `pi/` through `scripts/build-skills.ts`; the
-  outputs are committed and carry a "Generated from …" banner — edit the source,
-  rebuild, commit both. CI fails on drift (`--check`). Format: [`skills/README.md`](skills/README.md).
-  Units without a source in `skills/` are still hand-written twice.
+  ```sh
+  deno run --allow-read --allow-write scripts/build-skills.ts
+  ```
 
-  A second harness port lives in `pi/` for the [pi coding agent](https://pi.dev).
-  Unlike `.claude/skills/*`, its `.pi/` wiring is **not** tracked — run
-  `./pi/install.sh --project` to generate it; `pi/` is the source of truth. It is a **separate port,
-  deliberately not shared source** — pi has no `Skill` tool and no way for a
-  subagent to ask the user a question, so the split between skills and subagents
-  differs. Read [`pi/README.md`](pi/README.md) before touching it; keep
-  behavioural changes in step across both builds.
+  The Claude Code plugin ships as a marketplace plugin carrying *no binary*; skills
+  call bare `yamlet` on PATH. `.claude/skills/*` are tracked symlinks into it, kept
+  one per unit by the build.
+
+  The pi build is for the [pi coding agent](https://pi.dev). The harnesses differ —
+  pi has no `Skill` tool and no way for a subagent to ask the user a question, so
+  the split between skills and subagents differs — and a source says so explicitly
+  with `{{#claude}}`/`{{#pi}}` blocks rather than in two files. Read
+  [`pi/README.md`](pi/README.md) before touching the pi side. Its `.pi/` wiring is
+  **not** tracked — run `./pi/install.sh --project` to generate it.
 
   Unlike the Claude Code plugin, the pi port **does ship executable code**:
   `pi/extensions/yamlet/` registers one pi tool per `yamlet` subcommand (and per
