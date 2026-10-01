@@ -1,4 +1,5 @@
 ---
+# Generated from skills/yamlet-techspec/SKILL.md by scripts/build-skills.ts — edit the source, then rebuild.
 name: yamlet-techspec
 description: >-
   Plans one change across every finished EARS spec (.yamlet.yaml) it touches, all of one system: reads
@@ -33,12 +34,14 @@ Turn **finished** specs and their code into **one tech spec**: a verdict per cri
 ## Working rhythm
 
 1. **Arguments.** Every `*.yamlet.yaml` is a spec; a directory is the code root; `--since REF` asks for a diff plan. Specs of different systems are two plans: stop and ask which one first.
-2. **Complete the set.** `yamlet systems <specs dir> --system=<slug>` lists the system's other scopes. Unless the user already named them, ask once whether this change touches any of them too; add those the user names.
+2. **Complete the set.** `yamlet systems <specs-dir> --system=<slug>` lists the system's other scopes. Unless the user already named them, ask once whether this change touches any of them too; add those the user names.
 3. **Gate.** `yamlet verify SPEC` must print `OK` for each. If not, stop: that spec is not finished; route the user to `yamlet-author`.
 4. **Scope — only with `--since`.** Per spec, `git diff REF -- SPEC` (`git show REF:SPEC` to read the old version). A spec new since REF is planned whole. Otherwise its scope is every criterion that is new or whose pattern, clauses, `shall` or examples changed, and every criterion of a new requirement; a spec with none drops out. A criterion removed since REF cannot be scoped — list it for the report. Ids are permanent, so match by id, never by position.
 5. **Open.** `yamlet techspec init SPEC... [--scope SPEC#AC-N ...]` (prints the path — use it as `TS` below; `--scope SPEC#RQ-N` takes a whole requirement). `already plans <system>` means a plan for this system is open: ask the user whether to finish it or delete it — never delete it yourself. Then pin the code: `git rev-parse --short HEAD` in the code root, and `yamlet techspec analysis TS --commit SHA`.
 6. **Read.** `Read` each spec once: the contract (`exposes`), every `RQ-N`, every `AC-N` in scope with its pattern, clauses and `shall` list, and any `adrs:` links. `Read` every record linked on a criterion in scope or on its requirement, and note each accepted one's `requires` (`R-n`) — those are the obligations the plan owes. `yamlet verify TS` lists what is still owed: E706 per criterion, E716 per obligation.
-7. **Research, one requirement at a time** (only requirements with a criterion in scope). Invoke **`yamlet-code-research`** (`/yamlet-code-research <input>`) with: the code root, the contract, the requirement with its in-scope criteria verbatim (with `reads`/`writes`), and the obligations of the records deciding it (`ADR-nnnn#R-n` + `must`). It returns, per item, where the behaviour lives (`file:line`), what the code does there, deviations, related tests, the stored state the criteria touch, and which directories it read closely or skimmed. Record the directories: `yamlet techspec analysis TS --deep DIR --skimmed DIR` (lists accumulate).
+7. **Research, one requirement at a time** (only requirements with a criterion in scope). Invoke **`yamlet-code-research`** (`/yamlet-code-research <input>`) with: the code root, the contract, the requirement with its in-scope criteria verbatim (with `reads`/`writes`), and the obligations of the records deciding it (`ADR-nnnn#R-n` + `must`).
+
+   It returns, per item, where the behaviour lives (`file:line`), what the code does there, deviations, related tests, the stored state the criteria touch, and which directories it read closely or skimmed. Record the directories: `yamlet techspec analysis TS --deep DIR --skimmed DIR` (lists accumulate).
 8. **Verdicts.** Decide `met: true` only when *every* `shall` (or the `must`) is observably satisfied at a cited reference; a partial, a wrong value, or the right place with the wrong behaviour is `met: false` with the references as evidence and a one-line `--note` saying what differs. **Before recording `met: true`**, invoke **`yamlet-evidence-challenger`** (`/yamlet-evidence-challenger <input>`) with the criterion or obligation verbatim (with its `writes`) and the exact references. `REFUTED` → record `met: false` with its reason as the note.
    `yamlet techspec criterion TS --ac SPEC#AC-N --met true|false [--evidence PATH:LINE ...] [--note "..."]`
    `yamlet techspec obligation TS --of ADR-nnnn#R-n --met true|false [--evidence PATH:LINE ...] [--note "..."]`
@@ -59,7 +62,7 @@ A `DECIDED:` notice lists the records behind a criterion and, for an accepted on
 
 In prose, in dependency order: each task, what it delivers, which criteria and obligations it covers and in which spec; the criteria and obligations found met; every ADR written or read; each contended pair and how it was settled. With `--since`, name the scope per spec and every criterion removed since REF (the code behind it may need to go; that is the user's call, not a task here). Name the file, say it is disposable and belongs in `.gitignore`.
 
-To show the plan in context — criteria, verdicts, ADRs and tasks in one navigable page — offer `yamlet trace <specs dir> --out=trace.html` (add `--techspec=TS` if TS lies outside that dir). Hand the user the path; **never `Read` it back**.
+To show the plan in context — criteria, verdicts, ADRs and tasks in one navigable page — offer `yamlet trace <specs-dir> --out=trace.html` (add `--techspec=TS` if TS lies outside that dir). Hand the user the path; **never `Read` it back**.
 
 ## When a spec changes later
 

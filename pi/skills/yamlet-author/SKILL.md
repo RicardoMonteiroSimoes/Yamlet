@@ -1,9 +1,10 @@
 ---
+# Generated from skills/yamlet-author/SKILL.md by scripts/build-skills.ts — edit the source, then rebuild.
 name: yamlet-author
 description: >-
   Creates and changes EARS spec files (.yamlet.yaml) by interviewing the user and driving the
-  `yamlet_*` tools — never by hand-writing YAML. Use when the user wants a new spec, a requirement
-  or acceptance-criterion added to an existing one, an existing spec changed, or existing services
+  `yamlet_*` tools — never by hand-writing YAML. Use when the user wants a new spec, a requirement or
+  acceptance-criterion added to an existing one, an existing spec changed, or existing services
   wired together as a composite. Planning the work on a finished spec is yamlet-techspec.
 ---
 
@@ -58,7 +59,7 @@ A spec states what the caller, or the business, can observe — never how the co
 
 - Protocols, products, retries, backoff, caching, transactions, queues, tables and status codes stay out.
 - A business rule with a number stays in: "reject a file over 10 MiB" is a *what*; "retry after 30 seconds" is a *how*.
-- When the user offers a *how*, don't transcribe it. Ask what outcome it protects ("so no e-mail is lost?") and write that. Park the *how* out loud: a choice worth recording is `/yamlet-adr`, the rest is `/yamlet-techspec`'s to plan.
+- When the user offers a *how*, don't transcribe it. Ask what outcome it protects ("so no e-mail is lost?") and write that. Park the *how* out loud: a choice worth recording is `/skill:yamlet-adr`, the rest is `/skill:yamlet-techspec`'s to plan.
 - Precision is not depth. Drill for an exact outcome, never for mechanism.
 
 ## Reading a tool's response

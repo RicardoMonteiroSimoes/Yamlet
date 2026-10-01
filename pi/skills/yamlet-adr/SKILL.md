@@ -1,9 +1,10 @@
 ---
+# Generated from skills/yamlet-adr/SKILL.md by scripts/build-skills.ts — edit the source, then rebuild.
 name: yamlet-adr
 description: >-
-  Writes a decision record (.adr.yaml) by interviewing the user and driving the `yamlet_adr_*`
-  tools, never by hand-writing YAML. Use when a design choice must be recorded — standalone
-  (`/skill:yamlet-adr adr`) or inside yamlet-techspec's decision gate.
+  Writes a decision record (.adr.yaml) by interviewing the user and driving the `yamlet_adr_*` tools, never by
+  hand-writing YAML. Use when a design choice must be recorded — standalone (`/skill:yamlet-adr adr`) or
+  inside yamlet-techspec's decision gate.
 ---
 
 # Yamlet ADR Skill
@@ -28,10 +29,10 @@ This skill drives the `yamlet_adr_*` tools from the yamlet pi extension. Without
 ## The interview — one thing at a time, in this order
 
 1. **Origin.** What spec criterion or requirement forces the choice (`SPEC.yamlet.yaml#AC-n`), or which prior record it builds on (`ADR-nnnn`)? A record nobody asked for is refused. Then the **kind**: selection (a product), mechanism (a pattern), policy (a fixed value), boundary, sequencing. The **question** must be answerable by choosing one option.
-   `yamlet_adr_init({ dir, title, kind, question, arises_from: ["SPEC#AC-n"], assumes: ["ADR-nnnn"] })`
-2. **Forces.** Constraints *outside the author's control*: the trust boundary, a spec obligation, a distribution model. A prior record's obligation is **cited** (`ADR-nnnn#R-n`), never restated. `yamlet_adr_add_force({ file, text })`
-3. **Basis, if anything will be measured.** The load a number is stated under (a volume, a horizon), each with a numeral and a source. `yamlet_adr_add_basis({ file, quantity, source })`
-4. **Dimensions.** The axes, each stated as *the threshold at which it decides anything*, not what the axis is. A measured one names its unit, the yardstick (`source`) and the basis it is stated under. `yamlet_adr_add_dimension({ file, matters, unit, source, basis: ["B-n"] })`
+   `yamlet_adr_init({ dir: DIR, title: T, kind: K, question: Q, arises_from: ["SPEC#AC-n", ...], assumes: ["ADR-nnnn", ...] })`
+2. **Forces.** Constraints *outside the author's control*: the trust boundary, a spec obligation, a distribution model. A prior record's obligation is **cited** (`ADR-nnnn#R-n`), never restated. `yamlet_adr_add_force({ file: FILE, text: TEXT })`
+3. **Basis, if anything will be measured.** The load a number is stated under (a volume, a horizon), each with a numeral and a source. `yamlet_adr_add_basis({ file: FILE, quantity: Q, source: S })`
+4. **Dimensions.** The axes, each stated as *the threshold at which it decides anything*, not what the axis is. A measured one names its unit, the yardstick (`source`) and the basis it is stated under. `yamlet_adr_add_dimension({ file: FILE, matters: M, unit: U, source: S, basis: ["B-n"] })`
 5. **Challenge before the options.** Spawn the **`yamlet-adr-challenger`** agent with the record's path **and the options you plan to write**, one line each, the status quo included. The record holds no options yet and the agent starts from a fresh context, so without that list it cannot judge whether the question is answerable or the set is honest:
 
    ```
@@ -44,11 +45,11 @@ This skill drives the `yamlet_adr_*` tools from the yamlet pi extension. Without
 
    It is headless and cannot ask the user anything, so relay its findings in prose. Resolve every **BLOCKER**, put its **QUESTIONS** to the user. Dimensions are cheapest to change now.
 6. **Options.** At least two; the status quo counts and naming it is what makes the set honest. Each is judged against **every** dimension in one call: a cell states a fact, a measured cell carries a numeral, `n/a — <reason>` is allowed and a bare `n/a` is not. A selection needs a locator per option (`refs`).
-   `yamlet_adr_add_option({ file, summary, reversibility: "reversible|costly|one-way", refs: [{ label: "project", locator: "URL" }], against: [{ dimension: "D-1", text: "..." }, ...] })`
-7. **Decision.** The user picks. `yamlet_adr_decide({ file, option: "OPT-n" })`
+   `yamlet_adr_add_option({ file: FILE, summary: S, reversibility: "reversible|costly|one-way", refs: [{ label: L, locator: URL }], against: [{ dimension: "D-1", text: "..." }, { dimension: "D-2", text: "..." }] })`
+7. **Decision.** The user picks. `yamlet_adr_decide({ file: FILE, option: "OPT-n" })`
 8. **What it obliges, costs, and when it stops being right.** Obligations are work, imperative voice (`yamlet_adr_add_obligation`); costs are taken knowingly and never discharged (`yamlet_adr_add_accept`); a revisit condition with a threshold names its number (`yamlet_adr_add_revisit`).
 9. **Challenge again.** Spawn it with prompt `Before accept: <record>` plus the paths of the other accepted records beside it and the specs they and it link; revise for its blockers, put the rest to the user (supersede after accepting; spec changes go to the yamlet-author skill).
-10. **Accept.** `yamlet_verify({ file })` must report `OK`; then `yamlet_adr_accept({ file })`. Say plainly that the record is now frozen, and that the spec must link it: `yamlet_add_adr({ file: SPEC, adr: FILE, rq: "RQ-n" })` or `ac: "AC-n"` (the tech spec or author does this; if you are standalone, do it and verify the spec).
+10. **Accept.** `yamlet_verify({ file: FILE })` must report `OK`; then `yamlet_adr_accept({ file: FILE })`. Say plainly that the record is now frozen, and that the spec must link it: `yamlet_add_adr({ file: SPEC, adr: FILE, rq: "RQ-n" })` or `ac: "AC-n"` (the tech spec or author does this; if you are standalone, do it and verify the spec).
 11. **Refresh.** Standalone, after the last change (accepted and linked, rejected, superseded): the `yamlet-refresh` skill on the specs directory, records outside it in `adrs`. Inside yamlet-techspec's gate, skip — it refreshes after linking.
 
 ### If there is no `Agent` tool
@@ -57,4 +58,4 @@ The gate needs [`@tintinweb/pi-subagents`](https://pi.dev/packages/@tintinweb/pi
 
 ## Superseding
 
-A decision that no longer holds gets a new record: `init` with `assumes` the old id, the same interview, `accept`, then `yamlet_adr_supersede({ file: OLD, by: "ADR-nnnn" })` and a fresh `yamlet_add_adr` where the old one was linked. The old link stays; it is history. Then refresh (step 11).
+A decision that no longer holds gets a new record: `init` with `assumes` the old id, the same interview, `accept`, then `yamlet_adr_supersede({ file: OLD, by: NEW })` and a fresh `yamlet_add_adr` where the old one was linked. The old link stays; it is history. Then refresh (step 11).

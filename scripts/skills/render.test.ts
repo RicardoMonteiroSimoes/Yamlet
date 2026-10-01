@@ -17,6 +17,11 @@ Deno.test("a block tag alone on its line takes the line with it", () => {
   const text = "1\n{{#claude}}\nC\n{{/claude}}\n{{#pi}}\nP\n{{/pi}}\n2\n";
   assertEquals(both(text), ["1\nC\n2\n", "1\nP\n2\n"]);
   assertEquals(both("x {{#pi}}p{{/pi}}y"), ["x y", "x py"]);
+  // A block closing mid-line must not pair with a later block's line-alone close.
+  assertEquals(
+    both("{{#pi}}\na\n{{/pi}}b\n{{#pi}}\nc\n{{/pi}}\n"),
+    ["b\n", "\na\nb\nc\n"],
+  );
 });
 
 Deno.test("tool, ref and invoke", () => {
@@ -72,8 +77,8 @@ Deno.test("cmd: repeatable flags collect into lists; `...` and `|` carry through
     'yamlet_techspec_task({ file: TS, covers: ["SPEC#AC-N", "ADR-nnnn#R-n"] })',
   );
   assertEquals(
-    directives("{{cmd techspec init SPEC SPEC2 --scope SPEC#AC-1}}", "pi"),
-    'yamlet_techspec_init({ specs: [SPEC, SPEC2], scope: ["SPEC#AC-1"] })',
+    directives("{{cmd techspec init SPEC... --scope SPEC#AC-1}}", "pi"),
+    'yamlet_techspec_init({ specs: [SPEC, ...], scope: ["SPEC#AC-1"] })',
   );
 });
 

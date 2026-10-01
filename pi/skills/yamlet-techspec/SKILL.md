@@ -1,14 +1,15 @@
 ---
+# Generated from skills/yamlet-techspec/SKILL.md by scripts/build-skills.ts — edit the source, then rebuild.
 name: yamlet-techspec
 description: >-
   Plans one change across every finished EARS spec (.yamlet.yaml) it touches, all of one system: reads
   the code, records a verdict per acceptance criterion and per obligation of the linked ADRs, then
   one task list covering every unmet one, all through the `yamlet_techspec_*` tools into a disposable
   `.techspec.yaml`. REQUIRES one or more spec paths as arguments (e.g. `/skill:yamlet-techspec
-  specs/pdf_upload.yamlet.yaml specs/pdf_verify.yamlet.yaml`); optional `--since <git-ref>` plans
-  only the criteria changed since that ref, and an optional directory argument is the code root
-  (default: the working directory). Use when specs are done and the question is "what is already
-  there, and what do we build?". Not for writing or changing a spec — that is yamlet-author.
+  specs/pdf_upload.yamlet.yaml specs/pdf_verify.yamlet.yaml`); optional `--since <git-ref>` plans only
+  the criteria changed since that ref, and an optional directory argument is the code root (default:
+  the working directory). Use when specs are done and the question is "what is already there, and
+  what do we build?". Not for writing or changing a spec — that is yamlet-author.
 ---
 
 # Yamlet Tech Spec Skill
@@ -41,9 +42,9 @@ A tool that answers "missing the command(s) … techspec" means the CLI on PATH 
 ## Working rhythm
 
 1. **Arguments.** Every `*.yamlet.yaml` is a spec; a directory is the code root; `--since REF` asks for a diff plan. Specs of different systems are two plans: stop and ask which one first.
-2. **Complete the set.** `yamlet_systems({ dir: <specs dir>, system: <slug> })` lists the system's other scopes. Unless the user already named them, ask once whether this change touches any of them too; add those the user names.
+2. **Complete the set.** `yamlet_systems({ dir: <specs-dir>, system: <slug> })` lists the system's other scopes. Unless the user already named them, ask once whether this change touches any of them too; add those the user names.
 3. **Gate.** `yamlet_verify({ file: SPEC })` must report `OK` for each. If not, stop: that spec is not finished; route the user to `yamlet-author`.
-4. **Scope — only with `--since`.** Per spec, `git diff REF -- SPEC` (`git show REF:SPEC` for the old version). A spec new since REF is planned whole. Otherwise its scope is every criterion that is new or whose pattern, clauses, `shall` or examples changed, and every criterion of a new requirement; a spec with none drops out. A criterion removed since REF cannot be scoped — list it for the report. Ids are permanent, so match by id, never by position.
+4. **Scope — only with `--since`.** Per spec, `git diff REF -- SPEC` (`git show REF:SPEC` to read the old version). A spec new since REF is planned whole. Otherwise its scope is every criterion that is new or whose pattern, clauses, `shall` or examples changed, and every criterion of a new requirement; a spec with none drops out. A criterion removed since REF cannot be scoped — list it for the report. Ids are permanent, so match by id, never by position.
 5. **Open.** `yamlet_techspec_init({ specs: [SPEC, ...], scope: ["SPEC#AC-N", ...] })` returns the path — use it as `TS` below (`SPEC#RQ-N` in `scope` takes a whole requirement). `already plans <system>` means a plan for this system is open: ask the user whether to finish it or delete it — never delete it yourself. Then pin the code: `yamlet_techspec_analysis({ file: TS, code_root: ROOT })`. The tool reads the commit from `git` in the code root itself; pass `commit` only when the user names a different one.
 6. **Read.** `read` each spec once: the contract (`exposes`), every `RQ-N`, every `AC-N` in scope with its pattern, clauses and `shall` list, and any `adrs:` links. `read` every record linked on a criterion in scope or on its requirement, and note each accepted one's `requires` (`R-n`) — those are the obligations the plan owes. `yamlet_verify({ file: TS })` lists what is still owed: E706 per criterion, E716 per obligation.
 7. **Research, one requirement at a time** (only requirements with a criterion in scope). Spawn the **`yamlet-code-research`** agent with: the code root, the contract, the requirement with its in-scope criteria verbatim (with `reads`/`writes`), and the obligations of the records deciding it (`ADR-nnnn#R-n` + `must`).
@@ -56,15 +57,15 @@ A tool that answers "missing the command(s) … techspec" means the CLI on PATH 
    })
    ```
 
-   It returns, per item, where the behaviour lives (`file:line`), what the code does there, deviations, related tests, the stored state the criteria touch, and which directories it read closely or skimmed. Record the directories: `yamlet_techspec_analysis({ file: TS, deep: [...], skimmed: [...] })` (lists accumulate).
+   It returns, per item, where the behaviour lives (`file:line`), what the code does there, deviations, related tests, the stored state the criteria touch, and which directories it read closely or skimmed. Record the directories: `yamlet_techspec_analysis({ file: TS, deep: [DIR], skimmed: [DIR] })` (lists accumulate).
 8. **Verdicts.** Decide `met: true` only when *every* `shall` (or the `must`) is observably satisfied at a cited reference; a partial, a wrong value, or the right place with the wrong behaviour is `met: false` with the references as evidence and a one-line `note` saying what differs. **Before recording `met: true`**, spawn the **`yamlet-evidence-challenger`** agent with the code root, the criterion or obligation verbatim (with its `writes`) and the exact references. It starts from a fresh context and can only `read`, so a reference it cannot resolve from the root you give is a refutation — always pass the root. `REFUTED` → record `met: false` with its reason as the note.
    `yamlet_techspec_criterion({ file: TS, ac: "SPEC#AC-N", met: true|false, evidence: ["PATH:LINE", ...], note: "..." })`
-   `yamlet_techspec_obligation({ file: TS, of: "ADR-nnnn#R-n", met: true|false, evidence: [...], note: "..." })`
+   `yamlet_techspec_obligation({ file: TS, of: "ADR-nnnn#R-n", met: true|false, evidence: ["PATH:LINE", ...], note: "..." })`
    An obligation the code already discharges is **met, with evidence** — never a task written to say so.
-9. **State inventory** (working notes). The fields the criteria in scope declare, plus `yamlet_systems({ dir, system, state: true })` for the rest of the system; each research STATE adds where the code declares it, or `absent`. Absent or unusable → schema work for step 11. Two scopes on one field, one writing → a **contended pair** for step 10. UNDECLARED state → spec gap: route to the `yamlet-author` skill (`yamlet_add_state`).
+9. **State inventory** (working notes). The fields the criteria in scope declare, plus `yamlet_systems({ dir: DIR, system: S, state: true })` for the rest of the system; each research STATE adds where the code declares it, or `absent`. Absent or unusable → schema work for step 11. Two scopes on one field, one writing → a **contended pair** for step 10. UNDECLARED state → spec gap: route to the `yamlet-author` skill (`yamlet_add_state`).
 10. **Decisions before tasks.** For every unmet item ask: can the work be broken down without a choice the user owns — a library, a protocol, isolation, storage, a trade-off? For every contended pair, also ask how the two interleave — a vote landing after the poll closed, an option removed while it is voted on. If no criterion says what happens then, the spec has a gap: stop and route the user to `yamlet-author`. If one does, how to enforce it — locking, isolation, ordering — is a choice. Collation, keys, cascades and id formats come here only when the user owns the choice; otherwise the schema task settles them. Where a choice remains, load `yamlet_guide({ topic: "decisions" })` and run that gate *now*. It ends with an accepted record linked into the spec by `yamlet_add_adr`; its obligations then need verdicts too.
 11. **Tasks, across the whole plan.** First look across every unmet item for what they share — a table, a clock, a guard, a client — and make each shared thing **one** task, never one per spec. Schema work from the inventory is one enabler per entity, which every task using its fields depends on; a new column satisfies no `shall` on its own, so it covers nothing. Enablers first (`why`, no `covers`), so later tasks can `depends_on` them; then one task per coherent change, `covers` every unmet criterion (`SPEC#AC-N`) and obligation (`ADR-nnnn#R-n`) it satisfies, `depends_on` what must land first, whichever spec it serves. A title states the behaviour the task delivers, not the activity.
-    `yamlet_techspec_task({ file: TS, title: "...", covers: ["SPEC#AC-N", "ADR-nnnn#R-n"], depends_on: ["T-N"], why: "..." })`
+    `yamlet_techspec_task({ file: TS, title: "...", covers: ["SPEC#AC-N", "ADR-nnnn#R-n", ...], depends_on: ["T-N", ...], why: "..." })`
 12. **Close.** `yamlet_verify({ file: TS })` must report `OK` — every criterion in scope and every owed obligation has one verdict, met ones cite evidence, every unmet one is covered, and dependencies resolve. Then report to the user (below).
 
 `SPEC` in `ac` and `covers` is the path as `init` listed it, or any path to the same file; with a single spec a bare `AC-N` will do.
@@ -81,7 +82,7 @@ A `DECIDED:` notice lists the records behind a criterion and, for an accepted on
 
 In prose, in dependency order: each task, what it delivers, which criteria and obligations it covers and in which spec; the criteria and obligations found met; every ADR written or read; each contended pair and how it was settled. With `--since`, name the scope per spec and every criterion removed since REF (the code behind it may need to go; that is the user's call, not a task here). Name the file, say it is disposable and belongs in `.gitignore`.
 
-To show the plan in context — criteria, verdicts, ADRs and tasks in one navigable page — offer `yamlet_trace({ dir: <specs dir>, out: "trace.html" })` (add `techspec: [TS]` if TS lies outside that dir). Hand the user the path; **never `read` it back**.
+To show the plan in context — criteria, verdicts, ADRs and tasks in one navigable page — offer `yamlet_trace({ dir: <specs-dir>, out: "trace.html" })` (add `techspec: [TS]` if TS lies outside that dir). Hand the user the path; **never `read` it back**.
 
 ## When a spec changes later
 
