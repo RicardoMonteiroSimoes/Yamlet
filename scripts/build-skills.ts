@@ -15,6 +15,9 @@
  * fails if any of them differs from what its source renders to; CI runs it.
  * See `skills/README.md` for the directive syntax.
  *
+ * It also keeps `.claude/skills/<name>` — tracked symlinks into the Claude Code
+ * build — in step with the units, so this repo dogfoods every skill.
+ *
  * Run:   deno run --allow-read --allow-write scripts/build-skills.ts
  * Check: deno run --allow-read scripts/build-skills.ts --check
  */
@@ -32,6 +35,8 @@ const CLAUDE = "plugins/yamlet-skills/skills";
 const PI_SKILLS = "pi/skills";
 const PI_AGENTS = "pi/agents";
 const EXTENSION = "pi/extensions/yamlet/index.ts";
+/** Where this repo's own Claude Code sessions pick the skills up. */
+const DEV_LINKS = ".claude/skills";
 /** Every generated file carries this; a file with it and no source is an orphan. */
 const MARK = "by scripts/build-skills.ts — edit the source";
 
@@ -82,8 +87,9 @@ for (const name of dirs(SOURCE)) {
   let current = sourcePath;
   try {
     const text = read(sourcePath);
-    const src = text === undefined ? undefined : parse(sourcePath, text);
-    if (src) {
+    if (text === undefined) throw new SourceError("no SKILL.md");
+    const src = parse(sourcePath, text);
+    {
       if (src.name !== name) {
         throw new SourceError(
           `name '${src.name}' does not match its directory`,
@@ -106,13 +112,12 @@ for (const name of dirs(SOURCE)) {
         }
         guides.set(src.guide, `agents/${name}.md`);
       }
-      for (const m of text!.matchAll(/\{\{ref\s+(\S+?)\s*\}\}/g)) {
+      for (const m of text.matchAll(/\{\{ref\s+(\S+?)\s*\}\}/g)) {
         refsUsed.push([m[1]!, sourcePath]);
       }
     }
-    // A directory may carry references/ before its SKILL.md is ported.
     const refs = files(`${SOURCE}/${name}/references`);
-    if (refs.length > 0 && src?.kind === "agent") {
+    if (refs.length > 0 && src.kind === "agent") {
       throw new SourceError("an agent cannot carry references/");
     }
     for (const ref of refs) {
@@ -204,9 +209,8 @@ if (extension !== undefined) {
       );
     }
   }
-  for (const [topic, path] of served) {
-    // A topic whose file is still hand-written is fine until it is ported.
-    if (!guides.has(topic) && read(`pi/${path}`)?.includes(MARK)) {
+  for (const topic of served.keys()) {
+    if (!guides.has(topic)) {
       problems.push(
         `${EXTENSION}: GUIDE_FILES serves '${topic}', which skills/ no longer generates`,
       );
@@ -231,7 +235,9 @@ if (extension !== undefined) {
   }
 }
 
-// A generated file whose source is gone is an orphan.
+// Every Markdown file in an output directory must be generated. One that
+// carries the banner but has no source left is an orphan, and a rebuild deletes
+// it; one without the banner is a hand edit in the wrong place.
 const candidates = [
   ...dirs(CLAUDE).flatMap((d) => [
     `${CLAUDE}/${d}/SKILL.md`,
@@ -247,13 +253,43 @@ const candidates = [
   ]),
   ...files(PI_AGENTS).map((f) => `${PI_AGENTS}/${f}`),
 ];
+const orphans: string[] = [];
 for (const path of candidates) {
   if (outputs.has(path)) continue;
-  if (read(path)?.includes(MARK)) {
+  const text = read(path);
+  if (text === undefined) continue;
+  if (!text.includes(MARK)) {
     problems.push(
-      `${path}: generated, but its source is gone — delete it or restore the source`,
+      `${path}: not generated — its source belongs in ${SOURCE}/ (see ${SOURCE}/README.md)`,
     );
+  } else orphans.push(path);
+}
+
+// The repo dogfoods the Claude Code build through tracked symlinks, so a fresh
+// clone has every skill without a build step. One per unit, nothing else.
+const want = new Map(
+  dirs(SOURCE).map((name) => [name, `../../${CLAUDE}/${name}`]),
+);
+const links: { add: string[]; drop: string[] } = { add: [], drop: [] };
+for (const [name, target] of want) {
+  let at: string | undefined;
+  try {
+    at = Deno.readLinkSync(`${DEV_LINKS}/${name}`);
+  } catch {
+    at = undefined;
   }
+  if (at !== target) links.add.push(name);
+}
+for (
+  const entry of (() => {
+    try {
+      return [...Deno.readDirSync(DEV_LINKS)];
+    } catch {
+      return [];
+    }
+  })()
+) {
+  if (entry.isSymlink && !want.has(entry.name)) links.drop.push(entry.name);
 }
 
 if (problems.length > 0) {
@@ -273,19 +309,40 @@ for (
   }
 }
 
+for (const path of orphans) {
+  stale.push(path);
+  if (!check) Deno.removeSync(path);
+}
+for (const name of links.add) {
+  stale.push(`${DEV_LINKS}/${name}`);
+  if (!check) {
+    Deno.mkdirSync(DEV_LINKS, { recursive: true });
+    try {
+      Deno.removeSync(`${DEV_LINKS}/${name}`);
+    } catch {
+      // not there yet
+    }
+    Deno.symlinkSync(want.get(name)!, `${DEV_LINKS}/${name}`);
+  }
+}
+for (const name of links.drop) {
+  stale.push(`${DEV_LINKS}/${name}`);
+  if (!check) Deno.removeSync(`${DEV_LINKS}/${name}`);
+}
+
 if (check) {
   if (stale.length > 0) {
     for (const path of stale) {
       console.error(`stale: ${path}`);
     }
     console.error(
-      `\n${stale.length} generated file(s) differ from skills/. Edit the source, not the output, then run:\n` +
+      `\n${stale.length} generated path(s) are out of step with skills/. Edit the source, not the output, then run:\n` +
         "  deno run --allow-read --allow-write scripts/build-skills.ts",
     );
     Deno.exit(1);
   }
   console.log(`All ${outputs.size} generated skill files match skills/.`);
 } else {
-  for (const path of stale) console.log(`wrote ${path}`);
+  for (const path of stale) console.log(`updated ${path}`);
   console.log(`${outputs.size} generated, ${stale.length} changed.`);
 }

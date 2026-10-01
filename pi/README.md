@@ -5,8 +5,16 @@ the [pi coding agent](https://pi.dev). Same specs, same CLI, same EARS rules —
 different harness, with different things it can and cannot enforce.
 
 The Claude Code build lives in [`plugins/yamlet-skills/`](../plugins/yamlet-skills).
-This directory is the pi build. They are separate ports of one idea, not a shared
-source: pi's model differs enough that a symlink would lie.
+This directory is the pi build. Both are **generated from one source**,
+[`skills/`](../skills) at the repo root, by `scripts/build-skills.ts`. pi's model
+differs enough that a symlink would lie, so the differences are not papered over:
+each source states them in explicit `{{#claude}}`/`{{#pi}}` blocks, and a command
+is written once in CLI syntax and rendered as the matching `yamlet_*` tool call
+here. A change therefore lands in both builds, or visibly in one.
+
+**Never edit `skills/` or `agents/` in this directory** — they carry a "Generated
+from …" banner, and CI fails if they drift from their source. Everything else here
+(the extension, `install.sh`, the manifests, the scripts) is hand-written.
 
 ## Prerequisites
 
@@ -138,9 +146,11 @@ its own absolute path, so "read the file next to me" is not expressible. The
 the challengers — so it resolves `../../skills/yamlet-author/references` the same way
 and hands the text back as a tool result. Guessing a path becomes a tool call.
 
-The procedures live in `skills/yamlet-author/references/` (mirroring the Claude Code
-layout, so the two ports stay legible side by side) and the smoke test asserts the
-tool returns those exact files, not a stub — if they move, it fails.
+The procedures live in `skills/yamlet-author/references/` — generated from the same
+source as the Claude Code references, so the layout matches — and the smoke test
+asserts the tool returns those exact files, not a stub — if they move, it fails. The
+build also checks `GUIDE_FILES` and `AGENT_FILES` in the extension against what it
+generates, so a reference or agent added to the source cannot be left unserved.
 
 The tech spec skill's own reference (`decisions` — the gate it runs when a task
 needs a choice the user owns) is served the same way, from
@@ -225,13 +235,13 @@ pi/
 ├── extensions/yamlet/
 │   ├── index.ts                        # the yamlet_* tools + the write/edit gate
 │   └── smoke.test.mjs                  # mock-pi harness: argv construction + gate
-├── agents/                             # requires @tintinweb/pi-subagents
+├── agents/                             # GENERATED from skills/; requires @tintinweb/pi-subagents
 │   ├── yamlet-contract-challenger.md   # author: before init freezes the contract
 │   ├── yamlet-criteria-challenger.md   # author: before a requirement is committed
 │   ├── yamlet-code-research.md         # tech spec: where each criterion or obligation lives (read/grep/find/ls)
 │   ├── yamlet-evidence-challenger.md   # tech spec: before a criterion or obligation is recorded as met
 │   └── yamlet-adr-challenger.md        # adr: after the dimensions, before any option
-└── skills/
+└── skills/                             # GENERATED from skills/ at the repo root
     ├── yamlet-author/
     │   ├── SKILL.md                    # the router: route, gates, closing steps
     │   └── references/                 # served by `yamlet_guide`, not read directly

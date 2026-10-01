@@ -17,9 +17,12 @@ deno run --allow-read scripts/build-skills.ts --check                # what CI r
 deno test --allow-read scripts/skills/                               # the renderer
 ```
 
-Units not yet in `skills/` are still hand-written in both places; the migration
-moves them over one at a time. A directory may carry `references/` before its
-`SKILL.md` is ported.
+Every Markdown file under those output directories must be generated: one
+without the banner fails the build, and one whose source is gone is deleted on the
+next rebuild. The build also keeps `.claude/skills/<name>` — tracked symlinks into
+the Claude Code build, so this repo's own sessions have every skill without a
+build step — one per unit. (`.pi/` stays untracked; `./pi/install.sh --project`
+links it.)
 
 The build also holds `pi/extensions/yamlet/index.ts` to what it generates:
 `GUIDE_FILES` must serve every reference (topic = file name) and every agent's
