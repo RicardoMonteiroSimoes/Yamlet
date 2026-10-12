@@ -101,6 +101,7 @@ Deno.test("set-header usage errors write nothing", () => {
   assertEquals(runSetHeader([file, "--front", "external"]).exitCode, 2);
   assertEquals(runSetHeader([file, "--blast-radius", "high"]).exitCode, 2);
   assertEquals(runSetHeader([file, "--topic", ""]).exitCode, 2);
+  assertEquals(runSetHeader([file, "--summary", "a\nb"]).exitCode, 2);
   assertEquals(runSetHeader([file, "--topic", "a", "--topic", "b"]).exitCode, 2);
   assertEquals(runSetHeader([`${file}.missing`, "--topic", "a"]).exitCode, 2);
   assertEquals(read(), before);

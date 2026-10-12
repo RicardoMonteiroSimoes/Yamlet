@@ -123,10 +123,12 @@ yamlet add-criterion   FILE --rq RQ-N [--after AC-N] --pattern P \
                                                       --writes name the stored fields it touches; a field another scope
                                                       of the system also touches (either side writing) prints a NOTE
 yamlet add-state       FILE --ac AC-N [--reads entity.field ...] [--writes entity.field ...]
-yamlet set-header      FILE [--topic t] [--summary s] [--description d]
                                                    -> declare the stored fields an existing criterion reads or writes;
                                                       merges into its lists (a write supersedes a read) and prints them.
                                                       Gated like add-adr; prints the same NOTE on a contended field
+yamlet set-header      FILE [--topic t] [--summary s] [--description d]
+                                                   -> rewrites header prose in place, same rules as init; a finding
+                                                      on a written field rolls back. blast_radius/front not settable
 yamlet add-adr         FILE PATH (--rq RQ-N | --ac AC-N)
                                                    -> link a decision record (a path relative to FILE, must exist) to an
                                                       existing requirement or criterion; the first mutation of an existing

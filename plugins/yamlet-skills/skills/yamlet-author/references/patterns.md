@@ -49,7 +49,7 @@ yamlet add-criterion specs/email.yamlet.yaml \
 
 Ask per requirement what the business remembers or changes — facts like an order's status, not tables or columns — then put each on the criterion that touches it: `--reads entity.field`, `--writes entity.field` (a write covers the read). Reuse the system's names: `yamlet systems DIR --system=S --state` (`--details` shows each field's criteria — its only description). An index, not a schema.
 
-A `NOTE:` means another scope touches the field and one side writes it: ask what happens when they interleave; cite the criterion that says so, or draft one. `W009`: a read field no scope writes — a missing scope, a typo, or external data.
+A `NOTE:` naming a field means another scope touches the field and one side writes it: ask what happens when they interleave; cite the criterion that says so, or draft one. `W009`: a read field no scope writes — a missing scope, a typo, or external data.
 
 ## The three kinds of `{token}`
 

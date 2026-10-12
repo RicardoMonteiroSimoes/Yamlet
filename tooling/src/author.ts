@@ -198,18 +198,20 @@ const renderUnexpected = renderFindings;
  * middle of a file. This one does: the findings after the change must be a
  * subset of the findings before it, keyed on (rule, message) — not on line or
  * path index, which an insertion shifts. A mutation that predicts a finding of
- * its own adds it to `predicted`.
+ * its own adds it to `predicted`. A finding at a path in `owned` (a field the
+ * mutation wrote whole) is never excused, even if it was there before.
  */
 function strictGuard(
   file: string,
   before: string,
   after: string,
   predicted: string[] = [],
+  owned: string[] = [],
 ): { ok: boolean; unexpected: Finding[] } {
   const key = (f: Finding): string => `${f.rule}\u0000${f.message}`;
   const prior = new Set(verifyText(file, before).result.errors.map(key));
   const unexpected = verifyText(file, after).result.errors.filter(
-    (e) => !prior.has(key(e)) && !predicted.includes(e.rule),
+    (e) => owned.includes(e.path) || (!prior.has(key(e)) && !predicted.includes(e.rule)),
   );
   return { ok: unexpected.length === 0, unexpected };
 }
@@ -1092,6 +1094,7 @@ export function runSetHeader(args: string[]): CmdResult {
       if (values.has(key)) return die(`duplicate ${a}`);
       const v = argVal(args, i, a);
       if (v === "") return die(`${a} must not be empty`);
+      if (v.includes("\n")) return die(`${a} must be one line`);
       values.set(key, v);
       i += 2;
     }
@@ -1102,8 +1105,7 @@ export function runSetHeader(args: string[]): CmdResult {
 
     const backup = Deno.readTextFileSync(file);
     let lines = backup.split("\n");
-    // Bottom-up, so an earlier key's extent is not shifted by a later rewrite.
-    for (const key of [...HEADER_KEYS].reverse()) {
+    for (const key of HEADER_KEYS) {
       const v = values.get(key);
       if (v === undefined) continue;
       const ext = topLevelExtent(lines, key);
@@ -1115,13 +1117,8 @@ export function runSetHeader(args: string[]): CmdResult {
     if (next === backup) return { exitCode: 0, stdout: "", stderr: "" };
 
     Deno.writeTextFileSync(file, next);
-    // strictGuard, except that a field this call wrote must come out clean even
-    // when the same (rule, message) was already there before.
-    const key = (f: Finding): string => `${f.rule}\u0000${f.message}`;
-    const prior = new Set(verifyText(file, backup).result.errors.map(key));
-    const unexpected = verifyText(file, next).result.errors.filter((e) =>
-      !prior.has(key(e)) || values.has(e.path as HeaderKey)
-    );
+    // A field this call wrote must come out clean even if it was dirty before.
+    const { unexpected } = strictGuard(file, backup, next, [], [...values.keys()]);
     if (unexpected.length > 0) {
       Deno.writeTextFileSync(file, backup);
       return {

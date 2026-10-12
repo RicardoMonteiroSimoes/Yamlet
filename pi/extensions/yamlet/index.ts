@@ -1116,14 +1116,15 @@ export default function (pi: ExtensionAPI) {
 			description: Type.Optional(Type.String({ description: "What the scope covers and owns" })),
 		}),
 		async execute(_id, params, signal, _onUpdate, ctx) {
-			if (!params.topic && !params.summary && !params.description) {
+			if (params.topic === undefined && params.summary === undefined && params.description === undefined) {
 				throw new Error("yamlet_set_header needs at least one of `topic`, `summary`, `description`.");
 			}
 			return mutate(params.file, ctx, () => {
 				const args = ["set-header", cleanPath(params.file)];
-				if (params.topic) args.push("--topic", params.topic);
-				if (params.summary) args.push("--summary", params.summary);
-				if (params.description) args.push("--description", params.description);
+				// An empty string goes through, so the CLI refuses it rather than this dropping it.
+				if (params.topic !== undefined) args.push("--topic", params.topic);
+				if (params.summary !== undefined) args.push("--summary", params.summary);
+				if (params.description !== undefined) args.push("--description", params.description);
 				return args;
 			}, signal);
 		},
