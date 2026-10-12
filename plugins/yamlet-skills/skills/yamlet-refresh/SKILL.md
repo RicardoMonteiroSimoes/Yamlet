@@ -21,7 +21,7 @@ Projection only. Never touch step definitions, fixtures, runners or hand-written
 
 ## Report to the user
 
-- **`wrote N features`** — new or changed scenarios need step definitions; `manifest.json` lists the tokens each must bind; example cells are escaped (`cell_escapes`), so glue decodes them before use.
+- **`wrote N features`** — new or changed scenarios need step definitions; `manifest.json` lists the tokens each must bind; glue decodes example cells (`cell_escapes`).
 - **`wrote N pages`** — commit them with the YAML change; `yamlet docs --check` in CI fails otherwise.
 - **`skipped … parse error`** — that file has no features and no page until it parses. Point to `yamlet-verifier`, and consult the user before calling the refresh clean.
 - **`refusing to erase`** — the docs target holds someone's files; nothing was erased. Ask for another directory.

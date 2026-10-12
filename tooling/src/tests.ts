@@ -29,8 +29,7 @@
 // stored fields it declares it reads/writes — the machine-readable contract of
 // what a consumer's step definitions must bind. The tokens are a second view of
 // the same ones the steps show (never a different truth), so a downstream check
-// can assert binding coverage without re-parsing Gherkin. It also names the cell
-// escape scheme (`cell_escapes`, see CELL_ESCAPES) the Examples tables use.
+// can assert binding coverage without re-parsing Gherkin, plus `cell_escapes`.
 //
 // Output layout groups scopes by system: <target>/<system>/<scope>.feature — so
 // `cucumber --tags @<system>` runs a whole system across its several files, and
@@ -166,18 +165,13 @@ function subst(text: string, exampleKeys: Set<string>): string {
 }
 
 /**
- * The cell escape scheme, named in the manifest. Gherkin unescapes only `\\`,
- * `\|` and `\n` in a cell and trims its edges, so a tab, a CR, another control
- * character or edge whitespace cannot reach a step definition as itself. Any
- * `\t`-style convention collides with a literal backslash once the parser has
- * eaten one level, so every backslash is written twice over: after Gherkin's own
- * unescape, the cell glue receives is this scheme, decoded left to right —
- * `\\` → `\`, `\t` → tab, `\r` → CR, `\n` → LF, `\uXXXX` → that code unit.
- * A value with none of these characters decodes to itself.
+ * Cell escapes, named in the manifest. Gherkin unescapes only `\\ \| \n` and trims
+ * cell edges, so backslashes are written twice over and every line break, control
+ * or edge-whitespace character stays escaped through Gherkin. Glue decodes
+ * `\\ \t \r \n \uXXXX` once; an ordinary value decodes to itself.
  */
 export const CELL_ESCAPES = "yamlet.cells/v1";
 
-/** Encode one example value as a Gherkin table cell (see CELL_ESCAPES). */
 export function cell(s: string): string {
   const u = (c: string) => `\\u${c.charCodeAt(0).toString(16).toUpperCase().padStart(4, "0")}`;
   const lead = s.length - s.replace(/^\s+/, "").length;
@@ -187,10 +181,10 @@ export function cell(s: string): string {
     const c = s[i]!;
     if (c === "\\") out += "\\\\\\\\";
     else if (c === "|") out += "\\|";
-    else if (c === "\n") out += "\\n";
+    else if (c === "\n") out += "\\\\n"; // a raw LF would split the substituted step
     else if (c === "\t") out += "\\t";
     else if (c === "\r") out += "\\r";
-    else if (c < " " || c === "\x7f") out += u(c);
+    else if (/[\x00-\x1f\x7f-\x9f\u2028\u2029]/.test(c)) out += u(c);
     else if (/\s/.test(c) && (i < lead || i >= s.length - trail)) out += u(c);
     else out += c;
   }
@@ -575,9 +569,8 @@ stored fields it declares (reads/writes) — the list a consumer's step
 definitions must bind. A downstream check can read it to assert nothing was left
 unbound. A criterion with none of these has no entry (yamlet verify: W010).
 
-Example values are written exactly, in the cell scheme the manifest names
-(cell_escapes: yamlet.cells/v1): after Gherkin's unescape, the glue decodes
-\\\\ \\t \\r \\n \\uXXXX once. Ordinary values are written as themselves.
+Example cells are escaped (manifest cell_escapes); glue decodes
+\\\\ \\t \\r \\n \\uXXXX once to get the exact value.
 
 yamlet emits the feature files and stops there: step definitions, fixtures and
 the runner belong to whoever consumes them. Specs with no requirements are

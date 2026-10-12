@@ -242,9 +242,9 @@ Deno.test("tests: an Examples table keeps the author's column order and aligns i
   ]);
 });
 
-// ── example cells reach step definitions unchanged (yamlet.cells/v1) ──
+// ── yamlet.cells/v1 ──
 
-/** Gherkin's own cell handling: unescape `\\`, `\|`, `\n`; keep any other `\x` as is. */
+/** Gherkin's own cell handling: trim, then unescape `\\ \| \n` only. */
 function gherkinCell(raw: string): string {
   return raw.trim().replace(
     /\\(\\|\||n)?/g,
@@ -252,7 +252,7 @@ function gherkinCell(raw: string): string {
   );
 }
 
-/** The reference glue decoder for yamlet.cells/v1, applied to what Gherkin hands over. */
+/** The reference glue decoder (README). */
 function decode(s: string): string {
   return s.replace(
     /\\(\\|t|r|n|u[0-9A-F]{4})/g,
@@ -283,10 +283,18 @@ Deno.test("tests: example values with tabs, line breaks and backslashes round-tr
     "\u0001ctl",
     "a b",
     "\\u0041",
+    "\u0085nel\u2028",
     "plain",
   ];
-  for (const v of values) assertEquals(decode(gherkinCell(` ${cell(v)}  `)), v, JSON.stringify(v));
-  // An ordinary value is written as itself, so existing glue needs no change.
+  for (const v of values) {
+    const parsed = gherkinCell(` ${cell(v)}  `);
+    assertEquals(
+      /[\n\r]/.test(parsed),
+      false,
+      `no line break reaches step text: ${JSON.stringify(v)}`,
+    );
+    assertEquals(decode(parsed), v, JSON.stringify(v));
+  }
   assertEquals(cell("https://ä.example/a b"), "https://ä.example/a b");
 });
 

@@ -16,11 +16,7 @@ export interface FlatRecord {
   path: string;
   value: string;
   line: number;
-  /**
-   * A double-quoted scalar's exact text, present only when `value` (which is
-   * normalised: newlines folded to spaces, edges trimmed) lost something. The
-   * verifier reads `value`; a projection that must be lossless reads this.
-   */
+  /** A quoted scalar's exact text, set only when the normalised `value` lost something. */
   raw?: string;
 }
 

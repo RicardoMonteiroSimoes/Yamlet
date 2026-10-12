@@ -400,23 +400,9 @@ The write plan is built in memory first, so a basename collision aborts before a
 
 #### Example values (`yamlet.cells/v1`)
 
-An example value reaches the step definition **exactly** as the spec holds it — tabs, line breaks,
-edge whitespace, a raw CR — so a criterion can test trimming or rejection of those very characters.
-Gherkin alone can't carry them (it unescapes only `\\`, `\|`, `\n` in a cell and trims its edges),
-so each cell is written in a scheme the glue decodes once. After Gherkin's own unescape, decode left
-to right:
-
-| sequence  | becomes          |
-| --------- | ---------------- |
-| `\\`      | `\`              |
-| `\t`      | tab              |
-| `\r`      | CR               |
-| `\n`      | LF               |
-| `\uXXXX`  | that UTF-16 unit |
-
-Anything else is kept as is. A value with no backslash, control character or edge whitespace is
-written as itself, so ordinary glue sees no difference. The manifest names the scheme in
-`cell_escapes`.
+Example values reach glue exactly — tabs, line breaks, edge whitespace included. Gherkin can't
+carry these in a cell, so after its own unescape the glue decodes `\\` `\t` `\r` `\n` `\uXXXX`
+once (anything else stays as is); an ordinary value decodes to itself:
 
 ```js
 const decode = (s) => s.replace(/\\(\\|t|r|n|u[0-9A-F]{4})/g, (_, e) =>
