@@ -55,7 +55,7 @@ A spec states what the caller, or the business, can observe — never how the co
 - **exit 2** — `error:`, and nothing was written. Fix the input and retry.
 - **exit 3** — the change tripped a validation finding and the file was rolled back. Tell the user: the change is not expressible as asked.
 - **a `WARNING:` on stderr with exit 0** — the change landed under a requirement an ADR decides. Relay it verbatim: the decision is not revisited here; the tech spec that plans this change (`yamlet-techspec`) reads the record and accounts for it.
-- **a `NOTE:` on stderr with exit 0** — another scope shares a stored field; see `references/patterns.md`, "Stored state".
+- **a `NOTE:` on stderr with exit 0** — naming a field: another scope shares it; see `references/patterns.md`, "Stored state". `adds behaviour`: re-read `summary`/`description`; if stale, propose wording and apply it with `yamlet set-header`.
 
 **Never invent an id** — use the one the tool printed. Ids are permanent, never reused and never renumbered; a deleted criterion leaves a gap, and the gap is correct.
 
@@ -70,7 +70,7 @@ A spec states what the caller, or the business, can observe — never how the co
 
 ### Challenge before you commit
 
-Draft the requirement's description **and** its full set of criteria in conversation first. Then invoke **`yamlet-criteria-challenger`** (`/yamlet-criteria-challenger <proposal>`) with: the description; every intended criterion (pattern, clauses, `shall` items, placeholders/examples, reads/writes); and the scope's system, directory, front and contract; the spec's path, so it can check the new criteria against the committed ones; and for a composite, each member's alias and spec path, so it can check the criteria against what its members promise.
+Draft the requirement's description **and** its full set of criteria in conversation first. Then invoke **`yamlet-criteria-challenger`** (`/yamlet-criteria-challenger <proposal>`) with: the description; every intended criterion (pattern, clauses, `shall` items, placeholders/examples, reads/writes); the scope's system, directory, front and contract, and its summary and description; the spec's path, so it can check the new criteria against the committed ones; and for a composite, each member's alias and spec path, so it can check the criteria against what its members promise.
 
 Relay its findings in prose — you do not obey it blindly. Resolve every **BLOCKER** before committing, put its **QUESTIONS** to the user, and surface its **SUGGESTIONS** for a decision.
 

@@ -30,7 +30,7 @@ Committed wording is final (criteria bind step definitions at once), but appendi
 
 ## Input
 
-Your prompt holds: the requirement description; each criterion (EARS pattern, clause(s) `while`/`when`/`where`/`if`, `shall` items, any placeholders/examples, reads/writes); and scope context (system, directory, front, declared contract inputs/outputs, the spec's path once it exists, and for a composite each member's alias and spec path). Missing criteria for the requirement is your first finding.
+Your prompt holds: the requirement description; each criterion (EARS pattern, clause(s) `while`/`when`/`where`/`if`, `shall` items, any placeholders/examples, reads/writes); and scope context (system, directory, front, summary and description, declared contract inputs/outputs, the spec's path once it exists, and for a composite each member's alias and spec path). Missing criteria for the requirement is your first finding.
 
 ## Checks — for each: object or clear it
 
@@ -53,6 +53,7 @@ Your prompt holds: the requirement description; each criterion (EARS pattern, cl
 12. **Altitude.** Would each clause and `shall` still hold if the implementation were swapped? A protocol, product, retry or backoff, cache, transaction, queue, table or status code is a *how* — BLOCKER: propose the observable outcome it protects, and name the *how* for an ADR or the tech spec. A business rule with a number (a size limit, a deadline) is a *what*; clear it. Never ask for detail below what the caller or the business observes.
 13. **Overlap.** Pair each proposed criterion with every other proposed one and every one already committed (`read` the spec). Where both triggers can fire on one call and both states can hold at once, their `shall`s must agree. BLOCKER: one concrete input that satisfies both and demands opposite outcomes (record vs record none; two error codes). A criterion's examples do not narrow its clauses — a case they skip still counts. Fix it with a clause that excludes the overlap.
 14. **Member fidelity** (composite). For each criterion on a member's output (`{alias.socket}`) or on a behaviour a member owns, `read` that member's spec. It must hold for **every** value the member can produce — take each error code in turn. BLOCKER: a member criterion that makes it false (a duplicate rejection reported for a record that does exist).
+15. **Header fit.** QUESTION: a proposed criterion the scope's `summary` or `description` contradicts or leaves out — propose the new wording (applied with set-header).
 
 ## Report — terse and ordered
 

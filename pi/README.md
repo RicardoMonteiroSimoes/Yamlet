@@ -25,9 +25,9 @@ The port and the CLI share one version number, so pin the port to the release
 whose CLI you run:
 
 ```sh
-pi install npm:yamlet-pi@0.6.0
+pi install npm:yamlet-pi@0.7.0
 # or straight from the repo, at the same tag
-pi install git:github.com/RicardoMonteiroSimoes/Yamlet@v0.6.0
+pi install git:github.com/RicardoMonteiroSimoes/Yamlet@v0.7.0
 ```
 
 Unpinned — `pi install git:github.com/RicardoMonteiroSimoes/Yamlet` — tracks
@@ -89,7 +89,7 @@ ones need a restart or `/reload`.
 | | `yamlet_add_criterion` | | `yamlet_techspec_task` | `yamlet_adr_add_option` |
 | | `yamlet_add_adr` | | | `yamlet_adr_decide` |
 | | `yamlet_add_state` | | | `yamlet_adr_add_obligation` |
-| | | | | `yamlet_adr_add_accept` |
+| | `yamlet_set_header` | | | `yamlet_adr_add_accept` |
 | | | | | `yamlet_adr_add_revisit` |
 | | | | | `yamlet_adr_remove` · `_replace` |
 | | | | | `yamlet_adr_accept` · `_reject` |

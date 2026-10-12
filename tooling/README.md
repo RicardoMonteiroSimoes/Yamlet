@@ -126,6 +126,9 @@ yamlet add-state       FILE --ac AC-N [--reads entity.field ...] [--writes entit
                                                    -> declare the stored fields an existing criterion reads or writes;
                                                       merges into its lists (a write supersedes a read) and prints them.
                                                       Gated like add-adr; prints the same NOTE on a contended field
+yamlet set-header      FILE [--topic t] [--summary s] [--description d]
+                                                   -> rewrites header prose in place, same rules as init; a finding
+                                                      on a written field rolls back. blast_radius/front not settable
 yamlet add-adr         FILE PATH (--rq RQ-N | --ac AC-N)
                                                    -> link a decision record (a path relative to FILE, must exist) to an
                                                       existing requirement or criterion; the first mutation of an existing
@@ -496,7 +499,7 @@ src/composite.ts       cross-file member/socket tables (directional: inputs vs o
 src/validate.ts        Phase 2: structural + semantic rules over records
 src/render.ts          byte-exact human/JSON output
 src/verify.ts          orchestration: extension → flatten → composite → validate
-src/author.ts          correct-by-construction appender + verify commit gate (and `add-adr` / `add-state`, the in-place mutations)
+src/author.ts          correct-by-construction appender + verify commit gate (and `add-adr` / `add-state` / `set-header`, the in-place mutations)
 src/state.ts           a criterion's reads/writes merged per system: fields, contended pairs (systems --state, W009, NOTE)
 src/cmd.ts             the command helpers (usage error, flag values, path predicates) shared by author + techspec
 src/records.ts         readers over flattened records by prefix, shared by `tests` and the tech spec

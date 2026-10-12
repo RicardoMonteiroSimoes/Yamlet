@@ -76,6 +76,10 @@ An inserted criterion gets a letter-suffixed id (`AC-1a`, then `AC-1b`) so it so
 
 Unchanged — `yamlet_add_requirement`, then its criteria. Drafted and challenged exactly as in the skill body.
 
+### The header
+
+Every append prints `NOTE: … adds behaviour`. Re-read `summary` and `description` against the change; if they no longer describe the scope, propose new wording to the user and apply it with `yamlet_set_header` (also `topic`).
+
 ### Changing behaviour something already depends on
 
 **Do not look for a way to rewrite in place. Add the replacement alongside the original, then remove the original once the new path is live.** Two requirements may describe the same capability, and the verifier will not object — a temporary duplicate is a correct intermediate state, not a mistake.
@@ -96,7 +100,7 @@ Be straight with the user about these. Do not attempt a workaround, and do not t
 |---|---|
 | Revising a requirement's or criterion's text | Add the replacement alongside it (step 4 above) and note the removal as follow-up |
 | Removing a requirement or criterion | Note it for the user as follow-up work |
-| Changing header fields (`topic`, `summary`, `description`, `blast_radius`, `front`) | Note it; nothing in the tool can change them today |
+| Changing `blast_radius` or `front` | Note it — they change what the spec owes; not settable |
 | Adding, removing or renaming a contract input/output | Note it, **and run `yamlet_impact` so the user knows the real cost** — every composite listed would need rewiring |
 | Adding a component or connection to a spec that already has requirements | The tool refuses: all wiring must precede the first requirement |
 

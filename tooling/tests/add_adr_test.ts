@@ -240,7 +240,7 @@ Deno.test("adding a criterion under a decided requirement warns loudly, and stil
     "w",
   ]);
   assertEquals(quiet.exitCode, 0);
-  assertEquals(quiet.stderr, "");
+  assertEquals(quiet.stderr.includes("WARNING"), false);
 
   // And with --after, the owning requirement's decision still applies.
   const ins = runAddCriterion([

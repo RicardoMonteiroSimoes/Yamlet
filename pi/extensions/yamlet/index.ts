@@ -115,6 +115,7 @@ const OPTIONAL_COMMANDS: Record<string, string> = {
 	// that says why: present once `adr`'s summary says "revise".
 	"adr revise": "ADR revision",
 	docs: "Markdown docs",
+	"set-header": "header edits",
 };
 
 /**
@@ -1096,6 +1097,34 @@ export default function (pi: ExtensionAPI) {
 				const args = ["add-state", cleanPath(params.file), "--ac", params.ac];
 				repeat("--reads", params.reads, args);
 				repeat("--writes", params.writes, args);
+				return args;
+			}, signal);
+		},
+	});
+
+	pi.registerTool({
+		name: "yamlet_set_header",
+		label: "yamlet set-header",
+		description:
+			"Rewrite a spec's topic, summary and/or description in place (at least one) — when appended " +
+			"behaviour has outgrown them. Same rules as init; blast_radius and front are not settable.",
+		promptSnippet: "Rewrite a spec's topic, summary or description",
+		parameters: Type.Object({
+			file: Type.String({ description: "The spec .yamlet.yaml" }),
+			topic: Type.Optional(Type.String({ description: "Short human title" })),
+			summary: Type.Optional(Type.String({ description: "One sentence, at most 30 words" })),
+			description: Type.Optional(Type.String({ description: "What the scope covers and owns" })),
+		}),
+		async execute(_id, params, signal, _onUpdate, ctx) {
+			if (params.topic === undefined && params.summary === undefined && params.description === undefined) {
+				throw new Error("yamlet_set_header needs at least one of `topic`, `summary`, `description`.");
+			}
+			return mutate(params.file, ctx, () => {
+				const args = ["set-header", cleanPath(params.file)];
+				// An empty string goes through, so the CLI refuses it rather than this dropping it.
+				if (params.topic !== undefined) args.push("--topic", params.topic);
+				if (params.summary !== undefined) args.push("--summary", params.summary);
+				if (params.description !== undefined) args.push("--description", params.description);
 				return args;
 			}, signal);
 		},

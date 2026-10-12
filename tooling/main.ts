@@ -15,6 +15,7 @@
 //   yamlet add-requirement FILE --description "..."
 //   yamlet add-criterion FILE --rq RQ-N --pattern P ...
 //   yamlet add-adr FILE PATH (--rq RQ-N | --ac AC-N)
+//   yamlet set-header FILE [--topic t] [--summary s] [--description d]
 //   yamlet techspec init|analysis|criterion|obligation|task ...
 //   yamlet adr init|add-force|add-basis|add-dimension|add-option|decide|... ...
 //
@@ -36,6 +37,7 @@ import {
   addRequirementCommand,
   addStateCommand,
   initCommand,
+  setHeaderCommand,
 } from "./src/author.ts";
 import { techspecCommand } from "./src/techspec_author.ts";
 import { adrCommand } from "./src/adr_author.ts";
@@ -171,6 +173,7 @@ export const COMMANDS: Command[] = [
   addCriterionCommand,
   addAdrCommand,
   addStateCommand,
+  setHeaderCommand,
   techspecCommand,
   adrCommand,
 ];

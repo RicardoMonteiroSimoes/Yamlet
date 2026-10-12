@@ -51,6 +51,7 @@ const USAGE = `Usage:
                    [--reads entity.field ...] [--writes entity.field ...]
   yamlet add-state       FILE --ac AC-N [--reads entity.field ...] [--writes entity.field ...]
   yamlet add-adr         FILE PATH (--rq RQ-N | --ac AC-N)
+  yamlet set-header      FILE [--topic t] [--summary s] [--description d]
 `;
 const usageResult = (): CmdResult => ({ exitCode: 2, stdout: "", stderr: USAGE });
 
@@ -197,20 +198,29 @@ const renderUnexpected = renderFindings;
  * middle of a file. This one does: the findings after the change must be a
  * subset of the findings before it, keyed on (rule, message) — not on line or
  * path index, which an insertion shifts. A mutation that predicts a finding of
- * its own adds it to `predicted`.
+ * its own adds it to `predicted`. A finding at a path in `owned` (a field the
+ * mutation wrote whole) is never excused, even if it was there before.
  */
 function strictGuard(
   file: string,
   before: string,
   after: string,
   predicted: string[] = [],
+  owned: string[] = [],
 ): { ok: boolean; unexpected: Finding[] } {
   const key = (f: Finding): string => `${f.rule}\u0000${f.message}`;
   const prior = new Set(verifyText(file, before).result.errors.map(key));
   const unexpected = verifyText(file, after).result.errors.filter(
-    (e) => !prior.has(key(e)) && !predicted.includes(e.rule),
+    (e) => owned.includes(e.path) || (!prior.has(key(e)) && !predicted.includes(e.rule)),
   );
   return { ok: unexpected.length === 0, unexpected };
+}
+
+/** The editable header keys, in file order, and the one emitter `init` and `set-header` share. */
+const HEADER_KEYS = ["topic", "summary", "description"] as const;
+type HeaderKey = typeof HEADER_KEYS[number];
+function headerLine(key: HeaderKey, value: string): string {
+  return key === "description" ? `description: >-\n  ${value}\n` : `${key}: ${scalar(value)}\n`;
 }
 
 // ── init ──
@@ -324,10 +334,9 @@ export function runInit(args: string[]): CmdResult {
 
     let body = "";
     body += `system: ${system}\n`;
-    body += `topic: ${scalar(topic)}\n`;
-    body += `summary: ${scalar(summary)}\n`;
-    body += "description: >-\n";
-    body += `  ${description}\n`;
+    body += headerLine("topic", topic);
+    body += headerLine("summary", summary);
+    body += headerLine("description", description);
     body += `blast_radius: ${blast}\n`;
     body += `front: ${front}\n`;
     if (exposeName) {
@@ -624,6 +633,16 @@ export function runAddConnection(args: string[]): CmdResult {
   }
 }
 
+/**
+ * Appended behaviour can make the header's prose wrong, and no rule can see
+ * that: the summary still verifies, it just no longer says what the scope does.
+ * So every append says so. On stderr, exit 0.
+ */
+function headerNotice(id: string): string {
+  return `NOTE: ${id} adds behaviour — check that summary and description still describe ` +
+    "this scope (yamlet set-header changes them).\n";
+}
+
 // ── add-requirement ──
 export function runAddRequirement(args: string[]): CmdResult {
   try {
@@ -689,7 +708,7 @@ export function runAddRequirement(args: string[]): CmdResult {
         }\n`,
       };
     }
-    return { exitCode: 0, stdout: `${rqid}\n`, stderr: "" };
+    return { exitCode: 0, stdout: `${rqid}\n`, stderr: headerNotice(rqid) };
   } catch (e) {
     if (e instanceof CmdError) return e.result;
     throw e;
@@ -1032,7 +1051,85 @@ export function runAddCriterion(args: string[]): CmdResult {
       adrsOf(next, target.path),
     );
     const shared = contentionNotice(file, next, acid, [...writes, ...reads]);
-    return { exitCode: 0, stdout: `${acid}\n`, stderr: notice + shared };
+    return { exitCode: 0, stdout: `${acid}\n`, stderr: notice + shared + headerNotice(acid) };
+  } catch (e) {
+    if (e instanceof CmdError) return e.result;
+    throw e;
+  }
+}
+
+// ── set-header ──
+// Rewrite `topic`, `summary` or `description` in place. Appends add behaviour
+// the header prose was written without, and that prose travels: `tests` copies
+// the summary into the feature, `docs` into the scope page and every composite's
+// member table. `blast_radius` and `front` are deliberately not settable: they
+// change what the spec owes (an external front owes hostile-input criteria), so
+// changing them is a new spec, not a header edit. `topic` is display text only —
+// file names come from the spec's path.
+
+/** Line extent (1-based, inclusive) of a top-level key and its folded continuation. */
+function topLevelExtent(lines: string[], key: string): { start: number; end: number } | null {
+  const i = lines.findIndex((l) => l === `${key}:` || l.startsWith(`${key}: `));
+  if (i < 0) return null;
+  let end = i;
+  for (let j = i + 1; j < lines.length; j++) {
+    const l = lines[j]!;
+    if (l.startsWith(" ")) end = j;
+    else if (l !== "") break;
+  }
+  return { start: i + 1, end: end + 1 };
+}
+
+export function runSetHeader(args: string[]): CmdResult {
+  try {
+    const file = args[0] ?? "";
+    if (file === "") return usageResult();
+
+    const values = new Map<HeaderKey, string>();
+    let i = 1;
+    while (i < args.length) {
+      const a = args[i]!;
+      const key = HEADER_KEYS.find((k) => a === `--${k}`);
+      if (key === undefined) return die(`unknown flag for set-header: ${a}`);
+      if (values.has(key)) return die(`duplicate ${a}`);
+      const v = argVal(args, i, a);
+      if (v === "") return die(`${a} must not be empty`);
+      if (v.includes("\n")) return die(`${a} must be one line`);
+      values.set(key, v);
+      i += 2;
+    }
+    if (values.size === 0) {
+      return die("set-header requires at least one of --topic --summary --description");
+    }
+    if (!isFile(file)) return die(`file not found: ${file} (run 'init' first)`);
+
+    const backup = Deno.readTextFileSync(file);
+    let lines = backup.split("\n");
+    for (const key of HEADER_KEYS) {
+      const v = values.get(key);
+      if (v === undefined) continue;
+      const ext = topLevelExtent(lines, key);
+      if (ext === null) return die(`${file} has no top-level '${key}:' to replace`);
+      const repl = headerLine(key, v).replace(/\n$/, "").split("\n");
+      lines = [...lines.slice(0, ext.start - 1), ...repl, ...lines.slice(ext.end)];
+    }
+    const next = lines.join("\n");
+    if (next === backup) return { exitCode: 0, stdout: "", stderr: "" };
+
+    Deno.writeTextFileSync(file, next);
+    // A field this call wrote must come out clean even if it was dirty before.
+    const { unexpected } = strictGuard(file, backup, next, [], [...values.keys()]);
+    if (unexpected.length > 0) {
+      Deno.writeTextFileSync(file, backup);
+      return {
+        exitCode: 3,
+        stdout: "",
+        stderr: `error: set-header produced an unexpected finding and was rolled back:\n${
+          renderUnexpected(unexpected)
+        }\n`,
+      };
+    }
+    return { exitCode: 0, stdout: "", stderr: "" };
   } catch (e) {
     if (e instanceof CmdError) return e.result;
     throw e;
@@ -1540,4 +1637,25 @@ whole service is repeated where it applies rather than hoisted to the file.
 Every link is checked by verify (E109): the file must resolve.
 `,
   run: runAddAdr,
+};
+
+export const setHeaderCommand: Command = {
+  name: "set-header",
+  summary: "rewrite a spec's topic, summary or description",
+  help: `yamlet set-header — rewrite a spec's topic, summary or description in place
+
+Usage:
+  yamlet set-header FILE [--topic t] [--summary s] [--description d]
+
+At least one flag. Each value is written as init writes it and held to the same
+rules (summary: one sentence, at most 30 words — E305); a finding on a field this
+call wrote rolls the file back (exit 3).
+
+Use it when the scope's behaviour has outgrown its prose: add-requirement and
+add-criterion print a NOTE after every append as the reminder. blast_radius and
+front are not settable — they change what the spec owes. topic is display text
+only (feature title, page heading); file names come from the spec's path. Run
+'yamlet tests' and 'yamlet docs' afterwards: both copy the summary.
+`,
+  run: runSetHeader,
 };

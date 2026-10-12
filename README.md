@@ -123,6 +123,7 @@ Every write goes through the CLI. It allocates all IDs (`RQ-1`, `AC-3`, `T-2`,
 | `yamlet add-component` · `add-connection` | wire a composite |
 | `yamlet add-adr` | link a decision record to a requirement or criterion |
 | `yamlet add-state` | declare the stored fields an existing criterion reads or writes |
+| `yamlet set-header` | rewrite a spec's topic, summary or description |
 | `yamlet techspec …` | build a `.techspec.yaml` |
 | `yamlet adr …` | build a `.adr.yaml` |
 

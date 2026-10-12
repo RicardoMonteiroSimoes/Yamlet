@@ -56,6 +56,7 @@ Commands:
   add-criterion     append an acceptance criterion (prints AC-N)
   add-adr           link an ADR to a requirement or criterion
   add-state         declare the stored fields a criterion reads or writes
+  set-header        rewrite a spec's topic, summary or description
   techspec          plan a change across a system's specs: gap analysis and task list (.techspec.yaml)
   adr               write or revise a decision record (.adr.yaml), correct by construction
 `;
@@ -64,8 +65,10 @@ Commands:
 const OLD_SYSTEMS = (h) => h.replace(/  systems .*\n/, "  systems           list existing systems grouped by their scope files\n");
 // The release before ADR revision (remove, replace, reject --reason): \`adr\` is there, its summary says only "write".
 const OLD_ADR = (h) => h.replace(/  adr .*\n/, "  adr               write a decision record (.adr.yaml), correct by construction\n");
+// The release before \`set-header\`.
+const HELP_0_6 = HELP.replace(/  set-header .*\n/, "");
 // The release before \`docs\`.
-const HELP_0_5_1 = HELP.replace(/  docs .*\n/, "");
+const HELP_0_5_1 = HELP_0_6.replace(/  docs .*\n/, "");
 const HELP_0_5 = OLD_ADR(OLD_SYSTEMS(HELP_0_5_1));
 
 // The release before tech specs and decision records: every authoring command,
@@ -141,11 +144,11 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 {
 	const { tools } = makePi();
 	const names = [...tools.keys()].sort();
-	ok("34 tools registered", names.length === 34, names.join(","));
+	ok("35 tools registered", names.length === 35, names.join(","));
 	ok("impact and guide are registered",
 		names.includes("yamlet_impact") && names.includes("yamlet_guide"), names.join(","));
 	const planning = [
-		"yamlet_add_adr", "yamlet_add_state",
+		"yamlet_add_adr", "yamlet_add_state", "yamlet_set_header",
 		"yamlet_techspec_init", "yamlet_techspec_analysis", "yamlet_techspec_criterion",
 		"yamlet_techspec_obligation", "yamlet_techspec_task",
 		"yamlet_adr_init", "yamlet_adr_add_force", "yamlet_adr_add_basis", "yamlet_adr_add_dimension",
@@ -226,6 +229,16 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 	try { await tools.get("yamlet_add_state").execute("id", { file: "s.yamlet.yaml", ac: "AC-1" }, undefined, undefined, ctx); } catch (e) { msg = e.message; }
 	ok("add_state refuses no fields before running",
 		msg.includes("at least one field") && !calls.slice(before).some((c) => c[1] === "add-state"), msg);
+	await tools.get("yamlet_set_header").execute("id", {
+		file: "@specs/v.yamlet.yaml", summary: "Lets a voter vote.", description: "Owns the vote.",
+	}, undefined, undefined, ctx);
+	ok("set_header argv",
+		same(calls.at(-1), ["yamlet", "set-header", "specs/v.yamlet.yaml", "--summary", "Lets a voter vote.",
+			"--description", "Owns the vote."]),
+		JSON.stringify(calls.at(-1)));
+	msg = "";
+	try { await tools.get("yamlet_set_header").execute("id", { file: "s.yamlet.yaml" }, undefined, undefined, ctx); } catch (e) { msg = e.message; }
+	ok("set_header refuses no field before running", msg.includes("at least one of"), msg);
 	await tools.get("yamlet_systems").execute("id", {
 		dir: "specs", system: "lunch-poll", state: true, details: true,
 	}, undefined, undefined, ctx);
@@ -688,13 +701,29 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 		notes[0]?.[0] === "error" && (notes[0]?.[1] ?? "").includes("add-connection") && (notes[0]?.[1] ?? "").includes("tests"), JSON.stringify(notes));
 }
 {
+	// The release before \`set-header\` must keep loading: one warning naming it, and
+	// yamlet_set_header fails with the upgrade hint before running.
+	resetNotes();
+	const { handlers, tools, calls } = makePi({ help: HELP_0_6 });
+	await handlers.session_start({}, ctx);
+	ok("0.6 CLI: one startup warning naming set-header",
+		notes.length === 1 && notes[0][0] === "warning" && notes[0][1].includes("no set-header command") &&
+		notes[0][1].includes("header edits"), JSON.stringify(notes));
+	const before = calls.length;
+	let msg = "";
+	try { await tools.get("yamlet_set_header").execute("id", { file: "a.yamlet.yaml", topic: "t" }, undefined, undefined, ctx); } catch (e) { msg = e.message; }
+	ok("0.6 CLI: yamlet_set_header fails with the upgrade hint, before running",
+		msg.includes("needs: set-header.") && msg.includes("brew upgrade yamlet") &&
+		!calls.slice(before).some((c) => c[1] === "set-header"), msg || JSON.stringify(calls.slice(before)));
+}
+{
 	// The release before \`docs\` must keep loading: one warning naming it, and
 	// yamlet_docs fails with the upgrade hint before running.
 	resetNotes();
 	const { handlers, tools, calls } = makePi({ help: HELP_0_5_1 });
 	await handlers.session_start({}, ctx);
 	ok("0.5.1 CLI: one startup warning naming docs",
-		notes.length === 1 && notes[0][0] === "warning" && notes[0][1].includes("no docs command") &&
+		notes.length === 1 && notes[0][0] === "warning" && notes[0][1].includes("no docs/set-header command") &&
 		notes[0][1].includes("Markdown docs"), JSON.stringify(notes));
 	const before = calls.length;
 	let msg = "";
@@ -710,7 +739,7 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 	const { handlers, tools, calls } = makePi({ help: HELP_0_5 });
 	await handlers.session_start({}, ctx);
 	ok("0.5 CLI: one startup warning naming systems --criteria and adr revise",
-		notes.length === 1 && notes[0][0] === "warning" && notes[0][1].includes("no systems --criteria/adr revise/docs command") &&
+		notes.length === 1 && notes[0][0] === "warning" && notes[0][1].includes("no systems --criteria/adr revise/docs/set-header command") &&
 		notes[0][1].includes("system criteria") && notes[0][1].includes("ADR revision"), JSON.stringify(notes));
 	const before = calls.length;
 	let msg = "";
@@ -786,7 +815,7 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 	const { handlers, tools, calls } = makePi({ help: HELP_0_4_0 });
 	await handlers.session_start({}, ctx);
 	ok("0.4.0 CLI: one startup warning naming trace, the one-spec techspec and add-state, not adr",
-		notes.length === 1 && notes[0][0] === "warning" && notes[0][1].includes("no techspec/trace/add-state/systems --criteria/adr revise/docs command") && notes[0][1].includes("stored state") &&
+		notes.length === 1 && notes[0][0] === "warning" && notes[0][1].includes("no techspec/trace/add-state/systems --criteria/adr revise/docs/set-header command") && notes[0][1].includes("stored state") &&
 		notes[0][1].includes("traceability") && notes[0][1].includes("tech spec") &&
 		!notes[0][1].includes("decision record"), JSON.stringify(notes));
 	// (\`adr\` itself is there — only its revision commands are missing, and that is "ADR revision".)

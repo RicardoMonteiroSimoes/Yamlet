@@ -35,8 +35,8 @@ src/catalog.ts    the rule catalog (source of truth for rule ids/severities)
 src/render.ts     byte-exact human/JSON output
 src/verify.ts     orchestration: extension -> flatten -> composite -> validate -> W008 (reverse scan of cwd via impact)
                   -> W009 (scan of cwd for the system's writers, via state)
-src/author.ts     correct-by-construction appender; runs verifier as commit gate. `add-adr` and `add-state` are
-                  its in-place mutations (strictGuard)
+src/author.ts     correct-by-construction appender; runs verifier as commit gate. `add-adr`, `add-state` and
+                  `set-header` are its in-place mutations (strictGuard)
 src/state.ts      a criterion's `reads`/`writes` merged per system: fields, contended scope pairs (read-only)
 src/scalar.ts     the one scalar emitter (quote iff standard YAML would misread) + quoted-scalar reader
 src/cmd.ts        command helpers shared by author + techspec (usage error, flag values, path predicates)

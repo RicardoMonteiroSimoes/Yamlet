@@ -67,7 +67,7 @@ The `add_*` tools return the assigned id (`RQ-1`, `AC-3`). A failure returns `er
 
 A `WARNING:` in a successful result means the change landed under a requirement an ADR decides. Relay it verbatim: the decision is not revisited here; the tech spec that plans this change (the `yamlet-techspec` skill) reads the record and accounts for it.
 
-A `NOTE:` in a successful result means another scope shares a stored field; see the `patterns` guide, "Stored state".
+A `NOTE:` in a successful result naming a field means another scope shares it; see the `patterns` guide, "Stored state". One saying `adds behaviour`: re-read `summary`/`description`; if stale, propose wording and apply it with `yamlet_set_header`.
 
 **Never invent an id** — use the one the tool returned. Ids are permanent, never reused and never renumbered; a deleted criterion leaves a gap, and the gap is correct.
 
@@ -82,7 +82,7 @@ A `NOTE:` in a successful result means another scope shares a stored field; see 
 
 ### Challenge before you commit
 
-Draft the requirement's description **and** its full set of criteria in conversation first. Then spawn the **`yamlet-criteria-challenger`** agent with: the description; every intended criterion (pattern, clauses, `shall` items, placeholders/examples, reads/writes); and the scope's system, directory, front and contract; the spec's path, so it can check the new criteria against the committed ones; and for a composite, each member's alias and spec path, so it can check the criteria against what its members promise.
+Draft the requirement's description **and** its full set of criteria in conversation first. Then spawn the **`yamlet-criteria-challenger`** agent with: the description; every intended criterion (pattern, clauses, `shall` items, placeholders/examples, reads/writes); the scope's system, directory, front and contract, and its summary and description; the spec's path, so it can check the new criteria against the committed ones; and for a composite, each member's alias and spec path, so it can check the criteria against what its members promise.
 
 ```
 Agent({
