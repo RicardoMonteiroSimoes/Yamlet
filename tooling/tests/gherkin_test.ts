@@ -5,7 +5,7 @@
 
 import { assertEquals } from "jsr:@std/assert@1";
 import { existsSync } from "jsr:@std/fs@1";
-import { runTests } from "../src/tests.ts";
+import { cell, runTests } from "../src/tests.ts";
 
 const SPECS = new URL("../../specs_example/", import.meta.url).pathname.replace(/\/$/, "");
 const ORACLE = new URL("./oracle-gherkin/", import.meta.url).pathname.replace(/\/$/, "");
@@ -240,4 +240,76 @@ Deno.test("tests: an Examples table keeps the author's column order and aligns i
     "        | https://a.example/app | https://a.example/app.git |",
     "        | https://ä.example     | x                         |",
   ]);
+});
+
+// ── example cells reach step definitions unchanged (yamlet.cells/v1) ──
+
+/** Gherkin's own cell handling: unescape `\\`, `\|`, `\n`; keep any other `\x` as is. */
+function gherkinCell(raw: string): string {
+  return raw.trim().replace(
+    /\\(\\|\||n)?/g,
+    (m, e) => (e === undefined ? m : e === "n" ? "\n" : e),
+  );
+}
+
+/** The reference glue decoder for yamlet.cells/v1, applied to what Gherkin hands over. */
+function decode(s: string): string {
+  return s.replace(
+    /\\(\\|t|r|n|u[0-9A-F]{4})/g,
+    (_, e: string) =>
+      e === "\\"
+        ? "\\"
+        : e === "t"
+        ? "\t"
+        : e === "r"
+        ? "\r"
+        : e === "n"
+        ? "\n"
+        : String.fromCharCode(parseInt(e.slice(1), 16)),
+  );
+}
+
+Deno.test("tests: example values with tabs, line breaks and backslashes round-trip exactly", () => {
+  const values = [
+    "\tWorkflow\t",
+    "Activity\n",
+    "\t Status",
+    "Work\nflow",
+    "Domain\r\nEvent",
+    "a\\tb",
+    "x\\\\y|z",
+    " lead",
+    "trail ",
+    "\u0001ctl",
+    "a b",
+    "\\u0041",
+    "plain",
+  ];
+  for (const v of values) assertEquals(decode(gherkinCell(` ${cell(v)}  `)), v, JSON.stringify(v));
+  // An ordinary value is written as itself, so existing glue needs no change.
+  assertEquals(cell("https://ä.example/a b"), "https://ä.example/a b");
+});
+
+Deno.test("tests: the issue-47 spec projects cells that keep tabs and line breaks", () => {
+  const src = Deno.makeTempDirSync();
+  Deno.writeTextFileSync(
+    `${src}/s.yamlet.yaml`,
+    "system: svc\ntopic: T\nsummary: s\ndescription: d\n" +
+      "blast_radius: low\nfront: internal\n" +
+      "exposes:\n  name: svc\n  intent: i\n  inputs:\n  - term\n" +
+      "requirements:\n- id: RQ-1\n  description: r\n  acceptance-criteria:\n" +
+      "  - id: AC-1\n    pattern: event\n    when: '{input.term} is submitted'\n" +
+      "    shall:\n    - store {stored_term}\n    examples:\n" +
+      '    - input.term: "\\tWorkflow\\t"\n      stored_term: Workflow\n' +
+      '    - input.term: "Domain\\r\\nEvent"\n      stored_term: x\n',
+  );
+  const out = Deno.makeTempDirSync();
+  assertEquals(runTests([src, out]).exitCode, 0);
+  const feature = Deno.readTextFileSync(`${out}/svc/s.feature`);
+  assertEquals(feature.includes("\r"), false, "no raw CR in a feature file");
+  const rows = feature.split("\n").filter((l) => l.trimStart().startsWith("|")).slice(1);
+  const col0 = rows.map((r) => decode(gherkinCell(r.trim().slice(1).split(" | ")[0]!)));
+  assertEquals(col0, ["\tWorkflow\t", "Domain\r\nEvent"]);
+  const manifest = JSON.parse(Deno.readTextFileSync(`${out}/manifest.json`));
+  assertEquals(manifest.cell_escapes, "yamlet.cells/v1");
 });

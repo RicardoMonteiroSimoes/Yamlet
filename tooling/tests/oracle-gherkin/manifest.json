@@ -1,5 +1,6 @@
 {
   "format": "yamlet.tests/v1",
+  "cell_escapes": "yamlet.cells/v1",
   "features": {
     "e-mail-sending-service/email_service.feature": {
       "AC-1": {

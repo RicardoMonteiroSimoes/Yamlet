@@ -58,10 +58,12 @@ export function flatten(text: string): FlattenResult {
     sp++;
   };
 
-  const emit = (path: string, val: string, ln: number): void => {
+  const emit = (path: string, val: string, ln: number, quoted = false): void => {
     let v = val.replace(/\n/g, " ");
     v = v.replace(LEADING_WS_RUN, "").replace(TRAILING_WS_RUN, "");
-    records.push({ path, value: v, line: ln });
+    records.push(
+      quoted && v !== val ? { path, value: v, line: ln, raw: val } : { path, value: v, line: ln },
+    );
   };
 
   const stripComment = (s: string): string => {
@@ -228,7 +230,8 @@ export function flatten(text: string): FlattenResult {
           blockVal = "";
         } else {
           let v = mv;
-          if (v[0] === '"') {
+          const quoted = v[0] === '"';
+          if (quoted) {
             v = readQuoted(v);
           } else {
             const fc = v[0];
@@ -243,7 +246,7 @@ export function flatten(text: string): FlattenResult {
               continue;
             }
           }
-          emit(buildPath(), v, lineno);
+          emit(buildPath(), v, lineno, quoted);
           sp--; // pop mapping key; bracket stays for sibling keys
         }
       } else if (BLOCK_FOLD.test(afterDash) || BLOCK_LIT.test(afterDash)) {
@@ -262,7 +265,8 @@ export function flatten(text: string): FlattenResult {
         // "- scalar text"
         pushFrame(seqBracket, thisIndent);
         let v = afterDash;
-        if (v[0] === '"') {
+        const quoted = v[0] === '"';
+        if (quoted) {
           v = readQuoted(v);
         } else {
           v = stripComment(v);
@@ -277,7 +281,7 @@ export function flatten(text: string): FlattenResult {
             continue;
           }
         }
-        emit(buildPath(), v, lineno);
+        emit(buildPath(), v, lineno, quoted);
         sp--;
       }
       continue;
@@ -330,7 +334,8 @@ export function flatten(text: string): FlattenResult {
       blockVal = "";
     } else {
       let v = mv;
-      if (v[0] === '"') {
+      const quoted = v[0] === '"';
+      if (quoted) {
         v = readQuoted(v);
       } else {
         const fc = v[0];
@@ -345,7 +350,7 @@ export function flatten(text: string): FlattenResult {
           continue;
         }
       }
-      emit(buildPath(), v, lineno);
+      emit(buildPath(), v, lineno, quoted);
       sp--;
     }
   }

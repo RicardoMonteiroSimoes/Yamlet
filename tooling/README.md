@@ -398,6 +398,32 @@ diff. The corollary is that `TARGET` holds nothing but this projection: keep ste
 fixtures and the runner in _their_ directory, never in `TARGET`, or they are erased on the next run.
 The write plan is built in memory first, so a basename collision aborts before anything is wiped.
 
+#### Example values (`yamlet.cells/v1`)
+
+An example value reaches the step definition **exactly** as the spec holds it — tabs, line breaks,
+edge whitespace, a raw CR — so a criterion can test trimming or rejection of those very characters.
+Gherkin alone can't carry them (it unescapes only `\\`, `\|`, `\n` in a cell and trims its edges),
+so each cell is written in a scheme the glue decodes once. After Gherkin's own unescape, decode left
+to right:
+
+| sequence  | becomes          |
+| --------- | ---------------- |
+| `\\`      | `\`              |
+| `\t`      | tab              |
+| `\r`      | CR               |
+| `\n`      | LF               |
+| `\uXXXX`  | that UTF-16 unit |
+
+Anything else is kept as is. A value with no backslash, control character or edge whitespace is
+written as itself, so ordinary glue sees no difference. The manifest names the scheme in
+`cell_escapes`.
+
+```js
+const decode = (s) => s.replace(/\\(\\|t|r|n|u[0-9A-F]{4})/g, (_, e) =>
+  e === "\\" ? "\\" : e === "t" ? "\t" : e === "r" ? "\r" : e === "n" ? "\n"
+  : String.fromCharCode(parseInt(e.slice(1), 16)));
+```
+
 #### The binding manifest (`TARGET/manifest.json`)
 
 Beside the features, each run writes a `yamlet.tests/v1` manifest: for every scenario, the contract
@@ -409,6 +435,7 @@ asserts on though the steps don't show them. Example-backed tokens are excluded 
 ```jsonc
 {
   "format": "yamlet.tests/v1",
+  "cell_escapes": "yamlet.cells/v1",
   "features": {
     "e-mail-sending-service/email_service.feature": {
       "AC-4": {
