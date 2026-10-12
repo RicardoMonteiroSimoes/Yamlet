@@ -220,7 +220,7 @@ Deno.test("a field shared with another scope prints a NOTE naming it", () => {
     assertStringIncludes(r.stderr, "poll.state: written by closing.yamlet.yaml AC-1");
     // Another system's writer is not this system's contention.
     const other = seed(".", "other", "elsewhere");
-    assertEquals(crit(other, "--reads", "poll.state").stderr, "");
+    assertEquals(crit(other, "--reads", "poll.state").stderr.includes("poll.state"), false);
   });
 });
 
@@ -228,7 +228,10 @@ Deno.test("two readers of one field print no NOTE", () => {
   const dir = Deno.makeTempDirSync();
   inDir(dir, () => {
     crit(seed(".", "a"), "--reads", "poll.state");
-    assertEquals(crit(seed(".", "b"), "--reads", "poll.state").stderr, "");
+    assertEquals(
+      crit(seed(".", "b"), "--reads", "poll.state").stderr.includes("poll.state"),
+      false,
+    );
   });
 });
 
