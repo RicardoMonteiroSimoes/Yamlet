@@ -398,6 +398,18 @@ diff. The corollary is that `TARGET` holds nothing but this projection: keep ste
 fixtures and the runner in _their_ directory, never in `TARGET`, or they are erased on the next run.
 The write plan is built in memory first, so a basename collision aborts before anything is wiped.
 
+#### Example values (`yamlet.cells/v1`)
+
+Example values reach glue exactly — tabs, line breaks, edge whitespace included. Gherkin can't
+carry these in a cell, so after its own unescape the glue decodes `\\` `\t` `\r` `\n` `\uXXXX`
+once (anything else stays as is); an ordinary value decodes to itself:
+
+```js
+const decode = (s) => s.replace(/\\(\\|t|r|n|u[0-9A-F]{4})/g, (_, e) =>
+  e === "\\" ? "\\" : e === "t" ? "\t" : e === "r" ? "\r" : e === "n" ? "\n"
+  : String.fromCharCode(parseInt(e.slice(1), 16)));
+```
+
 #### The binding manifest (`TARGET/manifest.json`)
 
 Beside the features, each run writes a `yamlet.tests/v1` manifest: for every scenario, the contract
@@ -409,6 +421,7 @@ asserts on though the steps don't show them. Example-backed tokens are excluded 
 ```jsonc
 {
   "format": "yamlet.tests/v1",
+  "cell_escapes": "yamlet.cells/v1",
   "features": {
     "e-mail-sending-service/email_service.feature": {
       "AC-4": {

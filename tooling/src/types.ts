@@ -16,6 +16,8 @@ export interface FlatRecord {
   path: string;
   value: string;
   line: number;
+  /** A quoted scalar's exact text, set only when the normalised `value` lost something. */
+  raw?: string;
 }
 
 /** A parse-phase error emitted by the flattener (E002/E003/E004/E006/E008/E010). */
