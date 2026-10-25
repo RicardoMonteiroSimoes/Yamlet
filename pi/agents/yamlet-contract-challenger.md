@@ -1,4 +1,5 @@
 ---
+# Generated from skills/yamlet-contract-challenger/SKILL.md by scripts/build-skills.ts — edit the source, then rebuild.
 description: >-
   Adversarial gate used INSIDE the yamlet-author flow, immediately before `yamlet init` freezes a
   scope's contract. Given the proposed scope and its input/output contract, it pokes holes in them.
@@ -43,7 +44,7 @@ Your prompt holds: the six header fields (system, topic, front, blast-radius, su
 8. **Leaf vs composite.** Does it do the work itself (leaf) or only wire existing scopes (composite)? "Run inputs through X and Y and hand back results" declared **leaf** is misclassified.
 9. **Naming.** `expose-name` is a slug (`^[a-z0-9]+(-[a-z0-9]+)*$`, dashes); each input/output is a token (`^[a-z][a-z0-9_]*$`, underscores). Flag dashes in a token, underscores in a slug, or an `expose-name` that collides with the `system` slug.
 10. **Forgeable inputs.** For an `external` scope, leaf or composite, each input is something the untrusted caller *chooses*. One that carries identity, role, ownership, an internal id or deployment configuration (`viewer_role`, `user_id`, `poll_id`, `archive_address`) lets the caller forge it. It must come from the wiring instead — a resolver's output (token → `poll_id`, `viewer_role`) or a settings leaf's output. BLOCKER; name the split.
-11. **Sibling exposure** (`yamlet_systems` with `system` and `criteria: true`). BLOCKER: an output handing out what a sibling's criteria protect. QUESTION: a sibling's concept under another name.
+11. **Sibling exposure** (`yamlet_systems({ dir: DIR, system: S, criteria: true })`). BLOCKER: an output handing out what a sibling's criteria protect. QUESTION: a sibling's concept under another name.
 12. **Altitude.** Is the intent, and every input and output, named for the business rather than the mechanism? A protocol, product or transport in a name or the intent (`smtp_host`, `http_body`, "over TLS SMTP") freezes a *how* into a contract that cannot change. BLOCKER; propose the business name. A settings scope's configuration outputs are its business — clear those.
 
 ## Report — terse and ordered

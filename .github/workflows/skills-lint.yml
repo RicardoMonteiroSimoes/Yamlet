@@ -38,6 +38,19 @@ jobs:
           deno lint scripts/lint-skills.ts
           deno fmt --check scripts/lint-skills.ts
 
+      # skills/ is the one source of both harness builds, and the builds are
+      # committed. A hand edit to a generated file, or a source change without
+      # a rebuild, leaves the two apart; --check fails on either.
+      - name: Check the generator
+        run: |
+          deno check scripts/build-skills.ts scripts/skills/*.ts
+          deno lint scripts/build-skills.ts scripts/skills/
+          deno fmt --check scripts/build-skills.ts scripts/skills/
+          deno test --allow-read scripts/skills/
+
+      - name: Generated skills match skills/
+        run: deno run --allow-read scripts/build-skills.ts --check
+
       # Violations are emitted as workflow annotations, so an over-budget
       # description lands on the offending line in the PR diff.
       - name: Check skill budgets
