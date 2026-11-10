@@ -501,6 +501,16 @@ so an accepted record should be superseded and a proposed one re-pointed or
 rejected. A warning, not an error — whether the decision still holds is a judgement
 — and it never blocks a `yamlet adr` command; each one that lands relays it.
 
+**What a change says about its surroundings.** No rule can see prose drift from
+behaviour, so every command that changes behaviour says what it may have made wrong,
+on stderr, without blocking: a `NOTE` quoting the owning requirement's description
+(when a criterion changed) and the spec's `summary` and `description` as they now
+stand, and — for a removal or replacement — a `NOTE` naming every composite that
+declares the spec as a member, with the sockets its criteria reference. The contract
+is unchanged, so the wiring stays valid; what can break is a composite criterion
+promising something the member no longer does. Whether it does is a judgement, made
+in the author's interview, not a check.
+
 **Not yet supported:** changing a contract (`exposes` inputs and outputs), which
 reaches every composite that consumes the spec. A removal that would leave a contract
 input or output unreferenced (`E506`, `E511`) is rolled back.

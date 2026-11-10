@@ -17,7 +17,8 @@ import type { CmdResult, Command, Finding } from "./types.ts";
 import { flatten } from "./flatten.ts";
 import { readQuoted, scalar } from "./scalar.ts";
 import { verifyText } from "./verify.ts";
-import { type Contract, contractOf } from "./systems.ts";
+import { type Contract, contractOf, listSpecs } from "./systems.ts";
+import { consumersOf } from "./impact.ts";
 import { type CompositeInfo, resolveComposite, socketKey } from "./composite.ts";
 import {
   type Block,
@@ -645,13 +646,47 @@ export function runAddConnection(args: string[]): CmdResult {
 }
 
 /**
- * Appended behaviour can make the header's prose wrong, and no rule can see
- * that: the summary still verifies, it just no longer says what the scope does.
- * So every append says so. On stderr, exit 0.
+ * A change to behaviour can make the prose around it wrong, and no rule can see
+ * that: the prose still verifies, it just no longer says what the scope does. An
+ * append leaves it saying too little; a removal leaves it promising behaviour
+ * that is gone. And it travels — `tests` copies the summary into the feature,
+ * `docs` into the scope page and every composite's member table. So every
+ * mutation that changes behaviour names the prose it touches and quotes it as it
+ * now stands, so the check needs no second read: the owning requirement's
+ * description (when a criterion changed) and the spec's header. On stderr, exit 0.
  */
-function headerNotice(id: string): string {
-  return `NOTE: ${id} adds behaviour — check that summary and description still describe ` +
-    "this scope (yamlet set-header changes them).\n";
+function proseNotice(text: string, what: string, rq: Block | undefined): string {
+  const records = flatten(text).records;
+  const get = (p: string): string => records.find((r) => r.path === p)?.value ?? "";
+  const tools = rq ? "yamlet set-description / yamlet set-header" : "yamlet set-header";
+  let s = `NOTE: ${what} — check that this prose still describes the scope (${tools} ` +
+    "change it):\n";
+  if (rq) s += `  ${rq.id} description: ${get(`${rq.path}.description`)}\n`;
+  s += `  summary: ${get("summary")}\n`;
+  s += `  description: ${get("description")}\n`;
+  return s;
+}
+
+/**
+ * Removing or replacing behaviour can break a composite that relies on it: its
+ * criteria may describe what this member does, and nothing in the wiring says
+ * so (the contract is unchanged). Name every composite under the working
+ * directory that declares this spec as a member — the same scan W008 makes —
+ * with the sockets its criteria reference, and point at \`yamlet impact\`.
+ */
+function consumersNotice(file: string, what: string): string {
+  const consumers = consumersOf(file, listSpecs("."));
+  if (consumers.length === 0) return "";
+  let s = `NOTE: ${what} — ${file} is a member of ${
+    consumers.length === 1 ? "a composite" : `${consumers.length} composites`
+  } whose criteria may rely on it; re-read them (yamlet impact ${file} for how each uses it):\n`;
+  for (const c of consumers) {
+    const refs = c.referencedSockets.length > 0
+      ? `; its criteria name ${c.referencedSockets.map((r) => `{${c.alias}.${r}}`).join(", ")}`
+      : "";
+    s += `  ${c.file} (as ${c.alias}${refs})\n`;
+  }
+  return s;
 }
 
 // ── add-requirement ──
@@ -719,7 +754,11 @@ export function runAddRequirement(args: string[]): CmdResult {
         }\n`,
       };
     }
-    return { exitCode: 0, stdout: `${rqid}\n`, stderr: headerNotice(rqid) };
+    return {
+      exitCode: 0,
+      stdout: `${rqid}\n`,
+      stderr: proseNotice(next, `${rqid} adds behaviour`, undefined),
+    };
   } catch (e) {
     if (e instanceof CmdError) return e.result;
     throw e;
@@ -1099,7 +1138,11 @@ export function runAddCriterion(args: string[]): CmdResult {
       adrsOf(next, target.path),
     );
     const shared = contentionNotice(file, next, acid, [...writes, ...reads]);
-    return { exitCode: 0, stdout: `${acid}\n`, stderr: notice + shared + headerNotice(acid) };
+    return {
+      exitCode: 0,
+      stdout: `${acid}\n`,
+      stderr: notice + shared + proseNotice(next, `${acid} adds behaviour`, target),
+    };
   } catch (e) {
     if (e instanceof CmdError) return e.result;
     throw e;
@@ -1718,11 +1761,14 @@ export function runRm(args: string[]): CmdResult {
     }
     const notice = decidedNotice(id, "the decided behaviour is removed", [...new Set(adrs)]);
     const acs = gone.filter((g) => g.startsWith("AC-"));
+    const owner = want === "criterion" ? findBlock(blocks, target.parentId) : undefined;
     return {
       exitCode: 0,
       stdout: gone.join("\n") + "\n",
       stderr: notice +
-        (acs.length > 0 ? testsNotice(acs, want === "criterion" ? replacedBy : "") : ""),
+        (acs.length > 0 ? testsNotice(acs, want === "criterion" ? replacedBy : "") : "") +
+        consumersNotice(file, `${id} removed`) +
+        proseNotice(next, `${id} removed`, owner),
     };
   } catch (e) {
     if (e instanceof CmdError) return e.result;
@@ -1796,7 +1842,9 @@ export function runReplace(args: string[]): CmdResult {
     return {
       exitCode: 0,
       stdout: `${fresh}\n`,
-      stderr: notice + shared + testsNotice([ac], fresh) + headerNotice(fresh),
+      stderr: notice + shared + testsNotice([ac], fresh) +
+        consumersNotice(file, `${fresh} replaces ${ac}`) +
+        proseNotice(next, `${fresh} replaces ${ac}`, parent),
     };
   } catch (e) {
     if (e instanceof CmdError) return e.result;
@@ -1865,7 +1913,8 @@ export function runSetDescription(args: string[]): CmdResult {
     return {
       exitCode: 0,
       stdout: "",
-      stderr: decidedNotice(rq, "its description is reworded", adrs),
+      stderr: decidedNotice(rq, "its description is reworded", adrs) +
+        proseNotice(next, `${rq} reworded`, undefined),
     };
   } catch (e) {
     if (e instanceof CmdError) return e.result;
@@ -2033,8 +2082,9 @@ At least one flag. Each value is written as init writes it and held to the same
 rules (summary: one sentence, at most 30 words — E305); a finding on a field this
 call wrote rolls the file back (exit 3).
 
-Use it when the scope's behaviour has outgrown its prose: add-requirement and
-add-criterion print a NOTE after every append as the reminder. blast_radius and
+Use it when the scope's behaviour has outgrown its prose: every command that
+changes behaviour (add-requirement, add-criterion, replace, rm, set-description)
+prints a NOTE quoting the summary and description as the reminder. blast_radius and
 front are not settable — they change what the spec owes. topic is display text
 only (feature title, page heading); file names come from the spec's path. Run
 'yamlet tests' and 'yamlet docs' afterwards: both copy the summary.
@@ -2055,7 +2105,8 @@ writes it and held to the same rules (one capability, word budget — E305). The
 id and every criterion stay as they are. A description is prose no test binds
 to, so this is the one in-place rewrite of behaviour prose; what a criterion
 obliges changes through 'yamlet replace' instead. A requirement linked to an
-ADR prints a WARNING naming it.
+ADR prints a WARNING naming it; a NOTE quotes the header, which a reworded
+capability can leave stale (yamlet set-header).
 `,
   run: runSetDescription,
 };
@@ -2080,6 +2131,11 @@ last live requirement of a spec, a block already removed. A removal that leaves 
 contract input or output unreferenced (E506/E511) is rolled back (exit 3). A
 decided block prints a WARNING naming its ADRs. 'yamlet tests' then drops the
 scenarios and lists them under "removed" in manifest.json.
+
+NOTEs on stderr: the prose the removal may have made wrong, quoted (the owning
+requirement's description for a criterion, and the header — change them with
+set-description / set-header), and every composite under the working directory
+that declares this spec as a member, with the sockets its criteria name.
 `,
   run: runRm,
 };
@@ -2103,7 +2159,8 @@ step definitions green while asserting something else. Prints the new id.
 The criterion flags are add-criterion's, checked the same way. Nothing carries
 over: state (--reads/--writes) is declared again, and a criterion-level ADR link
 is not copied (re-link it with add-adr if it still decides the new obligation;
-a WARNING names it).
+a WARNING names it). The same NOTEs as rm: the prose to recheck, quoted, and the
+composites that use this spec.
 `,
   run: runReplace,
 };

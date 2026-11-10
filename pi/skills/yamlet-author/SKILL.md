@@ -67,7 +67,7 @@ The `add_*` tools return the assigned id (`RQ-1`, `AC-3`). A failure returns `er
 
 A `WARNING:` in a successful result means the change landed under a requirement an ADR decides. Relay it verbatim: the decision is not revisited here; the tech spec that plans this change (the `yamlet-techspec` skill) reads the record and accounts for it.
 
-A `NOTE:` in a successful result naming a field means another scope shares it; see the `patterns` guide, "Stored state". One saying `adds behaviour`: re-read `summary`/`description`; if stale, propose wording and apply it with `yamlet_set_header`.
+A `NOTE:` in a successful result naming a field means another scope shares it; see the `patterns` guide, "Stored state". One saying `check that this prose still describes` quotes the prose the change may have made wrong: propose new wording (`yamlet_set_description`, `yamlet_set_header`) or say it still holds; never skip it (the `editing` guide, §4a). One saying `is a member of`: composites may rely on removed behaviour; same section.
 
 **Never invent an id** — use the one the tool returned. Ids are permanent, never reused and never renumbered; a deleted criterion leaves a gap, and the gap is correct.
 

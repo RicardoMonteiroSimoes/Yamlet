@@ -71,10 +71,6 @@ An inserted criterion gets a letter-suffixed id (`AC-1a`, then `AC-1b`) so it so
 
 Unchanged — `yamlet add-requirement`, then its criteria. Drafted and challenged exactly as in `SKILL.md`.
 
-### The header
-
-Every append prints `NOTE: … adds behaviour`. Re-read `summary` and `description` against the change; if they no longer describe the scope, propose new wording to the user and apply it with `yamlet set-header` (also `topic`).
-
 ### Rewording a requirement
 
 A requirement's description is prose no test binds to, so it is the one thing rewritten in place. Agree the new wording with the user first (one capability, one line):
@@ -117,6 +113,16 @@ Refusals, and what to say:
 - **The last live criterion of a requirement** — a requirement with no behaviour asserts nothing. Ask whether the requirement itself goes.
 - **The last live requirement of a spec** — that is retiring the scope, not editing it. Say so; it is the user's call outside this tool.
 - **Rolled back with `E506`/`E511`** — the removed behaviour was the only one to use a contract input or output, and the contract cannot change here. Replace it instead, or note the contract change as follow-up (section 5).
+
+## 4a. After every change — the prose and the composites
+
+Every change to behaviour — an add, a replace, a removal, a reworded requirement — ends with `NOTE: … check that this prose still describes the scope`, quoting the prose it may have made wrong: the owning requirement's description when a criterion changed, and the spec's `summary` and `description`. This is a step, not a hint. Do it every time:
+
+1. Read the quoted prose against what changed. A removal is the dangerous case: the prose may still promise behaviour that is gone ("checks it is within size limits" after the size-limit criterion went), and it travels — the tests copy the summary into the feature, the docs into every composite's member table.
+2. Either propose new wording and apply it once the user agrees — `yamlet set-description` for the requirement, `yamlet set-header` for `summary`, `description` or `topic` — or tell the user in one line that it still holds ("RQ-2 and the summary still hold"). Never skip it silently.
+3. Rewording is itself a change: `set-description` quotes the header in turn. Check it the same way.
+
+A removal or replacement in a spec that composites use also prints `NOTE: … is a member of N composites whose criteria may rely on it`, naming each and the sockets its criteria reference. `Read` those composites' criteria for anything that relied on the removed behaviour, and tell the user what you found. The contract did not change, so the wiring stays valid; what can break is a composite criterion that promises something this member no longer does. That is a change to *the composite's* spec: with the user's yes, run this procedure on it once this one is done. `yamlet impact` shows how each composite uses the member.
 
 ## 5. What this version cannot do yet
 

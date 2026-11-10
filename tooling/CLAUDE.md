@@ -96,7 +96,9 @@ change is a regression, not a re-freeze.
   `description` — prose no test binds to — is rewritten in place. Every projection skips tombstones
   as behaviour (`isRemoved` in `records.ts`, `Block.removed` in `blocks.ts`); `tests` lists them
   under `removed` in the manifest, `docs` keeps their anchors, `trace` keeps them as nodes, the tech
-  spec index omits them. Every other mutation refuses a tombstone. All of these go through
+  spec index omits them. Every other mutation refuses a tombstone. Every behaviour change prints
+  `proseNotice` (the prose it may have made wrong, quoted) and `rm`/`replace` also `consumersNotice`
+  (composites under cwd that use the spec) — notices, never gates. All of these go through
   `strictGuard` ("the resulting findings must be a subset of the pre-existing ones plus the ones
   this command predicts", keyed on `(rule, message)` rather than on path, since indices shift under
   insert and remove), never `guardCheck`, whose allowlist is the _append_ commands' predicted

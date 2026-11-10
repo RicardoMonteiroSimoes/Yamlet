@@ -55,7 +55,7 @@ A spec states what the caller, or the business, can observe — never how the co
 - **exit 2** — `error:`, and nothing was written. Fix the input and retry.
 - **exit 3** — the change tripped a validation finding and the file was rolled back. Tell the user: the change is not expressible as asked.
 - **a `WARNING:` on stderr with exit 0** — the change landed under a requirement an ADR decides. Relay it verbatim: the decision is not revisited here; the tech spec that plans this change (`yamlet-techspec`) reads the record and accounts for it.
-- **a `NOTE:` on stderr with exit 0** — naming a field: another scope shares it; see `references/patterns.md`, "Stored state". `adds behaviour`: re-read `summary`/`description`; if stale, propose wording and apply it with `yamlet set-header`.
+- **a `NOTE:` on stderr with exit 0** — naming a field: another scope shares it; see `references/patterns.md`, "Stored state". `check that this prose still describes`: it quotes the prose the change may have made wrong — propose new wording (`yamlet set-description`, `yamlet set-header`) or say it still holds; never skip it (`references/editing.md`, §4a). `is a member of`: composites may rely on removed behaviour; §4a.
 
 **Never invent an id** — use the one the tool printed. Ids are permanent, never reused and never renumbered; a deleted criterion leaves a gap, and the gap is correct.
 

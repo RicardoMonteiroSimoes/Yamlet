@@ -595,3 +595,81 @@ Deno.test("W011 never gates an ADR mutation, and is relayed when one lands", () 
   assertStringIncludes(r.stderr, "W011");
   assertStringIncludes(r.stderr, "re-point or reject this record before accepting it");
 });
+
+Deno.test("every behaviour change quotes the prose it may have made wrong", () => {
+  const { file, read } = seed();
+  void read;
+  const rm = runRm([file, "--ac", "AC-1", "--reason", "x"]);
+  assertStringIncludes(
+    rm.stderr,
+    "NOTE: AC-1 removed — check that this prose still describes the scope " +
+      "(yamlet set-description / yamlet set-header change it):\n" +
+      "  RQ-1 description: first\n  summary: s\n  description: d\n",
+  );
+  const rep = runReplace([
+    file,
+    "--ac",
+    "AC-3",
+    "--reason",
+    "x",
+    "--pattern",
+    "event",
+    "--when",
+    "{input.request} is handled",
+    "--shall",
+    "c2",
+  ]);
+  assertStringIncludes(rep.stderr, "NOTE: AC-4 replaces AC-3 — check that this prose");
+  assertStringIncludes(rep.stderr, "  RQ-2 description: second\n");
+  // A change to a requirement, or to its description, names only the header.
+  const desc = runSetDescription([file, "--rq", "RQ-2", "--description", "second, reworded"]);
+  assertStringIncludes(desc.stderr, "NOTE: RQ-2 reworded — check that this prose still describes");
+  assertStringIncludes(desc.stderr, "(yamlet set-header change it):\n  summary: s\n");
+  assert(!desc.stderr.includes("RQ-2 description:"));
+  const rq = runRm([file, "--rq", "RQ-1", "--reason", "x"]);
+  assertStringIncludes(rq.stderr, "NOTE: RQ-1 removed — check that this prose");
+  assert(!rq.stderr.includes("RQ-1 description:"));
+  // An append quotes its requirement's description as well.
+  const add = runAddCriterion([
+    file,
+    "--rq",
+    "RQ-2",
+    "--pattern",
+    "event",
+    "--when",
+    "{input.request} is handled",
+    "--shall",
+    "z",
+  ]);
+  assertStringIncludes(add.stderr, "NOTE: AC-5 adds behaviour — check that this prose");
+  assertStringIncludes(add.stderr, "  RQ-2 description: second, reworded\n");
+});
+
+Deno.test("removing or replacing a member's behaviour names the composites that use it", () => {
+  const src = new URL("../../specs_example/", import.meta.url).pathname;
+  const dir = Deno.makeTempDirSync();
+  for (const e of Deno.readDirSync(src)) {
+    if (e.isFile) Deno.copyFileSync(`${src}${e.name}`, `${dir}/${e.name}`);
+  }
+  const prev = Deno.cwd();
+  Deno.chdir(dir);
+  try {
+    const r = runRm(["pdf_upload.yamlet.yaml", "--ac", "AC-2", "--reason", "moved to the gateway"]);
+    assertEquals(r.exitCode, 0, r.stderr);
+    assertStringIncludes(
+      r.stderr,
+      "NOTE: AC-2 removed — pdf_upload.yamlet.yaml is a member of 2 composites whose criteria " +
+        "may rely on it; re-read them (yamlet impact pdf_upload.yamlet.yaml for how each uses it):\n" +
+        "  pdf_archiver.yamlet.yaml (as uploads; its criteria name {uploads.pdf_file})\n" +
+        "  pdf_archiver_resilient.yamlet.yaml (as uploads; its criteria name " +
+        "{uploads.error}, {uploads.pdf_file})\n",
+    );
+    // A spec nothing consumes gets no such note.
+    const { file } = seed();
+    const leaf = runRm([file, "--ac", "AC-1", "--reason", "x"]);
+    assertEquals(leaf.exitCode, 0, leaf.stderr);
+    assert(!leaf.stderr.includes("is a member of"), leaf.stderr);
+  } finally {
+    Deno.chdir(prev);
+  }
+});

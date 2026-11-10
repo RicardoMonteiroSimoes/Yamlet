@@ -137,11 +137,13 @@ yamlet rm              FILE (--rq RQ-N | --ac AC-N) --reason "..." [--replaced-b
                                                       cut out, so the id is never minted again and an ADR's arises_from
                                                       still resolves. A requirement's criteria are tombstoned with it.
                                                       Refuses a requirement's last live criterion and a spec's last live
-                                                      requirement; strict guard (E506/E511 roll it back)
+                                                      requirement; strict guard (E506/E511 roll it back). NOTEs quote
+                                                      the prose to recheck and name the composites that use the spec
 yamlet replace         FILE --ac AC-N --reason "..." <add-criterion's criterion flags>
                                                    -> a changed obligation is a new one: AC-N becomes a tombstone in
                                                       place, replaced_by the new criterion, appended to the same
-                                                      requirement under the next number; nothing carries over
+                                                      requirement under the next number; nothing carries over. Same
+                                                      NOTEs as rm
 yamlet add-adr         FILE PATH (--rq RQ-N | --ac AC-N)
                                                    -> link a decision record (a path relative to FILE, must exist) to an
                                                       existing requirement or criterion; the first mutation of an existing
