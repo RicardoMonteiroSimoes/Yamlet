@@ -38,6 +38,15 @@ export function listUnder(records: readonly FlatRecord[], prefix: string): strin
   return itemsUnder(records, prefix).map((r) => r.value);
 }
 
+/**
+ * Whether the requirement or criterion at `prefix` is a tombstone — it carries
+ * `removed:`. A tombstone keeps its id and nothing of its behaviour; every
+ * projection (tests, docs, systems, the tech spec) skips it as behaviour.
+ */
+export function isRemoved(records: readonly FlatRecord[], prefix: string): boolean {
+  return records.some((r) => r.path === `${prefix}.removed`);
+}
+
 /** The record at exactly `path`, or undefined. */
 export function recordAt(records: readonly FlatRecord[], path: string): FlatRecord | undefined {
   return records.find((r) => r.path === path);

@@ -41,7 +41,11 @@ export const CATALOG: Rule[] = [
     severity: "error",
     description: "system value must be a slug matching ^[a-z0-9]+(-[a-z0-9]+)*$",
   },
-  { id: "E106", severity: "error", description: "requirements list is empty" },
+  {
+    id: "E106",
+    severity: "error",
+    description: "requirements list is empty, or every requirement in it is removed",
+  },
   {
     id: "E107",
     severity: "error",
@@ -62,6 +66,23 @@ export const CATALOG: Rule[] = [
     description: "acceptance-criteria id must match ^AC-[0-9]+[a-z]?$",
   },
   { id: "E204", severity: "error", description: "duplicate acceptance-criteria id in file" },
+  {
+    id: "E205",
+    severity: "error",
+    description:
+      "a removed block holds anything but id, removed and replaced_by (a requirement: and its removed criteria), its reason is empty, or replaced_by sits on a live block",
+  },
+  {
+    id: "E206",
+    severity: "error",
+    description:
+      "replaced_by names no live block of the same kind in this file, or the block itself",
+  },
+  {
+    id: "E207",
+    severity: "error",
+    description: "a live requirement whose every criterion is removed (remove the requirement)",
+  },
   { id: "E301", severity: "error", description: "pattern requires a clause that is missing" },
   {
     id: "E302",

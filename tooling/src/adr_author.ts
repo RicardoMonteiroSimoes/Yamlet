@@ -288,7 +288,16 @@ export function runAdrInit(args: string[]): CmdResult {
       if (flatten(text).parseErrors.length > 0) {
         return die(`--arises-from spec does not parse: ${specPath}`);
       }
-      if (!blocksOf(text).some((b) => b.id === m[2])) return die(`${m[1]} declares no ${m[2]}`);
+      const block = blocksOf(text).find((b) => b.id === m[2]);
+      if (block === undefined) return die(`${m[1]} declares no ${m[2]}`);
+      // A removed block still resolves — records written before it went keep
+      // pointing at it — but no new decision arises from behaviour that is gone.
+      if (block.removed) {
+        const by = block.replacedBy
+          ? `; decide against ${block.replacedBy}, which replaced it`
+          : "";
+        return die(`${m[1]}#${m[2]} is removed (${block.removed.trim()})${by}`);
+      }
     }
     const id = adrId(maxAdrNum(dir) + 1);
     for (const r of assumes) {

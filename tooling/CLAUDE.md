@@ -35,8 +35,8 @@ src/catalog.ts    the rule catalog (source of truth for rule ids/severities)
 src/render.ts     byte-exact human/JSON output
 src/verify.ts     orchestration: extension -> flatten -> composite -> validate -> W008 (reverse scan of cwd via impact)
                   -> W009 (scan of cwd for the system's writers, via state)
-src/author.ts     correct-by-construction appender; runs verifier as commit gate. `add-adr`, `add-state` and
-                  `set-header` are its in-place mutations (strictGuard)
+src/author.ts     correct-by-construction appender; runs verifier as commit gate. `add-adr`, `add-state`,
+                  `set-header`, `set-description`, `rm` and `replace` are its in-place mutations (strictGuard)
 src/state.ts      a criterion's `reads`/`writes` merged per system: fields, contended scope pairs (read-only)
 src/scalar.ts     the one scalar emitter (quote iff standard YAML would misread) + quoted-scalar reader
 src/cmd.ts        command helpers shared by author + techspec (usage error, flag values, path predicates)
@@ -47,6 +47,7 @@ src/adr.ts        the decision record format (`*.adr.yaml`, adr/v1): model, read
 src/adr_author.ts `yamlet adr init|add-*|remove|replace|decide|accept|reject|supersede` — phase-ordered,
                   revisable while proposed, frozen after accept
 src/blocks.ts     address an existing RQ-N/AC-N by id + its line extent (starts from records, ends from the next start)
+                  and whether it is a tombstone (`removed`, `replacedBy`)
 src/systems.ts    `yamlet systems` (read-only)
 src/impact.ts     `yamlet impact` — reverse dependency index: which composites consume a spec (read-only)
 src/graph.ts      `yamlet graph` -> DOT | JSON model | HTML viewer (read-only)
@@ -87,15 +88,21 @@ change is a regression, not a re-freeze.
 ## Conventions
 
 - Deno fmt: 2-space, 100 col, semicolons, double quotes. `strict` + `noUncheckedIndexedAccess`.
-- `edit` / `rm` are **not implemented yet**, and must not be stubbed. The groundwork exists:
-  `src/blocks.ts` addresses an existing `RQ-N`/`AC-N` and its line extent, `yamlet impact` supplies
-  the reverse-dependency analysis safe removal needs, and `add-adr` (then `add-state`) mutate an
-  existing block, gated by `strictGuard` ("the resulting findings must be a subset of the
-  pre-existing ones plus the ones this command predicts", keyed on `(rule, message)` rather than on
-  path, since indices shift under insert and remove). `guardCheck`'s allowlist is not a general
-  safety property; it is the _append_ commands' predicted findings, written as a constant. A rewrite
-  or delete goes through `strictGuard`, never `guardCheck`. `add-adr` keeps `acceptance-criteria` a
-  requirement's last key (the list goes before it) — `blocks.ts` depends on that.
+- **Changing existing behaviour** is `rm`, `replace` and `set-description`. Nothing is cut out of a
+  spec: `rm` turns a block into a **tombstone** (`id`, `removed`, optional `replaced_by`; a removed
+  requirement keeps its criteria as tombstones), `replace` is `rm` plus a new criterion under a
+  fresh id in one guarded step, and only a requirement's `description` — prose no test binds to — is
+  rewritten in place. Every projection skips tombstones as behaviour (`isRemoved` in `records.ts`,
+  `Block.removed` in `blocks.ts`); `tests` lists them under `removed` in the manifest, `docs` keeps
+  their anchors, `trace` keeps them as nodes, the tech spec index omits them. Every other mutation
+  refuses a tombstone. All of these go through `strictGuard` ("the resulting findings must be a
+  subset of the pre-existing ones plus the ones this command predicts", keyed on `(rule, message)`
+  rather than on path, since indices shift under insert and remove), never `guardCheck`, whose
+  allowlist is the _append_ commands' predicted findings written as a constant, not a general safety
+  property. `add-adr` keeps `acceptance-criteria` a requirement's last key (the list goes before it)
+  — `blocks.ts` depends on that, and so does a requirement tombstone. Changing a contract
+  (`exposes`) is not implemented and must not be stubbed: it reaches every composite `yamlet impact`
+  lists.
 - A **tech spec** is derived and disposable; it is rewritten whole from a parsed model on every
   mutation (no line splicing, no ids of its own except `T-N`), and every `RQ-N`/`AC-N` in it is
   checked against the spec it sits under. One tech spec plans one change across every spec it
@@ -111,5 +118,6 @@ change is a regression, not a re-freeze.
   `assumes` is acyclic by construction (lower ids only), and a directory is the id namespace.
 - **IDs are permanent.** Never renumber and never reuse one: `yamlet tests` keys its manifest on
   `AC-N`, so a renumber silently re-points step definitions — the one failure mode with no loud
-  symptom. Deletion leaves a gap, and the gap is correct. Ordered insertion uses the letter suffix
-  `E203` already allows (`AC-3` → `AC-3a`).
+  symptom. Allocation is "highest id in the file, plus one", which is only safe because removal
+  leaves a tombstone holding the id — never cut a block out. Ordered insertion uses the letter
+  suffix `E203` already allows (`AC-3` → `AC-3a`).

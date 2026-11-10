@@ -234,9 +234,79 @@ export function validate(
   }
   const nRq = rqIdxs.length;
 
-  // E106: requirements non-empty
+  // E106: requirements non-empty — and something in it still live. A file of
+  // tombstones specifies nothing.
+  const isTomb = (prefix: string): boolean => byPath.has(prefix + ".removed");
   if (nRq === 0 && seenTop.has("requirements")) {
     finding("E106", 0, "requirements", "requirements list is empty");
+  } else if (nRq > 0 && rqIdxs.every((ri) => isTomb("requirements[" + ri + "]"))) {
+    finding("E106", 0, "requirements", "every requirement is removed; the spec specifies nothing");
+  }
+
+  // Live ids, by kind — what a `replaced_by` may name (E206).
+  const liveRq = new Set<string>();
+  const liveAc = new Set<string>();
+  let nLiveRq = 0;
+  let nLiveAc = 0;
+  for (const [p, v] of byPath) {
+    const m = p.match(/^(requirements\[[0-9]+\](?:\.acceptance-criteria\[[0-9]+\])?)\.id$/);
+    if (!m || isTomb(m[1]!)) continue;
+    if (m[1]!.includes(".acceptance-criteria[")) {
+      liveAc.add(v);
+      nLiveAc++;
+    } else {
+      liveRq.add(v);
+      nLiveRq++;
+    }
+  }
+
+  // A tombstone (SPEC.md, "Changing behaviour — tombstones"): the block keeps its id and the
+  // reason it went, and nothing of what it said. `extra` are the further keys
+  // its kind may carry (a requirement keeps its — removed — criteria).
+  const validateTomb = (prefix: string, kind: "RQ" | "AC", extra: string[]): void => {
+    const id = byPath.get(prefix + ".id") ?? prefix;
+    const ln = byLine.get(prefix + ".removed") ?? 0;
+    if ((byPath.get(prefix + ".removed") ?? "").trim() === "") {
+      finding("E205", ln, prefix + ".removed", id + ": removed must give the reason");
+    }
+    const allowed = new Set(["id", "removed", "replaced_by", ...extra]);
+    const seen = new Set<string>();
+    const re = new RegExp("^" + escRe(prefix) + "\\.([^.[]+)");
+    for (const p of byPath.keys()) {
+      const m = p.match(re);
+      if (!m || allowed.has(m[1]!) || seen.has(m[1]!)) continue;
+      seen.add(m[1]!);
+      finding(
+        "E205",
+        byLine.get(p) ?? ln,
+        prefix + "." + m[1],
+        id + ": a removed block keeps only id, removed and replaced_by, not " + m[1],
+      );
+    }
+    const rp = prefix + ".replaced_by";
+    if (byPath.has(rp)) {
+      const to = byPath.get(rp)!;
+      const live = kind === "RQ" ? liveRq : liveAc;
+      if (to === id || !live.has(to)) {
+        finding(
+          "E206",
+          byLine.get(rp)!,
+          rp,
+          id + ": replaced_by must name a live " + (kind === "RQ" ? "requirement" : "criterion") +
+            " of this file, got: " + to,
+        );
+      }
+    }
+  };
+  // `replaced_by` on a live block would be silently ignored — say so instead.
+  for (const p of byPath.keys()) {
+    const m = p.match(
+      /^(requirements\[[0-9]+\](?:\.acceptance-criteria\[[0-9]+\])?)\.replaced_by$/,
+    );
+    if (m && !isTomb(m[1]!)) {
+      const id = byPath.get(m[1] + ".id") ?? m[1];
+      finding("E205", byLine.get(p)!, p, id + ": replaced_by belongs on a removed block only");
+    }
   }
 
   // Process each requirement (index order for deterministic output).
@@ -244,6 +314,7 @@ export function validate(
   for (const ri of [...rqIdxs].sort((a, b) => a - b)) {
     const rb = "requirements[" + ri + "]";
     const idP = rb + ".id";
+    const rqTomb = isTomb(rb);
 
     if (!byPath.has(idP)) {
       finding("E107", 0, rb, rb + ": missing required field: id");
@@ -259,7 +330,9 @@ export function validate(
       }
     }
 
-    if (!byPath.has(rb + ".description")) {
+    if (rqTomb) {
+      validateTomb(rb, "RQ", ["acceptance-criteria"]);
+    } else if (!byPath.has(rb + ".description")) {
       finding("E107", 0, rb, rb + ": missing required field: description");
     } else {
       // E305: a requirement is one capability.
@@ -288,13 +361,41 @@ export function validate(
     }
     const uniqAc = [...new Set(acIdxs)];
 
-    if (!hasAcKey) {
+    if (rqTomb) {
+      // A removed requirement keeps its criteria — every one of them removed too.
+      for (const ai of uniqAc.sort((a, b) => a - b)) {
+        const ab = rb + ".acceptance-criteria[" + ai + "]";
+        validateAcId(ab);
+        if (isTomb(ab)) validateTomb(ab, "AC", []);
+        else {
+          finding(
+            "E205",
+            byLine.get(ab + ".id") ?? 0,
+            ab,
+            (byPath.get(rb + ".id") ?? rb) + " is removed but its criterion " +
+              (byPath.get(ab + ".id") ?? ab) + " is live",
+          );
+        }
+      }
+    } else if (!hasAcKey) {
       finding("E107", 0, rb, rb + ": missing required field: acceptance-criteria");
     } else if (uniqAc.length === 0) {
       finding("E108", 0, rb + ".acceptance-criteria", rb + ": acceptance-criteria is empty");
     } else {
       for (const ai of uniqAc.sort((a, b) => a - b)) {
-        validateAc(rb + ".acceptance-criteria[" + ai + "]");
+        const ab = rb + ".acceptance-criteria[" + ai + "]";
+        if (isTomb(ab)) {
+          validateAcId(ab);
+          validateTomb(ab, "AC", []);
+        } else validateAc(ab);
+      }
+      if (uniqAc.every((ai) => isTomb(rb + ".acceptance-criteria[" + ai + "]"))) {
+        finding(
+          "E207",
+          byLine.get(idP) ?? 0,
+          rb,
+          (byPath.get(idP) ?? rb) + ": every criterion is removed; remove the requirement instead",
+        );
       }
     }
   }
@@ -742,13 +843,26 @@ export function validate(
     }
   }
 
-  // Summary counts.
-  let nAcTotal = 0;
-  for (const p of byPath.keys()) {
-    if (/\.acceptance-criteria\[[0-9]+\]\.id$/.test(p)) nAcTotal++;
-  }
+  // Summary counts: live behaviour only — a tombstone specifies nothing.
+  return {
+    findings,
+    summary: { requirements: nLiveRq, acceptanceCriteria: nLiveAc },
+  };
 
-  return { findings, summary: { requirements: nRq, acceptanceCriteria: nAcTotal } };
+  // E107/E203 on a criterion's id alone — all a tombstone has to check.
+  function validateAcId(ab: string): void {
+    const idP = ab + ".id";
+    if (!byPath.has(idP)) {
+      finding("E107", 0, ab, ab + ": missing required field: id");
+    } else if (!/^AC-[0-9]+[a-z]?$/.test(byPath.get(idP)!)) {
+      finding(
+        "E203",
+        byLine.get(idP)!,
+        idP,
+        ab + ": id must match ^AC-[0-9]+[a-z]?$, got: " + byPath.get(idP)!,
+      );
+    }
+  }
 
   // ── validate one acceptance criterion ──
   function validateAc(ab: string): void {

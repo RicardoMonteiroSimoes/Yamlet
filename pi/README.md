@@ -90,8 +90,8 @@ ones need a restart or `/reload`.
 | | `yamlet_add_adr` | | | `yamlet_adr_decide` |
 | | `yamlet_add_state` | | | `yamlet_adr_add_obligation` |
 | | `yamlet_set_header` | | | `yamlet_adr_add_accept` |
-| | | | | `yamlet_adr_add_revisit` |
-| | | | | `yamlet_adr_remove` · `_replace` |
+| | `yamlet_set_description` | | | `yamlet_adr_add_revisit` |
+| | `yamlet_rm` · `yamlet_replace` | | | `yamlet_adr_remove` · `_replace` |
 | | | | | `yamlet_adr_accept` · `_reject` |
 | | | | | `yamlet_adr_supersede` |
 

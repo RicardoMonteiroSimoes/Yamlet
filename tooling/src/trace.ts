@@ -87,13 +87,18 @@ export interface SpecNode extends NodeBase {
   /** True when the spec lies outside DIR and was reached only by a reference. */
   outside?: true;
 }
-export interface RequirementNode extends NodeBase {
+/** On a requirement or criterion that was removed (a tombstone): why, and what replaced it. */
+interface Tombstone {
+  removed?: string;
+  replaced_by?: string;
+}
+export interface RequirementNode extends NodeBase, Tombstone {
   type: "requirement";
   spec: string;
   rq: string;
   description: string;
 }
-export interface CriterionNode extends NodeBase {
+export interface CriterionNode extends NodeBase, Tombstone {
   type: "criterion";
   spec: string;
   rq: string;
@@ -310,6 +315,10 @@ class Builder {
     const val = (p: string): string => recordAt(records, p)?.value ?? "";
     for (const b of blocksOf(text)) {
       if (b.id === "") continue;
+      // A tombstone stays a node — an ADR's arises_from still lands on it.
+      const tomb: Tombstone = b.removed
+        ? { removed: b.removed.trim(), ...(b.replacedBy ? { replaced_by: b.replacedBy } : {}) }
+        : {};
       if (b.kind === "requirement") {
         this.node<RequirementNode>({
           id: `${id}#${b.id}`,
@@ -317,6 +326,7 @@ class Builder {
           spec: id,
           rq: b.id,
           description: val(`${b.path}.description`),
+          ...tomb,
         });
         this.edge("has", id, `${id}#${b.id}`);
       } else {
@@ -335,6 +345,7 @@ class Builder {
           verdict: null,
           evidence: [],
           note: "",
+          ...tomb,
         });
         this.edge("has", `${id}#${b.parentId}`, `${id}#${b.id}`);
       }

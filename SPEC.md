@@ -47,7 +47,7 @@ Unknown keys are rejected (`E102`); a missing required one is `E101` — except
 | `description` | a few sentences of context | non-empty | `E107` |
 | `blast_radius` | what breaks if this is wrong | `low` \| `medium` \| `high` | `E103` |
 | `front` | which side of the trust boundary the caller sits on | `internal` \| `external` | `E104` |
-| `requirements` | the capabilities this component must fulfil | non-empty list | `E101`, `E106` |
+| `requirements` | the capabilities this component must fulfil | non-empty list, at least one live | `E101`, `E106` |
 | `exposes` *(optional)* | the contract this component offers | see [`exposes`](#exposes--the-contract-signature) | `E501`–`E511` |
 | `components` *(optional)* | member specs this file wires together — makes it a **composite** | see [Composition](#composition--a-level-above-the-component) | `E601`–`E604` |
 | `connections` *(optional)* | how a composite wires its members and boundary (`sink: source`) | see [Composition](#composition--a-level-above-the-component) | `E605`–`E610` |
@@ -201,7 +201,8 @@ knows what "done" means.
 | `acceptance-criteria` | testable behaviours proving the capability | non-empty list | `E107`, `E108` |
 
 Ids are **allocated by the `yamlet` author runner, never chosen by hand.** They are append-only
-lists; the agent may not set or reuse an id.
+lists; the agent may not set or reuse an id. A requirement or criterion that goes is not cut out
+but left as a [tombstone](#changing-behaviour--tombstones) holding its id.
 
 ## `acceptance-criteria`
 
@@ -279,8 +280,8 @@ already exists. On a requirement the list sits before
 `acceptance-criteria`, which stays the requirement's last key.
 
 The link is load-bearing on every later change: a mutation that touches decided
-behaviour prints a warning naming the records (today, adding a criterion under a
-linked requirement; an `edit`/`rm` of a linked block, once they exist). The spec
+behaviour prints a warning naming the records (adding a criterion under a linked
+requirement; `rm`, `replace` or `set-description` of a linked block). The spec
 is not where the decision is revisited — that happens when the change is planned:
 the [tech spec](#tech-specs--planning-the-work) covering the changed behaviour
 must read the decision and account for it. yamlet only makes sure the change
@@ -425,6 +426,73 @@ outbound effect (an e-mail delivered, a payment taken), so a criterion about one
 legitimate and has no fix.
 
 ---
+
+## Changing behaviour — tombstones
+
+A spec changes after it is finished, and an id is load-bearing well beyond the file:
+`yamlet tests` keys its manifest on `AC-N`, so a consumer's step definitions bind to
+it, and a decision record's `arises_from` names it in a file that is frozen once
+accepted. So nothing is cut out of a spec. A requirement or criterion that goes
+becomes a **tombstone** — its id, why it went, and what took its place:
+
+```yaml
+- id: RQ-2
+  description: >-
+    A requested plain e-mail is never silently lost
+  acceptance-criteria:
+  - id: AC-3
+    removed: undeliverable after 48 hours now, not 24
+    replaced_by: AC-3a
+  - id: AC-3a
+    pattern: unwanted
+    if: the e-mail to {input.recipient} is still undelivered 48 hours after the request
+    shall:
+    - mark the e-mail to {input.recipient} as undeliverable
+```
+
+| field | meaning | constraint | enforced by |
+|---|---|---|---|
+| `id` | the id it always had | as for a live block | `E201`–`E204` |
+| `removed` | why the behaviour went | non-empty | `E205` |
+| `replaced_by` *(optional)* | the live block that took its place | a live `RQ-N` for a requirement, a live `AC-N` for a criterion, in this file, not itself; only on a tombstone | `E205`, `E206` |
+
+A tombstone holds nothing else (`E205`): no description, clauses, `shall`, `adrs` or
+stored state — it specifies nothing, and every projection treats it so. A removed
+requirement keeps its criteria, each a tombstone too (`E205`), because their ids are
+as permanent as its own. A live requirement whose every criterion is removed asserts
+nothing and is `E207` — remove the requirement instead; a spec whose every
+requirement is removed is `E106`.
+
+**Why a tombstone, not a deletion.** Ids are allocated as the highest in the file
+plus one, so a deleted `AC-12` would be minted again for different behaviour, and a
+step definition bound to the old one would go on passing against the new — the
+one failure with no loud symptom. And an accepted record that `arises_from` a
+deleted criterion would stop verifying (`E807`) with no legal repair, since the
+record is frozen. A tombstone keeps both: the id stays taken, and the reference
+still resolves. The cost is that a spec carries a line of history per removal; that
+is the price of an id meaning one thing for ever.
+
+**A changed obligation is a new obligation.** What a criterion obliges is never
+rewritten under its id. `yamlet replace` tombstones it and writes the new criterion
+in its place under a fresh id — `AC-3a`, the next free letter on its number, as an
+insertion after it would take. Nothing carries over: stored state is declared
+again, and a criterion-level `adrs` link is not copied (the decision was made for
+the old obligation; the warning names it, and `add-adr` links it again if it still
+decides the new one). A requirement's `description` is prose no test binds to, so
+`yamlet set-description` rewords it in place. Moving a criterion to another
+requirement is `add-criterion` there, then `rm --replaced-by`.
+
+**What the projections do with one.** `yamlet tests` writes no scenario for a
+tombstone and lists it in the manifest under `removed` (feature → `AC-N` → `reason`,
+`replaced_by`), so a step definition still bound to it can be found. `yamlet docs`
+renders it as one struck-through line under its anchor, so a link to it lands. The
+tech spec does not know it: a removed criterion has no verdict and cannot be scoped.
+A decision record may keep pointing at it, but `yamlet adr init --arises-from`
+refuses one — no new decision arises from behaviour that is gone.
+
+**Not yet supported:** changing a contract (`exposes` inputs and outputs), which
+reaches every composite that consumes the spec. A removal that would leave a contract
+input or output unreferenced (`E506`, `E511`) is rolled back.
 
 ## Composition — a level above the component
 
@@ -810,7 +878,8 @@ None at the moment.
 
 ---
 
-*Shipped since first draft: the trigger rule (`E301`–`E303`), [word budgets](#word-budgets--e305)
+*Shipped since first draft: [tombstones](#changing-behaviour--tombstones) for removed and
+replaced behaviour (`E205`–`E207`); the trigger rule (`E301`–`E303`), [word budgets](#word-budgets--e305)
 (`E305`), `W006`, `W007`, `W008` and [`W010`](#nothing-to-bind--w010); [`reads` / `writes`](#reads--writes--stored-state) stored
 fields on criteria (`E307`, `E308`, `W009`); [decision records](#decision-records--adryaml)
 (`E801`–`E815`), [`adrs`](#adrs--linking-a-decision) links on requirements and

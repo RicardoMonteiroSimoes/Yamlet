@@ -26,7 +26,7 @@
 import type { CmdResult, Command, FlatRecord } from "./types.ts";
 import { flatten } from "./flatten.ts";
 import { joinNorm } from "./cmd.ts";
-import { escRe, indicesUnder, listUnder } from "./records.ts";
+import { escRe, indicesUnder, isRemoved, listUnder } from "./records.ts";
 import {
   condition,
   type CriterionState,
@@ -158,13 +158,18 @@ export function requirementsOf(
   records: readonly FlatRecord[],
 ): RequirementText[] {
   const get = (p: string): string => records.find((r) => r.path === p)?.value ?? "";
-  return indicesUnder(records, "requirements").map((i) => {
+  // Live behaviour only: a tombstone says nothing a sibling scope could contradict.
+  return indicesUnder(records, "requirements").filter((i) =>
+    !isRemoved(records, `requirements[${i}]`)
+  ).map((i) => {
     const rq = `requirements[${i}]`;
     return {
       id: get(`${rq}.id`),
       description: get(`${rq}.description`),
       adrs: listUnder(records, `${rq}.adrs`),
-      criteria: indicesUnder(records, `${rq}.acceptance-criteria`).map((j) => {
+      criteria: indicesUnder(records, `${rq}.acceptance-criteria`).filter((j) =>
+        !isRemoved(records, `${rq}.acceptance-criteria[${j}]`)
+      ).map((j) => {
         const ac = `${rq}.acceptance-criteria[${j}]`;
         return {
           id: get(`${ac}.id`),

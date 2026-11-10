@@ -1,0 +1,31 @@
+system: tombstones
+topic: Removed behaviour
+summary: A scope whose spec has removed a requirement and replaced a criterion.
+description: >-
+  Exercises tombstones: a removed requirement keeps its removed criteria, a replaced criterion names its replacement.
+blast_radius: low
+front: internal
+exposes:
+  name: tombstones
+  intent: record an entry
+  inputs:
+  - entry
+
+requirements:
+- id: RQ-1
+  removed: entries are no longer archived
+  acceptance-criteria:
+  - id: AC-1
+    removed: entries are no longer archived
+- id: RQ-2
+  description: >-
+    An entry is recorded
+  acceptance-criteria:
+  - id: AC-2
+    removed: an entry is now recorded once only
+    replaced_by: AC-2a
+  - id: AC-2a
+    pattern: event
+    when: "{input.entry} is submitted"
+    shall:
+    - record {input.entry} once

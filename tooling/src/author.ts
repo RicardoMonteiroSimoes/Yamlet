@@ -19,7 +19,14 @@ import { readQuoted, scalar } from "./scalar.ts";
 import { verifyText } from "./verify.ts";
 import { type Contract, contractOf } from "./systems.ts";
 import { type CompositeInfo, resolveComposite, socketKey } from "./composite.ts";
-import { type Block, blocksOf, criteriaKeyLine, findBlock, spliceAfter } from "./blocks.ts";
+import {
+  type Block,
+  blocksOf,
+  criteriaKeyLine,
+  criteriaOf,
+  findBlock,
+  spliceAfter,
+} from "./blocks.ts";
 import { listUnder, strayUnder } from "./records.ts";
 import { FIELD } from "./validate.ts";
 import { collectState } from "./state.ts";
@@ -30,6 +37,7 @@ import {
   die,
   dirname,
   exists,
+  fail,
   isFile,
   renderFindings,
   resolveFrom,
@@ -52,6 +60,9 @@ const USAGE = `Usage:
   yamlet add-state       FILE --ac AC-N [--reads entity.field ...] [--writes entity.field ...]
   yamlet add-adr         FILE PATH (--rq RQ-N | --ac AC-N)
   yamlet set-header      FILE [--topic t] [--summary s] [--description d]
+  yamlet set-description FILE --rq RQ-N --description "..."
+  yamlet rm              FILE (--rq RQ-N | --ac AC-N) --reason "..." [--replaced-by ID]
+  yamlet replace         FILE --ac AC-N --reason "..." --pattern ... [criterion flags as add-criterion]
 `;
 const usageResult = (): CmdResult => ({ exitCode: 2, stdout: "", stderr: USAGE });
 
@@ -715,83 +726,294 @@ export function runAddRequirement(args: string[]): CmdResult {
   }
 }
 
+/** A criterion as its flags describe it — everything but its id and where it goes. */
+interface CriterionDraft {
+  pattern: string;
+  when: string;
+  ifClause: string;
+  where: string;
+  whiles: string[];
+  shalls: string[];
+  examples: string[];
+  reads: string[];
+  writes: string[];
+}
+
+/**
+ * Read the criterion flags `add-criterion` and `replace` share, starting at
+ * `args[from]`. A flag in `extra` is handed back by name for the caller to own;
+ * any other flag is a usage error naming `cmd`.
+ */
+function parseCriterionFlags(
+  args: string[],
+  from: number,
+  cmd: string,
+  extra: readonly string[],
+): { draft: CriterionDraft; extras: Map<string, string> } {
+  const draft: CriterionDraft = {
+    pattern: "",
+    when: "",
+    ifClause: "",
+    where: "",
+    whiles: [],
+    shalls: [],
+    examples: [],
+    reads: [],
+    writes: [],
+  };
+  const extras = new Map<string, string>();
+  let i = from;
+  while (i < args.length) {
+    const a = args[i]!;
+    const v = (): string => argVal(args, i, a);
+    switch (a) {
+      case "--pattern":
+        draft.pattern = v();
+        break;
+      case "--when":
+        draft.when = v();
+        break;
+      case "--if":
+        draft.ifClause = v();
+        break;
+      case "--where":
+        draft.where = v();
+        break;
+      case "--while":
+        draft.whiles.push(v());
+        break;
+      case "--shall":
+        draft.shalls.push(v());
+        break;
+      case "--example":
+        draft.examples.push(v());
+        break;
+      case "--reads":
+        draft.reads.push(v());
+        break;
+      case "--writes":
+        draft.writes.push(v());
+        break;
+      default:
+        if (!extra.includes(a)) fail(`unknown flag for ${cmd}: ${a}`);
+        extras.set(a, v());
+    }
+    i += 2;
+  }
+  return { draft, extras };
+}
+
+/** The flag-level checks every criterion needs before the file is read. */
+function checkDraft(cmd: string, d: CriterionDraft): void {
+  if (!d.pattern) fail(`${cmd} requires --pattern`);
+  if (d.shalls.length === 0) fail(`${cmd} requires at least one --shall`);
+  const stateErr = checkState(d.reads, d.writes);
+  if (stateErr !== "") fail(stateErr);
+}
+
+/**
+ * Validate a criterion against the spec it is going into (`text`, at `file`)
+ * and serialize it: every line after its `  - id:` line. Pattern→clause rules,
+ * token classification, contract and member resolution, and placeholder/example
+ * consistency are all checked here, so `add-criterion` and `replace` refuse the
+ * same things in the same words. A refusal throws (exit 2, nothing written).
+ */
+function criterionBody(file: string, text: string, d: CriterionDraft): string {
+  const { pattern, when, ifClause, where, whiles, shalls, examples, reads, writes } = d;
+  const hasWhile = whiles.length > 0;
+  const hasWhen = when !== "";
+  const hasIf = ifClause !== "";
+  const hasWhere = where !== "";
+
+  // Pattern -> clause rules (mirrors the verifier; rejects at construction time).
+  // Every pattern carries exactly one trigger (--when or --if); `ubiquitous` and
+  // `state` have none and are not accepted (SPEC.md, "acceptance-criteria").
+  switch (pattern) {
+    case "event":
+      if (!hasWhen) return fail("pattern=event requires --when");
+      if (hasWhile || hasIf || hasWhere) return fail("pattern=event allows only --when");
+      break;
+    case "optional":
+      if (!hasWhere) return fail("pattern=optional requires --where");
+      if (hasWhile) return fail("pattern=optional does not allow --while");
+      if (hasWhen && hasIf) {
+        return fail("pattern=optional needs exactly one of --when/--if, not both");
+      }
+      if (!hasWhen && !hasIf) return fail("pattern=optional needs exactly one of --when/--if");
+      break;
+    case "unwanted":
+      if (!hasIf) return fail("pattern=unwanted requires --if");
+      if (hasWhile || hasWhen || hasWhere) return fail("pattern=unwanted allows only --if");
+      break;
+    case "complex":
+      if (!hasWhile) return fail("pattern=complex requires --while");
+      if (hasWhere) return fail("pattern=complex does not allow --where");
+      if (hasWhen && hasIf) {
+        return fail("pattern=complex needs exactly one of --when/--if, not both");
+      }
+      if (!hasWhen && !hasIf) return fail("pattern=complex needs exactly one of --when/--if");
+      break;
+    default:
+      return fail("pattern must be one of: event optional unwanted complex");
+  }
+
+  // Classify every {token} across clause/shall text.
+  const tokenSources = [...whiles, ...shalls, when, ifClause, where];
+  const tokens = new Set<string>();
+  for (const src of tokenSources) {
+    for (const m of src.matchAll(/\{[^}]*\}/g)) {
+      tokens.add(m[0].slice(1, -1));
+    }
+  }
+  const placeholders: string[] = [];
+  const inputRefs: string[] = [];
+  const outputRefs: string[] = [];
+  const memberRefs: string[] = []; // {alias.socket} — composite member references
+  for (const tok of [...tokens].sort()) {
+    if (tok === "") continue;
+    if (tok.startsWith("input.")) {
+      const nm = tok.slice("input.".length);
+      if (!NAME.test(nm)) {
+        return fail(`invalid input reference {input.${nm}} (name must match ^[a-z][a-z0-9_]*$)`);
+      }
+      if (!inputRefs.includes(nm)) inputRefs.push(nm);
+    } else if (tok.startsWith("output.")) {
+      const nm = tok.slice("output.".length);
+      if (!NAME.test(nm)) {
+        return fail(
+          `invalid output reference {output.${nm}} (name must match ^[a-z][a-z0-9_]*$)`,
+        );
+      }
+      if (!outputRefs.includes(nm)) outputRefs.push(nm);
+    } else if (/^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$/.test(tok)) {
+      // A dotted token whose prefix is not `input`/`output` is a member
+      // reference {alias.socket}; it resolves against a member's contract
+      // (validated below) and — like input/output refs — needs no examples row.
+      if (!memberRefs.includes(tok)) memberRefs.push(tok);
+    } else {
+      if (!NAME.test(tok)) {
+        return fail(`invalid placeholder {${tok}} (must match ^[a-z][a-z0-9_]*$)`);
+      }
+      if (!placeholders.includes(tok)) placeholders.push(tok);
+    }
+  }
+
+  // Every {input.X} / {output.X} must reference something declared at init.
+  if (inputRefs.length > 0) {
+    const declared = declaredList(text, "inputs");
+    for (const nm of inputRefs) {
+      if (!declared.includes(nm)) {
+        return fail(
+          `criterion references {input.${nm}} but '${nm}' is not a declared exposes input.\n` +
+            `Declare it at init (--input ${nm}); adding inputs to an existing contract is out of scope for now.`,
+        );
+      }
+    }
+  }
+  if (outputRefs.length > 0) {
+    const declared = declaredList(text, "outputs");
+    for (const nm of outputRefs) {
+      if (!declared.includes(nm)) {
+        return fail(
+          `criterion references {output.${nm}} but '${nm}' is not a declared exposes output.\n` +
+            `Declare it at init (--output ${nm}); adding outputs to an existing contract is out of scope for now.`,
+        );
+      }
+    }
+  }
+
+  // Every {alias.socket} must resolve to a real socket of a declared member
+  // (mirrors the verifier's E604). Only composites have members, so a member
+  // reference on a leaf is a construction error, not a hard rollback.
+  if (memberRefs.length > 0) {
+    const comp = resolveComposite(file, text, flatten(text).records);
+    if (!comp.isComposite) {
+      return fail(
+        `criterion references {${memberRefs[0]}} but this spec declares no components; ` +
+          `member references are only valid on a composite`,
+      );
+    }
+    for (const ref of memberRefs) {
+      const dot = ref.indexOf(".");
+      const al = ref.slice(0, dot);
+      const sk = ref.slice(dot + 1);
+      if (!comp.memberDeclared.has(al)) {
+        return fail(`criterion references {${ref}} but '${al}' is not a declared component alias`);
+      }
+      if (comp.memberStatus.get(al) !== "ok") {
+        return fail(
+          `criterion references {${ref}} but component '${al}' exposes no usable contract`,
+        );
+      }
+      if (!comp.sockets.has(socketKey(al, sk))) {
+        return fail(
+          `criterion references {${ref}} but '${sk}' is not a declared input or output of '${al}'`,
+        );
+      }
+    }
+  }
+
+  // Placeholder/examples consistency (mirrors E401/E402).
+  if (examples.length > 0) {
+    if (placeholders.length === 0 && inputRefs.length === 0) {
+      return fail(
+        "--example rows were given but no {placeholder} or {input.X} appears in any clause or shall",
+      );
+    }
+    const msg = validateExamples(examples, placeholders, inputRefs);
+    if (msg !== "") return fail(msg);
+  } else if (placeholders.length > 0) {
+    return fail(
+      `criterion uses placeholders (${placeholders.join(" ")}) but no --example rows were given`,
+    );
+  }
+
+  let block = "";
+  block += `    pattern: ${pattern}\n`;
+  switch (pattern) {
+    case "event":
+      block += `    when: ${scalar(when)}\n`;
+      break;
+    case "unwanted":
+      block += `    if: ${scalar(ifClause)}\n`;
+      break;
+    case "optional":
+      block += `    where: ${scalar(where)}\n`;
+      block += hasWhen ? `    when: ${scalar(when)}\n` : `    if: ${scalar(ifClause)}\n`;
+      break;
+    case "complex":
+      block += "    while:\n";
+      block += emitListItems(whiles);
+      block += hasWhen ? `    when: ${scalar(when)}\n` : `    if: ${scalar(ifClause)}\n`;
+      break;
+  }
+  block += "    shall:\n";
+  block += emitListItems(shalls);
+  if (examples.length > 0) {
+    block += "    examples:\n";
+    for (const row of examples) {
+      if (row === "") continue;
+      block += emitExampleRow(row);
+    }
+  }
+  block += emitState(reads, writes);
+  return block;
+}
+
 // ── add-criterion ──
 export function runAddCriterion(args: string[]): CmdResult {
   try {
     const file = args[0] ?? "";
     if (file === "") return usageResult();
 
-    let rq = "";
-    let after = "";
-    let pattern = "";
-    let when = "";
-    let ifClause = "";
-    let where = "";
-    const whiles: string[] = [];
-    const shalls: string[] = [];
-    const examples: string[] = [];
-    const reads: string[] = [];
-    const writes: string[] = [];
-
-    let i = 1;
-    while (i < args.length) {
-      const a = args[i]!;
-      switch (a) {
-        case "--rq":
-          rq = argVal(args, i, a);
-          i += 2;
-          break;
-        case "--pattern":
-          pattern = argVal(args, i, a);
-          i += 2;
-          break;
-        case "--when":
-          when = argVal(args, i, a);
-          i += 2;
-          break;
-        case "--if":
-          ifClause = argVal(args, i, a);
-          i += 2;
-          break;
-        case "--where":
-          where = argVal(args, i, a);
-          i += 2;
-          break;
-        case "--while":
-          whiles.push(argVal(args, i, a));
-          i += 2;
-          break;
-        case "--shall":
-          shalls.push(argVal(args, i, a));
-          i += 2;
-          break;
-        case "--example":
-          examples.push(argVal(args, i, a));
-          i += 2;
-          break;
-        case "--after":
-          after = argVal(args, i, a);
-          i += 2;
-          break;
-        case "--reads":
-          reads.push(argVal(args, i, a));
-          i += 2;
-          break;
-        case "--writes":
-          writes.push(argVal(args, i, a));
-          i += 2;
-          break;
-        default:
-          return die(`unknown flag for add-criterion: ${a}`);
-      }
-    }
+    const { draft, extras } = parseCriterionFlags(args, 1, "add-criterion", ["--rq", "--after"]);
+    const rq = extras.get("--rq") ?? "";
+    const after = extras.get("--after") ?? "";
+    const { reads, writes } = draft;
 
     if (!isFile(file)) return die(`file not found: ${file} (run 'init' first)`);
     if (!rq) return die("add-criterion requires --rq RQ-N");
-    if (!pattern) return die("add-criterion requires --pattern");
-    if (shalls.length === 0) return die("add-criterion requires at least one --shall");
-    const stateErr = checkState(reads, writes);
-    if (stateErr !== "") return die(stateErr);
+    checkDraft("add-criterion", draft);
 
     const text = Deno.readTextFileSync(file);
 
@@ -810,6 +1032,7 @@ export function runAddCriterion(args: string[]): CmdResult {
       const known = requirements.map((b) => b.id).filter((id) => id !== "").join(", ");
       return die(`no such requirement: ${rq} (this spec has ${known || "none"})`);
     }
+    if (target.removed) return die(removedRefusal(target));
     if (criteriaKeyLine(text, target) === 0) {
       return die(
         `${rq} has no 'acceptance-criteria:' key to insert under.\n` +
@@ -826,6 +1049,7 @@ export function runAddCriterion(args: string[]): CmdResult {
       if (a === undefined || a.kind !== "criterion") {
         return die(`no such criterion: ${after}`);
       }
+      if (a.removed) return die(removedRefusal(a));
       if (a.parentId !== rq) {
         return die(
           `--after ${after} belongs to ${a.parentId || "another requirement"}, not ${rq}.\n` +
@@ -835,154 +1059,7 @@ export function runAddCriterion(args: string[]): CmdResult {
       anchor = a;
     }
 
-    const hasWhile = whiles.length > 0;
-    const hasWhen = when !== "";
-    const hasIf = ifClause !== "";
-    const hasWhere = where !== "";
-
-    // Pattern -> clause rules (mirrors the verifier; rejects at construction time).
-    // Every pattern carries exactly one trigger (--when or --if); `ubiquitous` and
-    // `state` have none and are not accepted (SPEC.md, "acceptance-criteria").
-    switch (pattern) {
-      case "event":
-        if (!hasWhen) return die("pattern=event requires --when");
-        if (hasWhile || hasIf || hasWhere) return die("pattern=event allows only --when");
-        break;
-      case "optional":
-        if (!hasWhere) return die("pattern=optional requires --where");
-        if (hasWhile) return die("pattern=optional does not allow --while");
-        if (hasWhen && hasIf) {
-          return die("pattern=optional needs exactly one of --when/--if, not both");
-        }
-        if (!hasWhen && !hasIf) return die("pattern=optional needs exactly one of --when/--if");
-        break;
-      case "unwanted":
-        if (!hasIf) return die("pattern=unwanted requires --if");
-        if (hasWhile || hasWhen || hasWhere) return die("pattern=unwanted allows only --if");
-        break;
-      case "complex":
-        if (!hasWhile) return die("pattern=complex requires --while");
-        if (hasWhere) return die("pattern=complex does not allow --where");
-        if (hasWhen && hasIf) {
-          return die("pattern=complex needs exactly one of --when/--if, not both");
-        }
-        if (!hasWhen && !hasIf) return die("pattern=complex needs exactly one of --when/--if");
-        break;
-      default:
-        return die("pattern must be one of: event optional unwanted complex");
-    }
-
-    // Classify every {token} across clause/shall text.
-    const tokenSources = [...whiles, ...shalls, when, ifClause, where];
-    const tokens = new Set<string>();
-    for (const src of tokenSources) {
-      for (const m of src.matchAll(/\{[^}]*\}/g)) {
-        tokens.add(m[0].slice(1, -1));
-      }
-    }
-    const placeholders: string[] = [];
-    const inputRefs: string[] = [];
-    const outputRefs: string[] = [];
-    const memberRefs: string[] = []; // {alias.socket} — composite member references
-    for (const tok of [...tokens].sort()) {
-      if (tok === "") continue;
-      if (tok.startsWith("input.")) {
-        const nm = tok.slice("input.".length);
-        if (!NAME.test(nm)) {
-          return die(`invalid input reference {input.${nm}} (name must match ^[a-z][a-z0-9_]*$)`);
-        }
-        if (!inputRefs.includes(nm)) inputRefs.push(nm);
-      } else if (tok.startsWith("output.")) {
-        const nm = tok.slice("output.".length);
-        if (!NAME.test(nm)) {
-          return die(
-            `invalid output reference {output.${nm}} (name must match ^[a-z][a-z0-9_]*$)`,
-          );
-        }
-        if (!outputRefs.includes(nm)) outputRefs.push(nm);
-      } else if (/^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$/.test(tok)) {
-        // A dotted token whose prefix is not `input`/`output` is a member
-        // reference {alias.socket}; it resolves against a member's contract
-        // (validated below) and — like input/output refs — needs no examples row.
-        if (!memberRefs.includes(tok)) memberRefs.push(tok);
-      } else {
-        if (!NAME.test(tok)) {
-          return die(`invalid placeholder {${tok}} (must match ^[a-z][a-z0-9_]*$)`);
-        }
-        if (!placeholders.includes(tok)) placeholders.push(tok);
-      }
-    }
-
-    // Every {input.X} / {output.X} must reference something declared at init.
-    if (inputRefs.length > 0) {
-      const declared = declaredList(text, "inputs");
-      for (const nm of inputRefs) {
-        if (!declared.includes(nm)) {
-          return die(
-            `criterion references {input.${nm}} but '${nm}' is not a declared exposes input.\n` +
-              `Declare it at init (--input ${nm}); adding inputs to an existing contract is out of scope for now.`,
-          );
-        }
-      }
-    }
-    if (outputRefs.length > 0) {
-      const declared = declaredList(text, "outputs");
-      for (const nm of outputRefs) {
-        if (!declared.includes(nm)) {
-          return die(
-            `criterion references {output.${nm}} but '${nm}' is not a declared exposes output.\n` +
-              `Declare it at init (--output ${nm}); adding outputs to an existing contract is out of scope for now.`,
-          );
-        }
-      }
-    }
-
-    // Every {alias.socket} must resolve to a real socket of a declared member
-    // (mirrors the verifier's E604). Only composites have members, so a member
-    // reference on a leaf is a construction error, not a hard rollback.
-    if (memberRefs.length > 0) {
-      const comp = resolveComposite(file, text, flatten(text).records);
-      if (!comp.isComposite) {
-        return die(
-          `criterion references {${memberRefs[0]}} but this spec declares no components; ` +
-            `member references are only valid on a composite`,
-        );
-      }
-      for (const ref of memberRefs) {
-        const dot = ref.indexOf(".");
-        const al = ref.slice(0, dot);
-        const sk = ref.slice(dot + 1);
-        if (!comp.memberDeclared.has(al)) {
-          return die(`criterion references {${ref}} but '${al}' is not a declared component alias`);
-        }
-        if (comp.memberStatus.get(al) !== "ok") {
-          return die(
-            `criterion references {${ref}} but component '${al}' exposes no usable contract`,
-          );
-        }
-        if (!comp.sockets.has(socketKey(al, sk))) {
-          return die(
-            `criterion references {${ref}} but '${sk}' is not a declared input or output of '${al}'`,
-          );
-        }
-      }
-    }
-
-    // Placeholder/examples consistency (mirrors E401/E402).
-    if (examples.length > 0) {
-      if (placeholders.length === 0 && inputRefs.length === 0) {
-        return die(
-          "--example rows were given but no {placeholder} or {input.X} appears in any clause or shall",
-        );
-      }
-      const msg = validateExamples(examples, placeholders, inputRefs);
-      if (msg !== "") return die(msg);
-    } else if (placeholders.length > 0) {
-      return die(
-        `criterion uses placeholders (${placeholders.join(" ")}) but no --example rows were given`,
-      );
-    }
-
+    const body = criterionBody(file, text, draft);
     const backup = text;
 
     // Appending to a requirement's criteria takes the next number; inserting
@@ -995,36 +1072,7 @@ export function runAddCriterion(args: string[]): CmdResult {
       );
     }
 
-    let block = "";
-    block += `  - id: ${acid}\n`;
-    block += `    pattern: ${pattern}\n`;
-    switch (pattern) {
-      case "event":
-        block += `    when: ${scalar(when)}\n`;
-        break;
-      case "unwanted":
-        block += `    if: ${scalar(ifClause)}\n`;
-        break;
-      case "optional":
-        block += `    where: ${scalar(where)}\n`;
-        block += hasWhen ? `    when: ${scalar(when)}\n` : `    if: ${scalar(ifClause)}\n`;
-        break;
-      case "complex":
-        block += "    while:\n";
-        block += emitListItems(whiles);
-        block += hasWhen ? `    when: ${scalar(when)}\n` : `    if: ${scalar(ifClause)}\n`;
-        break;
-    }
-    block += "    shall:\n";
-    block += emitListItems(shalls);
-    if (examples.length > 0) {
-      block += "    examples:\n";
-      for (const row of examples) {
-        if (row === "") continue;
-        block += emitExampleRow(row);
-      }
-    }
-    block += emitState(reads, writes);
+    const block = `  - id: ${acid}\n` + body;
 
     // Splice after the anchor: the named sibling with `--after`, otherwise the
     // requirement's full extent (its last criterion, or its `acceptance-criteria:`
@@ -1222,6 +1270,7 @@ export function runAddAdr(args: string[]): CmdResult {
       const known = blocks.filter((b) => b.kind === want && b.id !== "").map((b) => b.id);
       return die(`no such ${want}: ${id} (this spec has ${known.join(", ") || "none"})`);
     }
+    if (target.removed) return die(removedRefusal(target));
 
     // An existing `adrs:` list on this block, and the line of its last entry.
     // A requirement's own lines end at its `acceptance-criteria:` key, so the
@@ -1369,6 +1418,7 @@ export function runAddState(args: string[]): CmdResult {
       const known = blocks.filter((b) => b.kind === "criterion" && b.id !== "").map((b) => b.id);
       return die(`no such criterion: ${ac} (this spec has ${known.join(", ") || "none"})`);
     }
+    if (target.removed) return die(removedRefusal(target));
 
     const records = flatten(backup).records;
     const stray = [
@@ -1489,6 +1539,335 @@ function validateExamples(
   }
 
   return msgs.join("\n");
+}
+
+// ── removing and replacing behaviour ──
+// A block is never cut out of a spec. Its id is the key every projection and
+// record binds to — the test manifest's step definitions, an ADR's
+// `arises_from` — and ids are allocated from the highest one in the file, so a
+// cut block's id would be minted again for different behaviour. `rm` turns the
+// block into a **tombstone** instead: its id, the reason it went (`removed`),
+// and optionally the live block that took its place (`replaced_by`). Nothing of
+// its behaviour stays. A changed obligation is a new obligation, so `replace`
+// is `rm` plus a new criterion under a new id, in one guarded step — never a
+// rewrite under the old id, which would leave a green test suite asserting
+// something else. A requirement's description is prose no test binds to, so
+// `set-description` rewrites it in place.
+
+/** The refusal for any mutation aimed at a tombstone. */
+function removedRefusal(b: Block): string {
+  const by = b.replacedBy ? `; it was replaced by ${b.replacedBy}` : "";
+  return `${b.id} is removed (${b.removed.trim()})${by} — change a live block instead`;
+}
+
+/** One tombstone's lines at the dash indent `ind` (`  ` for a criterion, `` for a requirement). */
+function emitTomb(ind: string, id: string, reason: string, replacedBy: string): string {
+  let out = `${ind}- id: ${id}\n${ind}  removed: ${scalar(reason)}\n`;
+  if (replacedBy !== "") out += `${ind}  replaced_by: ${replacedBy}\n`;
+  return out;
+}
+
+/** `text` with 1-based lines `start..end` (inclusive) replaced by `insert` (newline-terminated). */
+function spliceReplace(text: string, start: number, end: number, insert: string): string {
+  const lines = text.split("\n");
+  const head = lines.slice(0, start - 1);
+  const tail = lines.slice(end);
+  return [...head, ...insert.replace(/\n$/, "").split("\n"), ...tail].join("\n");
+}
+
+/** The dash indent of a block's first line, or null when it is not `<spaces>- `. */
+function dashIndent(lines: string[], b: Block): string | null {
+  return (lines[b.start - 1] ?? "").match(/^( *)- /)?.[1] ?? null;
+}
+
+/** The reason flag every removal takes: required, one line. */
+function reasonOf(cmd: string, reason: string | undefined): string {
+  if (reason === undefined || reason.trim() === "") {
+    fail(`${cmd} requires --reason "why the behaviour goes" (it stays in the file)`);
+  }
+  if (reason!.includes("\n")) fail("--reason must be one line");
+  return reason!.trim();
+}
+
+/** What a removal does to the test projection, said once per call. */
+function testsNotice(ids: string[], replacedBy: string): string {
+  const by = replacedBy ? ` (replaced by ${replacedBy})` : "";
+  const one = ids.length === 1;
+  return `NOTE: ${ids.join(", ")} removed${by} — yamlet tests drops ${
+    one ? "its scenario" : "their scenarios"
+  } and lists ${one ? "it" : "them"} under "removed" in manifest.json; ` +
+    `step definitions bound to ${one ? "it" : "them"} are now orphaned.\n`;
+}
+
+/** The rollback message, with the one cause a user can act on spelled out. */
+function rolledBack(cmd: string, unexpected: Finding[]): CmdResult {
+  const contract = unexpected.some((f) => f.rule === "E506" || f.rule === "E511");
+  const hint = contract
+    ? "The removed behaviour was the only one to reference a contract input or output, and\n" +
+      "the contract cannot change here. Add (or 'yamlet replace' into) a criterion that\n" +
+      "references it first, or narrow the contract as a new spec.\n"
+    : "";
+  return {
+    exitCode: 3,
+    stdout: "",
+    stderr: `error: ${cmd} produced an unexpected finding and was rolled back:\n${
+      renderUnexpected(unexpected)
+    }\n${hint}`,
+  };
+}
+
+// ── rm ──
+export function runRm(args: string[]): CmdResult {
+  try {
+    const file = args[0] ?? "";
+    if (file === "") return usageResult();
+    const flags = new Map<string, string>();
+    for (let i = 1; i < args.length; i += 2) {
+      const a = args[i]!;
+      if (!["--rq", "--ac", "--reason", "--replaced-by"].includes(a)) {
+        return die(`unknown flag for rm: ${a}`);
+      }
+      if (flags.has(a)) return die(`duplicate ${a}`);
+      flags.set(a, argVal(args, i, a));
+    }
+    const rq = flags.get("--rq") ?? "";
+    const ac = flags.get("--ac") ?? "";
+    if ((rq === "") === (ac === "")) {
+      return die("rm requires exactly one of --rq RQ-N or --ac AC-N");
+    }
+    const reason = reasonOf("rm", flags.get("--reason"));
+    const replacedBy = flags.get("--replaced-by") ?? "";
+    if (!isFile(file)) return die(`file not found: ${file} (run 'init' first)`);
+
+    const backup = Deno.readTextFileSync(file);
+    const lines = backup.split("\n");
+    const blocks = blocksOf(backup);
+    const id = rq !== "" ? rq : ac;
+    const want = rq !== "" ? "requirement" : "criterion";
+    const target = findBlock(blocks, id);
+    if (target === undefined || target.kind !== want) {
+      const known = blocks.filter((b) => b.kind === want && b.id !== "").map((b) => b.id);
+      return die(`no such ${want}: ${id} (this spec has ${known.join(", ") || "none"})`);
+    }
+    if (target.removed) return die(`${id} is already removed (${target.removed.trim()})`);
+
+    if (replacedBy !== "") {
+      const to = findBlock(blocks, replacedBy);
+      if (to === undefined || to.kind !== want || to.removed || to.id === id) {
+        return die(`--replaced-by must name another live ${want} of this spec, got: ${replacedBy}`);
+      }
+      if (want === "criterion" && to.parentId === "") {
+        return die(`--replaced-by ${replacedBy} sits under no requirement`);
+      }
+    }
+
+    const ind = dashIndent(lines, target);
+    if (ind === null) return die(`${id} was not written by this tool; cannot address its lines`);
+
+    let next: string;
+    let gone: string[];
+    let adrs: string[];
+    const records = flatten(backup).records;
+    if (want === "criterion") {
+      const parent = findBlock(blocks, target.parentId);
+      const live = criteriaOf(blocks, target.parentId).filter((b) => !b.removed);
+      if (live.length === 1) {
+        return die(
+          `${id} is the last live criterion of ${target.parentId}; a requirement without ` +
+            `behaviour asserts nothing.\nRemove the requirement instead: yamlet rm ${file} ` +
+            `--rq ${target.parentId} --reason "..."`,
+        );
+      }
+      next = spliceReplace(backup, target.start, target.end, emitTomb(ind, id, reason, replacedBy));
+      gone = [id];
+      adrs = [
+        ...(parent ? listUnder(records, `${parent.path}.adrs`) : []),
+        ...listUnder(records, `${target.path}.adrs`),
+      ];
+    } else {
+      const liveRq = blocks.filter((b) => b.kind === "requirement" && !b.removed);
+      if (liveRq.length === 1) {
+        return die(`${id} is the spec's last live requirement; a spec must specify something`);
+      }
+      // The requirement's criteria stay as tombstones too: their ids are as
+      // permanent as its own. One already removed keeps its own reason.
+      let tomb = emitTomb(ind, id, reason, replacedBy) + `${ind}  acceptance-criteria:\n`;
+      gone = [id];
+      adrs = listUnder(records, `${target.path}.adrs`);
+      for (const c of criteriaOf(blocks, id)) {
+        if (c.removed) {
+          tomb += lines.slice(c.start - 1, c.end).join("\n") + "\n";
+          continue;
+        }
+        const ci = dashIndent(lines, c);
+        if (ci === null) {
+          return die(`${c.id} was not written by this tool; cannot address its lines`);
+        }
+        tomb += emitTomb(ci, c.id, reason, "");
+        gone.push(c.id);
+        adrs.push(...listUnder(records, `${c.path}.adrs`));
+      }
+      next = spliceReplace(backup, target.start, target.outerEnd, tomb);
+    }
+
+    Deno.writeTextFileSync(file, next);
+    const guard = strictGuard(file, backup, next);
+    if (!guard.ok) {
+      Deno.writeTextFileSync(file, backup);
+      return rolledBack("rm", guard.unexpected);
+    }
+    const notice = decidedNotice(id, "the decided behaviour is removed", [...new Set(adrs)]);
+    const acs = gone.filter((g) => g.startsWith("AC-"));
+    return {
+      exitCode: 0,
+      stdout: gone.join("\n") + "\n",
+      stderr: notice +
+        (acs.length > 0 ? testsNotice(acs, want === "criterion" ? replacedBy : "") : ""),
+    };
+  } catch (e) {
+    if (e instanceof CmdError) return e.result;
+    throw e;
+  }
+}
+
+// ── replace ──
+export function runReplace(args: string[]): CmdResult {
+  try {
+    const file = args[0] ?? "";
+    if (file === "") return usageResult();
+    const { draft, extras } = parseCriterionFlags(args, 1, "replace", ["--ac", "--reason"]);
+    const ac = extras.get("--ac") ?? "";
+    if (ac === "") {
+      return die("replace requires --ac AC-N (the criterion whose obligation changes)");
+    }
+    const reason = reasonOf("replace", extras.get("--reason"));
+    if (!isFile(file)) return die(`file not found: ${file} (run 'init' first)`);
+    checkDraft("replace", draft);
+
+    const backup = Deno.readTextFileSync(file);
+    const lines = backup.split("\n");
+    const blocks = blocksOf(backup);
+    const target = findBlock(blocks, ac);
+    if (target === undefined || target.kind !== "criterion") {
+      const known = blocks.filter((b) => b.kind === "criterion" && b.id !== "").map((b) => b.id);
+      return die(`no such criterion: ${ac} (this spec has ${known.join(", ") || "none"})`);
+    }
+    if (target.removed) return die(removedRefusal(target));
+    if (dashIndent(lines, target) !== "  ") {
+      return die(`${ac} was not written by this tool; cannot address its lines`);
+    }
+
+    const body = criterionBody(file, backup, draft);
+    // The replacement sorts in where the original stood: a letter suffix on its
+    // number, as an insertion after it would take; the next number once all 26
+    // letters are spent. Either way a fresh id — never the old one.
+    const fresh = suffixedAcId(backup, ac) || `AC-${maxAcNum(backup) + 1}`;
+    const next = spliceReplace(
+      backup,
+      target.start,
+      target.end,
+      emitTomb("  ", ac, reason, fresh) + `  - id: ${fresh}\n` + body,
+    );
+
+    Deno.writeTextFileSync(file, next);
+    const guard = strictGuard(file, backup, next);
+    if (!guard.ok) {
+      Deno.writeTextFileSync(file, backup);
+      return rolledBack("replace", guard.unexpected);
+    }
+    const records = flatten(backup).records;
+    const parent = findBlock(blocks, target.parentId);
+    const own = listUnder(records, `${target.path}.adrs`);
+    const notice = decidedNotice(
+      ac,
+      `its criterion-level decision does not carry over to ${fresh}; link it again with ` +
+        "add-adr if it still decides the new obligation",
+      own,
+    ) +
+      decidedNotice(
+        target.parentId,
+        `the replacement ${fresh} falls under its decision`,
+        parent ? listUnder(records, `${parent.path}.adrs`) : [],
+      );
+    const shared = contentionNotice(file, next, fresh, [...draft.writes, ...draft.reads]);
+    return {
+      exitCode: 0,
+      stdout: `${fresh}\n`,
+      stderr: notice + shared + testsNotice([ac], fresh) + headerNotice(fresh),
+    };
+  } catch (e) {
+    if (e instanceof CmdError) return e.result;
+    throw e;
+  }
+}
+
+// ── set-description ──
+export function runSetDescription(args: string[]): CmdResult {
+  try {
+    const file = args[0] ?? "";
+    if (file === "") return usageResult();
+    const flags = new Map<string, string>();
+    for (let i = 1; i < args.length; i += 2) {
+      const a = args[i]!;
+      if (a !== "--rq" && a !== "--description") {
+        return die(`unknown flag for set-description: ${a}`);
+      }
+      if (flags.has(a)) return die(`duplicate ${a}`);
+      flags.set(a, argVal(args, i, a));
+    }
+    const rq = flags.get("--rq") ?? "";
+    const description = (flags.get("--description") ?? "").trim();
+    if (rq === "") return die("set-description requires --rq RQ-N");
+    if (description === "") return die("set-description requires a non-empty --description");
+    if (description.includes("\n")) return die("--description must be one line");
+    if (!isFile(file)) return die(`file not found: ${file} (run 'init' first)`);
+
+    const backup = Deno.readTextFileSync(file);
+    const lines = backup.split("\n");
+    const blocks = blocksOf(backup);
+    const target = findBlock(blocks, rq);
+    if (target === undefined || target.kind !== "requirement") {
+      const known = blocks.filter((b) => b.kind === "requirement" && b.id !== "").map((b) => b.id);
+      return die(`no such requirement: ${rq} (this spec has ${known.join(", ") || "none"})`);
+    }
+    if (target.removed) return die(removedRefusal(target));
+
+    // The description key and its folded continuation, within the header lines.
+    let key = 0;
+    let ki = "";
+    for (let ln = target.start; ln <= target.end; ln++) {
+      const m = (lines[ln - 1] ?? "").match(/^( *)(?:- )?description:/);
+      if (m) {
+        key = ln;
+        ki = (lines[ln - 1] ?? "").startsWith(`${m[1]}- `) ? `${m[1]}  ` : m[1]!;
+        break;
+      }
+    }
+    if (key === 0 || (lines[key - 1] ?? "").trimStart().startsWith("- ")) {
+      return die(`${rq} has no description line this tool wrote; cannot address it`);
+    }
+    let last = key;
+    while (last < target.end && (lines[last] ?? "").startsWith(`${ki}  `)) last++;
+
+    const next = spliceReplace(backup, key, last, `${ki}description: >-\n${ki}  ${description}\n`);
+    if (next === backup) return { exitCode: 0, stdout: "", stderr: "" };
+
+    Deno.writeTextFileSync(file, next);
+    const guard = strictGuard(file, backup, next, [], [`${target.path}.description`]);
+    if (!guard.ok) {
+      Deno.writeTextFileSync(file, backup);
+      return rolledBack("set-description", guard.unexpected);
+    }
+    const adrs = listUnder(flatten(backup).records, `${target.path}.adrs`);
+    return {
+      exitCode: 0,
+      stdout: "",
+      stderr: decidedNotice(rq, "its description is reworded", adrs),
+    };
+  } catch (e) {
+    if (e instanceof CmdError) return e.result;
+    throw e;
+  }
 }
 
 // ── command descriptors (name, one-line summary, full --help, runner) ──
@@ -1658,4 +2037,71 @@ only (feature title, page heading); file names come from the spec's path. Run
 'yamlet tests' and 'yamlet docs' afterwards: both copy the summary.
 `,
   run: runSetHeader,
+};
+
+export const setDescriptionCommand: Command = {
+  name: "set-description",
+  summary: "reword a requirement's description in place",
+  help: `yamlet set-description — reword a requirement's description in place
+
+Usage:
+  yamlet set-description FILE --rq RQ-N --description "..."
+
+Rewrites the description of a live requirement, written as add-requirement
+writes it and held to the same rules (one capability, word budget — E305). The
+id and every criterion stay as they are. A description is prose no test binds
+to, so this is the one in-place rewrite of behaviour prose; what a criterion
+obliges changes through 'yamlet replace' instead. A requirement linked to an
+ADR prints a WARNING naming it.
+`,
+  run: runSetDescription,
+};
+
+export const rmCommand: Command = {
+  name: "rm",
+  summary: "remove a requirement or criterion, leaving a tombstone",
+  help: `yamlet rm — remove a requirement or criterion, leaving a tombstone
+
+Usage:
+  yamlet rm FILE --ac AC-N --reason "..." [--replaced-by AC-M]
+  yamlet rm FILE --rq RQ-N --reason "..." [--replaced-by RQ-M]
+
+The block is not cut out. It becomes a tombstone — its id, \`removed:\` (the
+reason, required) and optionally \`replaced_by:\` (a live block of the same kind
+that took its place) — so the id is never minted again and every reference to it
+(an ADR's arises_from) still resolves. Removing a requirement tombstones its
+criteria too. Prints every id removed.
+
+Refused: the last live criterion of a requirement (remove the requirement), the
+last live requirement of a spec, a block already removed. A removal that leaves a
+contract input or output unreferenced (E506/E511) is rolled back (exit 3). A
+decided block prints a WARNING naming its ADRs. 'yamlet tests' then drops the
+scenarios and lists them under "removed" in manifest.json.
+`,
+  run: runRm,
+};
+
+export const replaceCommand: Command = {
+  name: "replace",
+  summary: "replace a criterion's obligation under a new id",
+  help: `yamlet replace — replace a criterion's obligation under a new id
+
+Usage:
+  yamlet replace FILE --ac AC-N --reason "..." --pattern ... \\
+                 [--when ...|--if ...|--while ...|--where ...] --shall "..." \\
+                 [--example ...] [--reads ...] [--writes ...]
+
+A changed obligation is a new obligation. The criterion AC-N becomes a tombstone
+(\`removed:\` the reason, \`replaced_by:\` the new id) and the new criterion takes
+its place in the file under a fresh id — AC-Na, the next free letter on its
+number, or the next number when all 26 are spent. Never the old id: a rewrite
+under it would leave step definitions green while asserting something else.
+Prints the new id.
+
+The criterion flags are add-criterion's, checked the same way. Nothing carries
+over: state (--reads/--writes) is declared again, and a criterion-level ADR link
+is not copied (re-link it with add-adr if it still decides the new obligation;
+a WARNING names it).
+`,
+  run: runReplace,
 };

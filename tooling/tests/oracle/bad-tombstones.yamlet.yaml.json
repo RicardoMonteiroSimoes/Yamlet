@@ -1,0 +1,11 @@
+{"file":"bad-tombstones.yamlet.yaml","valid":false,"errors":[
+  {"rule":"E205","severity":"error","line":17,"path":"requirements[0].description","message":"RQ-1: a removed block keeps only id, removed and replaced_by, not description"},
+  {"rule":"E205","severity":"error","line":20,"path":"requirements[0].acceptance-criteria[0]","message":"RQ-1 is removed but its criterion AC-1 is live"},
+  {"rule":"E205","severity":"error","line":30,"path":"requirements[1].acceptance-criteria[0].removed","message":"AC-2: removed must give the reason"},
+  {"rule":"E206","severity":"error","line":31,"path":"requirements[1].acceptance-criteria[0].replaced_by","message":"AC-2: replaced_by must name a live criterion of this file, got: AC-9"},
+  {"rule":"E205","severity":"error","line":33,"path":"requirements[1].acceptance-criteria[1].replaced_by","message":"AC-3: replaced_by belongs on a removed block only"},
+  {"rule":"E207","severity":"error","line":38,"path":"requirements[2]","message":"RQ-3: every criterion is removed; remove the requirement instead"},
+  {"rule":"E206","severity":"error","line":44,"path":"requirements[2].acceptance-criteria[0].replaced_by","message":"AC-4: replaced_by must name a live criterion of this file, got: RQ-2"}
+],"warnings":[
+  {"rule":"W008","severity":"warning","line":7,"path":"front","message":"front=internal but no composite under the working directory wires this spec as a member: the trusted caller it claims is unnamed"}
+],"summary":{"requirements":2,"acceptanceCriteria":2}}

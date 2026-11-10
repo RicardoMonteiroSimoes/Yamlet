@@ -30,6 +30,8 @@
 // what a consumer's step definitions must bind. The tokens are a second view of
 // the same ones the steps show (never a different truth), so a downstream check
 // can assert binding coverage without re-parsing Gherkin, plus `cell_escapes`.
+// A removed criterion (a tombstone) projects no scenario; when any exists the
+// manifest gains `removed`: feature → AC-N → its reason and `replaced_by`.
 //
 // Output layout groups scopes by system: <target>/<system>/<scope>.feature — so
 // `cucumber --tags @<system>` runs a whole system across its several files, and
@@ -48,7 +50,7 @@
 import type { CmdResult, Command, FlatRecord } from "./types.ts";
 import { flatten } from "./flatten.ts";
 import { listSpecs } from "./systems.ts";
-import { escRe, indicesUnder, listUnder, strayUnder } from "./records.ts";
+import { escRe, indicesUnder, isRemoved, listUnder, strayUnder } from "./records.ts";
 
 const die = (msg: string): CmdResult => ({ exitCode: 2, stdout: "", stderr: `error: ${msg}\n` });
 
@@ -82,6 +84,13 @@ interface SpecDoc {
   front: string;
   blastRadius: string;
   requirements: Requirement[];
+  /** Removed criteria (tombstones, SPEC.md "Changing behaviour — tombstones"), by id: no scenario, a manifest entry. */
+  removed: Record<string, RemovedEntry>;
+}
+/** What the manifest says of a removed criterion: why it went, and what took its place. */
+interface RemovedEntry {
+  reason: string;
+  replaced_by?: string;
 }
 
 /**
@@ -115,11 +124,22 @@ function parseSpec(records: FlatRecord[]): SpecDoc {
   const get = (path: string): string => records.find((r) => r.path === path)?.value ?? "";
 
   const requirements: Requirement[] = [];
+  const removed: Record<string, RemovedEntry> = {};
   for (const i of indicesUnder(records, "requirements")) {
     const rqPrefix = `requirements[${i}]`;
     const criteria: Criterion[] = [];
     for (const j of indicesUnder(records, `${rqPrefix}.acceptance-criteria`)) {
       const acPrefix = `${rqPrefix}.acceptance-criteria[${j}]`;
+      // A tombstone projects no scenario; the manifest names it, so a step
+      // definition still bound to it can be found rather than silently orphaned.
+      if (isRemoved(records, acPrefix)) {
+        const by = get(`${acPrefix}.replaced_by`);
+        removed[get(`${acPrefix}.id`)] = {
+          reason: get(`${acPrefix}.removed`),
+          ...(by ? { replaced_by: by } : {}),
+        };
+        continue;
+      }
       const { keys, rows } = examplesUnder(records, acPrefix);
       criteria.push({
         id: get(`${acPrefix}.id`),
@@ -139,6 +159,7 @@ function parseSpec(records: FlatRecord[]): SpecDoc {
         writes: listUnder(records, `${acPrefix}.writes`),
       });
     }
+    if (isRemoved(records, rqPrefix)) continue;
     requirements.push({
       id: get(`${rqPrefix}.id`),
       description: get(`${rqPrefix}.description`),
@@ -154,6 +175,7 @@ function parseSpec(records: FlatRecord[]): SpecDoc {
     front: get("front"),
     blastRadius: get("blast_radius"),
     requirements,
+    removed,
   };
 }
 
@@ -184,6 +206,7 @@ export function cell(s: string): string {
     else if (c === "\n") out += "\\\\n"; // a raw LF would split the substituted step
     else if (c === "\t") out += "\\t";
     else if (c === "\r") out += "\\r";
+    // deno-lint-ignore no-control-regex -- matching control characters is the point: they are escaped
     else if (/[\x00-\x1f\x7f-\x9f\u2028\u2029]/.test(c)) out += u(c);
     else if (/\s/.test(c) && (i < lead || i >= s.length - trail)) out += u(c);
     else out += c;
@@ -387,17 +410,30 @@ function acOrder(a: string, b: string): number {
  * ordered deterministically (features by path, scenarios by id) for a stable file.
  */
 function renderManifest(
-  plan: readonly { rel: string; binds: FeatureBinds }[],
+  plan: readonly { rel: string; binds: FeatureBinds; removed: Record<string, RemovedEntry> }[],
 ): string {
   const features: Record<string, FeatureBinds> = {};
+  const removed: Record<string, Record<string, RemovedEntry>> = {};
   for (const p of [...plan].sort((a, b) => (a.rel < b.rel ? -1 : a.rel > b.rel ? 1 : 0))) {
+    if (Object.keys(p.removed).length > 0) {
+      const gone: Record<string, RemovedEntry> = {};
+      for (const ac of Object.keys(p.removed).sort(acOrder)) gone[ac] = p.removed[ac]!;
+      removed[p.rel] = gone;
+    }
     if (Object.keys(p.binds).length === 0) continue;
     const ordered: FeatureBinds = {};
     for (const ac of Object.keys(p.binds).sort(acOrder)) ordered[ac] = p.binds[ac]!;
     features[p.rel] = ordered;
   }
+  // `removed` is additive: present only when some spec carries a tombstone, so a
+  // tree without one keeps the exact v1 shape.
   return JSON.stringify(
-    { format: "yamlet.tests/v1", cell_escapes: CELL_ESCAPES, features },
+    {
+      format: "yamlet.tests/v1",
+      cell_escapes: CELL_ESCAPES,
+      features,
+      ...(Object.keys(removed).length > 0 ? { removed } : {}),
+    },
     null,
     2,
   ) +
@@ -432,8 +468,13 @@ export function runTests(args: string[]): CmdResult {
 
   // Build the whole write plan in memory first, so a collision aborts before we
   // wipe TARGET — never erase the existing tree for a run that can't complete.
-  const plan: (Written & { system: string; rel: string; content: string; binds: FeatureBinds })[] =
-    [];
+  const plan: (Written & {
+    system: string;
+    rel: string;
+    content: string;
+    binds: FeatureBinds;
+    removed: Record<string, RemovedEntry>;
+  })[] = [];
   const skipped: Skipped[] = [];
   const claimed = new Map<string, string>(); // output path → source spec (collision guard)
   const unprojectable: string[] = [];
@@ -489,6 +530,7 @@ export function runTests(args: string[]): CmdResult {
       rel: `${doc.system}/${featureName(spec)}`,
       content: renderFeature(doc),
       binds: featureBinds(doc),
+      removed: doc.removed,
       rules: doc.requirements.length,
       scenarios: doc.requirements.reduce((n, rq) => n + rq.criteria.length, 0),
     });
@@ -568,6 +610,9 @@ scenario, the contract inputs/outputs/member-sockets it leaves verbatim and the
 stored fields it declares (reads/writes) — the list a consumer's step
 definitions must bind. A downstream check can read it to assert nothing was left
 unbound. A criterion with none of these has no entry (yamlet verify: W010).
+A removed criterion (yamlet rm / replace) projects no scenario; the manifest
+lists it under "removed" with its reason and replaced_by, so a step definition
+still bound to it can be found.
 
 Example cells are escaped (manifest cell_escapes); glue decodes
 \\\\ \\t \\r \\n \\uXXXX once to get the exact value.

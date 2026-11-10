@@ -116,6 +116,11 @@ const OPTIONAL_COMMANDS: Record<string, string> = {
 	"adr revise": "ADR revision",
 	docs: "Markdown docs",
 	"set-header": "header edits",
+	// Changing existing behaviour: removal leaves a tombstone, a changed obligation
+	// is replaced under a new id, a requirement's description is reworded in place.
+	"set-description": "spec edits",
+	rm: "spec edits",
+	replace: "spec edits",
 };
 
 /**
@@ -1125,6 +1130,109 @@ export default function (pi: ExtensionAPI) {
 				if (params.topic !== undefined) args.push("--topic", params.topic);
 				if (params.summary !== undefined) args.push("--summary", params.summary);
 				if (params.description !== undefined) args.push("--description", params.description);
+				return args;
+			}, signal);
+		},
+	});
+
+	// ── changing behaviour that already exists ──────────────────────────────
+	// Nothing is cut out of a spec: a removed block becomes a tombstone (its id,
+	// the reason, optionally what replaced it), so its id is never minted again
+	// and every reference to it still resolves. A changed obligation is a new one.
+	pi.registerTool({
+		name: "yamlet_set_description",
+		label: "yamlet set-description",
+		description:
+			"Reword ONE live requirement's description in place (one line, one capability). Its id and " +
+			"criteria stay. Not for changing what a criterion obliges — that is yamlet_replace.",
+		promptSnippet: "Reword a requirement's description in place",
+		parameters: Type.Object({
+			file: Type.String({ description: "The spec .yamlet.yaml" }),
+			rq: Type.String({ description: "The requirement, e.g. RQ-2" }),
+			description: Type.String({ description: "The new description, one line" }),
+		}),
+		async execute(_id, params, signal, _onUpdate, ctx) {
+			return mutate(params.file, ctx, () => [
+				"set-description", cleanPath(params.file), "--rq", params.rq, "--description", params.description,
+			], signal);
+		},
+	});
+
+	pi.registerTool({
+		name: "yamlet_rm",
+		label: "yamlet rm",
+		description:
+			"Remove ONE requirement (rq) or ONE criterion (ac) — exactly one of the two. The block becomes a " +
+			"tombstone: its id, `reason`, and optionally `replaced_by` (a live block of the same kind). " +
+			"Removing a requirement removes its criteria. Refused for a requirement's last live criterion " +
+			"(remove the requirement) and a spec's last live requirement.",
+		promptSnippet: "Remove a requirement or criterion, leaving a tombstone",
+		parameters: Type.Object({
+			file: Type.String({ description: "The spec .yamlet.yaml" }),
+			rq: Type.Optional(Type.String({ description: "The requirement to remove, e.g. RQ-2" })),
+			ac: Type.Optional(Type.String({ description: "The criterion to remove, e.g. AC-5" })),
+			reason: Type.String({ description: "Why the behaviour goes, one line; it stays in the file" }),
+			replaced_by: Type.Optional(Type.String({
+				description: "The live block that took its place (RQ-N for rq, AC-N for ac)",
+			})),
+		}),
+		async execute(_id, params, signal, _onUpdate, ctx) {
+			if ((params.rq === undefined) === (params.ac === undefined)) {
+				throw new Error("yamlet_rm needs exactly one of `rq` or `ac`.");
+			}
+			return mutate(params.file, ctx, () => {
+				const args = ["rm", cleanPath(params.file)];
+				if (params.rq !== undefined) args.push("--rq", params.rq);
+				if (params.ac !== undefined) args.push("--ac", params.ac);
+				args.push("--reason", params.reason);
+				if (params.replaced_by !== undefined) args.push("--replaced-by", params.replaced_by);
+				return args;
+			}, signal);
+		},
+	});
+
+	pi.registerTool({
+		name: "yamlet_replace",
+		label: "yamlet replace",
+		description:
+			"Change what ONE criterion obliges: it becomes a tombstone (`reason`, replaced_by the new id) and " +
+			"the new criterion takes its place under a fresh id (AC-5 -> AC-5a), returned. Same criterion " +
+			"fields and rules as yamlet_add_criterion. Nothing carries over: reads/writes are declared again, " +
+			"a criterion-level ADR link is not copied.",
+		promptSnippet: "Replace a criterion's obligation under a new id (returns it)",
+		parameters: Type.Object({
+			file: Type.String(),
+			ac: Type.String({ description: "The criterion whose obligation changes, e.g. AC-5" }),
+			reason: Type.String({ description: "Why the obligation changed, one line; it stays in the file" }),
+			pattern: StringEnum(["event", "optional", "unwanted", "complex"] as const),
+			when: Type.Optional(Type.String({ description: "event / optional / complex: the discrete trigger" })),
+			if: Type.Optional(Type.String({
+				description: "unwanted / optional / complex: the error or undesired condition",
+			})),
+			while: Type.Optional(Type.Array(Type.String(), { description: "complex: the state(s) that hold" })),
+			where: Type.Optional(Type.String({
+				description: "optional: the configuration or feature (plus exactly one of when/if)",
+			})),
+			shall: Type.Array(Type.String(), { minItems: 1, description: "One atomic, verifiable obligation each" }),
+			examples: Type.Optional(Type.Array(Type.String(), {
+				description: "Rows binding every placeholder, e.g. 'n=0;delay_seconds=10'",
+			})),
+			reads: Type.Optional(Type.Array(Type.String(), { description: "Stored fields (entity.field) it only reads" })),
+			writes: Type.Optional(Type.Array(Type.String(), { description: "Stored fields it creates, changes or deletes" })),
+		}),
+		async execute(_id, params, signal, _onUpdate, ctx) {
+			return mutate(params.file, ctx, () => {
+				const args = [
+					"replace", cleanPath(params.file), "--ac", params.ac, "--reason", params.reason, "--pattern", params.pattern,
+				];
+				if (params.when) args.push("--when", params.when);
+				if (params.if) args.push("--if", params.if);
+				repeat("--while", params.while, args);
+				if (params.where) args.push("--where", params.where);
+				repeat("--shall", params.shall, args);
+				repeat("--example", params.examples, args);
+				repeat("--reads", params.reads, args);
+				repeat("--writes", params.writes, args);
 				return args;
 			}, signal);
 		},

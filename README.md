@@ -108,7 +108,7 @@ On pi the five skills that talk to you stay skills; the five that don't become
 ## CLI
 
 Every write goes through the CLI. It allocates all IDs (`RQ-1`, `AC-3`, `T-2`,
-`ADR-0004`) and never renumbers them.
+`ADR-0004`) and never renumbers or reuses them.
 
 | command | what it does |
 |---|---|
@@ -124,6 +124,8 @@ Every write goes through the CLI. It allocates all IDs (`RQ-1`, `AC-3`, `T-2`,
 | `yamlet add-adr` | link a decision record to a requirement or criterion |
 | `yamlet add-state` | declare the stored fields an existing criterion reads or writes |
 | `yamlet set-header` | rewrite a spec's topic, summary or description |
+| `yamlet set-description` | reword a requirement's description in place |
+| `yamlet rm` · `replace` | remove a requirement or criterion, or replace a criterion's obligation under a new id; the old block stays as a tombstone (`removed`, `replaced_by`) so no id is ever reused |
 | `yamlet techspec …` | build a `.techspec.yaml` |
 | `yamlet adr …` | build a `.adr.yaml` |
 

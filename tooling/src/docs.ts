@@ -41,7 +41,7 @@
 import type { CmdResult, Command, FlatRecord } from "./types.ts";
 import { flatten } from "./flatten.ts";
 import { joinNorm } from "./cmd.ts";
-import { indicesUnder, listUnder } from "./records.ts";
+import { indicesUnder, isRemoved, listUnder } from "./records.ts";
 import { listFiles, listSpecs } from "./systems.ts";
 import { type Adr, loadAdr, SPEC_REF_RE } from "./adr.ts";
 
@@ -67,12 +67,17 @@ interface Criterion {
   reads: string[];
   writes: string[];
   adrs: string[];
+  removed: string;
+  replacedBy: string;
 }
 interface Requirement {
   id: string;
   description: string;
   adrs: string[];
   criteria: Criterion[];
+  /** A tombstone's reason ("" when live) and the block that replaced it. */
+  removed: string;
+  replacedBy: string;
 }
 interface Member {
   alias: string;
@@ -130,6 +135,8 @@ function parseSpec(key: string, records: readonly FlatRecord[]): SpecDoc {
       id: get(`${rq}.id`),
       description: get(`${rq}.description`),
       adrs: listUnder(records, `${rq}.adrs`),
+      removed: isRemoved(records, rq) ? get(`${rq}.removed`) || "removed" : "",
+      replacedBy: get(`${rq}.replaced_by`),
       criteria: indicesUnder(records, `${rq}.acceptance-criteria`).map((j) => {
         const ac = `${rq}.acceptance-criteria[${j}]`;
         const { keys, rows } = examplesUnder(records, ac);
@@ -146,6 +153,8 @@ function parseSpec(key: string, records: readonly FlatRecord[]): SpecDoc {
           reads: listUnder(records, `${ac}.reads`),
           writes: listUnder(records, `${ac}.writes`),
           adrs: listUnder(records, `${ac}.adrs`),
+          removed: isRemoved(records, ac) ? get(`${ac}.removed`) || "removed" : "",
+          replacedBy: get(`${ac}.replaced_by`),
         };
       }),
     };
@@ -445,10 +454,22 @@ function renderSpec(site: Site, sp: SpecPage): string {
       : `Decided by ${
         adrs.map((a) => adrRef(site, page, resolveKey(site, dir, a), a)).join(", ")
       }\n\n`;
+  // A tombstone keeps its anchor: a record's `arises_from` (and any older link)
+  // still lands on the id, and the line says why it went and what replaced it.
+  const tomb = (id: string, reason: string, by: string): string =>
+    `~~${id}~~ · removed: ${esc(reason)}${by ? ` · replaced by [${by}](#${anchor(by)})` : ""}`;
   for (const rq of doc.requirements) {
-    s += `<a id="${anchor(rq.id)}"></a>\n\n### ${rq.id} · ${esc(rq.description)}\n\n`;
+    if (rq.removed) {
+      s += `<a id="${anchor(rq.id)}"></a>\n\n### ${tomb(rq.id, rq.removed, rq.replacedBy)}\n\n`;
+    } else {
+      s += `<a id="${anchor(rq.id)}"></a>\n\n### ${rq.id} · ${esc(rq.description)}\n\n`;
+    }
     s += decided(rq.adrs);
     for (const ac of rq.criteria) {
+      if (ac.removed) {
+        s += `<a id="${anchor(ac.id)}"></a>\n**${tomb(ac.id, ac.removed, ac.replacedBy)}**\n\n`;
+        continue;
+      }
       const keys = new Set(ac.exampleKeys);
       s += `<a id="${anchor(ac.id)}"></a>\n**${ac.id}** · ${earsLead(ac, keys)}\n\n`;
       for (const sh of ac.shalls) s += `- ${prose(sh, keys)}\n`;

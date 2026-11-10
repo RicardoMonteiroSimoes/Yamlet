@@ -1,0 +1,44 @@
+system: tombstones
+topic: Removed behaviour
+summary: A scope whose tombstones are malformed.
+description: >-
+  Exercises E205, E206 and E207.
+blast_radius: low
+front: internal
+exposes:
+  name: tombstones
+  intent: record an entry
+  inputs:
+  - entry
+
+requirements:
+- id: RQ-1
+  removed: dropped
+  description: >-
+    A removed requirement keeps no description
+  acceptance-criteria:
+  - id: AC-1
+    pattern: event
+    when: "{input.entry} is archived"
+    shall:
+    - archive {input.entry}
+- id: RQ-2
+  description: >-
+    An entry is recorded
+  acceptance-criteria:
+  - id: AC-2
+    removed: ""
+    replaced_by: AC-9
+  - id: AC-3
+    replaced_by: AC-2
+    pattern: event
+    when: "{input.entry} is submitted"
+    shall:
+    - record {input.entry}
+- id: RQ-3
+  description: >-
+    Every criterion of this one is removed
+  acceptance-criteria:
+  - id: AC-4
+    removed: superseded
+    replaced_by: RQ-2

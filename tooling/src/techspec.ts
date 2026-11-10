@@ -230,7 +230,8 @@ export function indexSpec(text: string): SpecIndex | null {
     adrsOf: new Map(),
   };
   for (const b of blocksOf(text)) {
-    if (b.id === "") continue;
+    // A tombstone is not behaviour: nothing to plan, no verdict to record.
+    if (b.id === "" || b.removed) continue;
     if (b.kind === "requirement") idx.requirements.push(b.id);
     else {
       idx.criteria.push(b.id);

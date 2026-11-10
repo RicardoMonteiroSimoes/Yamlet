@@ -57,6 +57,9 @@ Commands:
   add-adr           link an ADR to a requirement or criterion
   add-state         declare the stored fields a criterion reads or writes
   set-header        rewrite a spec's topic, summary or description
+  set-description   reword a requirement's description in place
+  rm                remove a requirement or criterion, leaving a tombstone
+  replace           replace a criterion's obligation under a new id
   techspec          plan a change across a system's specs: gap analysis and task list (.techspec.yaml)
   adr               write or revise a decision record (.adr.yaml), correct by construction
 `;
@@ -65,8 +68,9 @@ Commands:
 const OLD_SYSTEMS = (h) => h.replace(/  systems .*\n/, "  systems           list existing systems grouped by their scope files\n");
 // The release before ADR revision (remove, replace, reject --reason): \`adr\` is there, its summary says only "write".
 const OLD_ADR = (h) => h.replace(/  adr .*\n/, "  adr               write a decision record (.adr.yaml), correct by construction\n");
-// The release before \`set-header\`.
-const HELP_0_6 = HELP.replace(/  set-header .*\n/, "");
+// The release before \`set-header\` and the spec edits (set-description, rm, replace).
+const HELP_0_6 = HELP.replace(/  set-header .*\n/, "").replace(/  set-description .*\n/, "")
+	.replace(/  rm .*\n/, "").replace(/  replace .*\n/, "");
 // The release before \`docs\`.
 const HELP_0_5_1 = HELP_0_6.replace(/  docs .*\n/, "");
 const HELP_0_5 = OLD_ADR(OLD_SYSTEMS(HELP_0_5_1));
@@ -144,11 +148,12 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 {
 	const { tools } = makePi();
 	const names = [...tools.keys()].sort();
-	ok("35 tools registered", names.length === 35, names.join(","));
+	ok("38 tools registered", names.length === 38, names.join(","));
 	ok("impact and guide are registered",
 		names.includes("yamlet_impact") && names.includes("yamlet_guide"), names.join(","));
 	const planning = [
 		"yamlet_add_adr", "yamlet_add_state", "yamlet_set_header",
+		"yamlet_set_description", "yamlet_rm", "yamlet_replace",
 		"yamlet_techspec_init", "yamlet_techspec_analysis", "yamlet_techspec_criterion",
 		"yamlet_techspec_obligation", "yamlet_techspec_task",
 		"yamlet_adr_init", "yamlet_adr_add_force", "yamlet_adr_add_basis", "yamlet_adr_add_dimension",
@@ -239,6 +244,41 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 	msg = "";
 	try { await tools.get("yamlet_set_header").execute("id", { file: "s.yamlet.yaml" }, undefined, undefined, ctx); } catch (e) { msg = e.message; }
 	ok("set_header refuses no field before running", msg.includes("at least one of"), msg);
+	await tools.get("yamlet_set_description").execute("id", {
+		file: "@specs/v.yamlet.yaml", rq: "RQ-2", description: "A vote is counted once",
+	}, undefined, undefined, ctx);
+	ok("set_description argv",
+		same(calls.at(-1), ["yamlet", "set-description", "specs/v.yamlet.yaml", "--rq", "RQ-2",
+			"--description", "A vote is counted once"]),
+		JSON.stringify(calls.at(-1)));
+	await tools.get("yamlet_rm").execute("id", {
+		file: "specs/v.yamlet.yaml", ac: "AC-4", reason: "folded into AC-5", replaced_by: "AC-5",
+	}, undefined, undefined, ctx);
+	ok("rm argv",
+		same(calls.at(-1), ["yamlet", "rm", "specs/v.yamlet.yaml", "--ac", "AC-4", "--reason", "folded into AC-5",
+			"--replaced-by", "AC-5"]),
+		JSON.stringify(calls.at(-1)));
+	await tools.get("yamlet_rm").execute("id", { file: "specs/v.yamlet.yaml", rq: "RQ-3", reason: "dropped" },
+		undefined, undefined, ctx);
+	ok("rm --rq argv",
+		same(calls.at(-1), ["yamlet", "rm", "specs/v.yamlet.yaml", "--rq", "RQ-3", "--reason", "dropped"]),
+		JSON.stringify(calls.at(-1)));
+	for (const input of [{ file: "s.yamlet.yaml", reason: "r" }, { file: "s.yamlet.yaml", rq: "RQ-1", ac: "AC-1", reason: "r" }]) {
+		const before = calls.length;
+		msg = "";
+		try { await tools.get("yamlet_rm").execute("id", input, undefined, undefined, ctx); } catch (e) { msg = e.message; }
+		ok("rm refuses neither/both of rq and ac before running",
+			msg.includes("exactly one of") && !calls.slice(before).some((c) => c[1] === "rm"), msg);
+	}
+	await tools.get("yamlet_replace").execute("id", {
+		file: "specs/v.yamlet.yaml", ac: "AC-2", reason: "a vote may now change", pattern: "event",
+		when: "{input.voter} votes again", shall: ["replace the earlier vote"], writes: ["vote.option"],
+	}, undefined, undefined, ctx);
+	ok("replace argv",
+		same(calls.at(-1), ["yamlet", "replace", "specs/v.yamlet.yaml", "--ac", "AC-2", "--reason",
+			"a vote may now change", "--pattern", "event", "--when", "{input.voter} votes again",
+			"--shall", "replace the earlier vote", "--writes", "vote.option"]),
+		JSON.stringify(calls.at(-1)));
 	await tools.get("yamlet_systems").execute("id", {
 		dir: "specs", system: "lunch-poll", state: true, details: true,
 	}, undefined, undefined, ctx);
@@ -707,7 +747,7 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 	const { handlers, tools, calls } = makePi({ help: HELP_0_6 });
 	await handlers.session_start({}, ctx);
 	ok("0.6 CLI: one startup warning naming set-header",
-		notes.length === 1 && notes[0][0] === "warning" && notes[0][1].includes("no set-header command") &&
+		notes.length === 1 && notes[0][0] === "warning" && notes[0][1].includes("no set-header/set-description/rm/replace command") &&
 		notes[0][1].includes("header edits"), JSON.stringify(notes));
 	const before = calls.length;
 	let msg = "";
@@ -715,6 +755,19 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 	ok("0.6 CLI: yamlet_set_header fails with the upgrade hint, before running",
 		msg.includes("needs: set-header.") && msg.includes("brew upgrade yamlet") &&
 		!calls.slice(before).some((c) => c[1] === "set-header"), msg || JSON.stringify(calls.slice(before)));
+	ok("0.6 CLI: the warning names spec edits", notes[0][1].includes("spec edits"), JSON.stringify(notes));
+	for (const [tool, input, cmd] of [
+		["yamlet_set_description", { file: "a.yamlet.yaml", rq: "RQ-1", description: "d" }, "set-description"],
+		["yamlet_rm", { file: "a.yamlet.yaml", ac: "AC-1", reason: "r" }, "rm"],
+		["yamlet_replace", { file: "a.yamlet.yaml", ac: "AC-1", reason: "r", pattern: "event", when: "w", shall: ["s"] }, "replace"],
+	]) {
+		const before = calls.length;
+		let m = "";
+		try { await tools.get(tool).execute("id", input, undefined, undefined, ctx); } catch (e) { m = e.message; }
+		ok(`0.6 CLI: ${tool} fails with the upgrade hint, before running`,
+			m.includes(`needs: ${cmd}.`) && m.includes("brew upgrade yamlet") &&
+			!calls.slice(before).some((c) => c[1] === cmd), m || JSON.stringify(calls.slice(before)));
+	}
 }
 {
 	// The release before \`docs\` must keep loading: one warning naming it, and
@@ -723,7 +776,7 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 	const { handlers, tools, calls } = makePi({ help: HELP_0_5_1 });
 	await handlers.session_start({}, ctx);
 	ok("0.5.1 CLI: one startup warning naming docs",
-		notes.length === 1 && notes[0][0] === "warning" && notes[0][1].includes("no docs/set-header command") &&
+		notes.length === 1 && notes[0][0] === "warning" && notes[0][1].includes("no docs/set-header/set-description/rm/replace command") &&
 		notes[0][1].includes("Markdown docs"), JSON.stringify(notes));
 	const before = calls.length;
 	let msg = "";
@@ -739,7 +792,7 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 	const { handlers, tools, calls } = makePi({ help: HELP_0_5 });
 	await handlers.session_start({}, ctx);
 	ok("0.5 CLI: one startup warning naming systems --criteria and adr revise",
-		notes.length === 1 && notes[0][0] === "warning" && notes[0][1].includes("no systems --criteria/adr revise/docs/set-header command") &&
+		notes.length === 1 && notes[0][0] === "warning" && notes[0][1].includes("no systems --criteria/adr revise/docs/set-header/set-description/rm/replace command") &&
 		notes[0][1].includes("system criteria") && notes[0][1].includes("ADR revision"), JSON.stringify(notes));
 	const before = calls.length;
 	let msg = "";
@@ -815,7 +868,7 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 	const { handlers, tools, calls } = makePi({ help: HELP_0_4_0 });
 	await handlers.session_start({}, ctx);
 	ok("0.4.0 CLI: one startup warning naming trace, the one-spec techspec and add-state, not adr",
-		notes.length === 1 && notes[0][0] === "warning" && notes[0][1].includes("no techspec/trace/add-state/systems --criteria/adr revise/docs/set-header command") && notes[0][1].includes("stored state") &&
+		notes.length === 1 && notes[0][0] === "warning" && notes[0][1].includes("no techspec/trace/add-state/systems --criteria/adr revise/docs/set-header/set-description/rm/replace command") && notes[0][1].includes("stored state") &&
 		notes[0][1].includes("traceability") && notes[0][1].includes("tech spec") &&
 		!notes[0][1].includes("decision record"), JSON.stringify(notes));
 	// (\`adr\` itself is there — only its revision commands are missing, and that is "ADR revision".)

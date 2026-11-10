@@ -48,6 +48,14 @@ export interface Block {
   outerEnd: number;
   /** For a criterion, the owning `RQ-N`; "" for a requirement. */
   parentId: string;
+  /**
+   * The block is a tombstone: it carries `removed:` (the reason) and nothing of
+   * its behaviour. It stays in the file so its id is never minted again and every
+   * reference to it (an ADR's `arises_from`) still resolves. "" when live.
+   */
+  removed: string;
+  /** A tombstone's `replaced_by` (the live block that took its place), or "". */
+  replacedBy: string;
 }
 
 const RQ = /^requirements\[([0-9]+)\]$/;
@@ -62,10 +70,13 @@ export function blocksOf(text: string): Block[] {
   const { records } = flatten(text);
 
   // prefix -> {start, id}. The start is the minimum record line under the prefix.
-  const seen = new Map<string, { start: number; id: string }>();
+  const seen = new Map<
+    string,
+    { start: number; id: string; removed: string; replacedBy: string }
+  >();
   const note = (prefix: string, line: number): void => {
     const cur = seen.get(prefix);
-    if (cur === undefined) seen.set(prefix, { start: line, id: "" });
+    if (cur === undefined) seen.set(prefix, { start: line, id: "", removed: "", replacedBy: "" });
     else if (line < cur.start) cur.start = line;
   };
 
@@ -75,23 +86,37 @@ export function blocksOf(text: string): Block[] {
       const prefix = acM[1]!;
       note(prefix, r.line);
       if (r.path === `${prefix}.id`) seen.get(prefix)!.id = r.value;
+      if (r.path === `${prefix}.removed`) seen.get(prefix)!.removed = r.value || " ";
+      if (r.path === `${prefix}.replaced_by`) seen.get(prefix)!.replacedBy = r.value;
     }
     const rqM = r.path.match(/^(requirements\[[0-9]+\])(\.|$)/);
     if (rqM) {
       const prefix = rqM[1]!;
       note(prefix, r.line);
       if (r.path === `${prefix}.id`) seen.get(prefix)!.id = r.value;
+      if (r.path === `${prefix}.removed`) seen.get(prefix)!.removed = r.value || " ";
+      if (r.path === `${prefix}.replaced_by`) seen.get(prefix)!.replacedBy = r.value;
     }
   }
 
   const blocks: Block[] = [];
-  for (const [path, { start, id }] of seen) {
+  for (const [path, { start, id, removed, replacedBy }] of seen) {
     const kind: BlockKind = AC.test(path)
       ? "criterion"
       : RQ.test(path)
       ? "requirement"
       : "criterion";
-    blocks.push({ kind, id, path, start, end: 0, outerEnd: 0, parentId: "" });
+    blocks.push({
+      kind,
+      id,
+      path,
+      start,
+      end: 0,
+      outerEnd: 0,
+      parentId: "",
+      removed,
+      replacedBy,
+    });
   }
   blocks.sort((a, b) => a.start - b.start);
 
