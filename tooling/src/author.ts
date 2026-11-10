@@ -1758,15 +1758,19 @@ export function runReplace(args: string[]): CmdResult {
     }
 
     const body = criterionBody(file, backup, draft);
-    // The replacement sorts in where the original stood: a letter suffix on its
-    // number, as an insertion after it would take; the next number once all 26
-    // letters are spent. Either way a fresh id — never the old one.
-    const fresh = suffixedAcId(backup, ac) || `AC-${maxAcNum(backup) + 1}`;
+    // The replacement is a new criterion like any other: the next number,
+    // appended to its requirement's criteria. The tombstone stays where the old
+    // one stood. Append first — it lies at or below the tombstone's lines, so the
+    // tombstone's line numbers are still right for the second splice.
+    const parent = findBlock(blocks, target.parentId);
+    if (parent === undefined) return die(`${ac} sits under no requirement`);
+    const fresh = `AC-${maxAcNum(backup) + 1}`;
+    const appended = spliceAfter(backup, parent.outerEnd, `  - id: ${fresh}\n` + body);
     const next = spliceReplace(
-      backup,
+      appended,
       target.start,
       target.end,
-      emitTomb("  ", ac, reason, fresh) + `  - id: ${fresh}\n` + body,
+      emitTomb("  ", ac, reason, fresh),
     );
 
     Deno.writeTextFileSync(file, next);
@@ -1776,7 +1780,6 @@ export function runReplace(args: string[]): CmdResult {
       return rolledBack("replace", guard.unexpected);
     }
     const records = flatten(backup).records;
-    const parent = findBlock(blocks, target.parentId);
     const own = listUnder(records, `${target.path}.adrs`);
     const notice = decidedNotice(
       ac,
@@ -1787,7 +1790,7 @@ export function runReplace(args: string[]): CmdResult {
       decidedNotice(
         target.parentId,
         `the replacement ${fresh} falls under its decision`,
-        parent ? listUnder(records, `${parent.path}.adrs`) : [],
+        listUnder(records, `${parent.path}.adrs`),
       );
     const shared = contentionNotice(file, next, fresh, [...draft.writes, ...draft.reads]);
     return {
@@ -2092,11 +2095,10 @@ Usage:
                  [--example ...] [--reads ...] [--writes ...]
 
 A changed obligation is a new obligation. The criterion AC-N becomes a tombstone
-(\`removed:\` the reason, \`replaced_by:\` the new id) and the new criterion takes
-its place in the file under a fresh id — AC-Na, the next free letter on its
-number, or the next number when all 26 are spent. Never the old id: a rewrite
-under it would leave step definitions green while asserting something else.
-Prints the new id.
+in place (\`removed:\` the reason, \`replaced_by:\` the new id), and the new
+criterion is appended to the same requirement under the next number, as
+add-criterion would append it. Never the old id: a rewrite under it would leave
+step definitions green while asserting something else. Prints the new id.
 
 The criterion flags are add-criterion's, checked the same way. Nothing carries
 over: state (--reads/--writes) is declared again, and a criterion-level ADR link

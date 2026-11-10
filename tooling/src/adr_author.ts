@@ -158,7 +158,8 @@ function load(file: string): Loaded {
     );
   }
   const v = validateAdr(file, records);
-  const hard = v.findings.filter((f) => !inProgress(f)).sort(compareFindings);
+  const hard = v.findings.filter((f) => f.severity === "error" && !inProgress(f))
+    .sort(compareFindings);
   if (hard.length > 0) {
     fail(`${file} has errors; fix them before changing it:\n${renderFindings(hard)}`);
   }
@@ -179,7 +180,9 @@ function mustBeProposed(adr: Adr, what: string): void {
 function commit(file: string, what: string, adr: Adr, strict = false): CmdResult {
   const next = serializeAdr(adr);
   const v = validateAdr(file, flatten(next).records);
-  const unexpected = v.findings.filter((f) => strict || !inProgress(f)).sort(compareFindings);
+  // Warnings never gate a write; they are relayed once it lands.
+  const unexpected = v.findings.filter((f) => f.severity === "error" && (strict || !inProgress(f)))
+    .sort(compareFindings);
   if (unexpected.length > 0) {
     return {
       exitCode: strict ? 2 : 3,
@@ -190,7 +193,12 @@ function commit(file: string, what: string, adr: Adr, strict = false): CmdResult
     };
   }
   Deno.writeTextFileSync(file, next);
-  return { exitCode: 0, stdout: "", stderr: "" };
+  const warnings = v.findings.filter((f) => f.severity === "warning").sort(compareFindings);
+  return {
+    exitCode: 0,
+    stdout: "",
+    stderr: warnings.length > 0 ? `${renderFindings(warnings)}\n` : "",
+  };
 }
 
 /** Parse `FILE` plus flags; positionals collected in order. */
@@ -332,7 +340,7 @@ export function runAdrInit(args: string[]): CmdResult {
     };
     const r = commit(out, "adr init", adr);
     if (r.exitCode !== 0) return r;
-    return { exitCode: 0, stdout: `${out}\n`, stderr: "" };
+    return { exitCode: 0, stdout: `${out}\n`, stderr: r.stderr };
   } catch (e) {
     if (e instanceof CmdError) return e.result;
     throw e;
@@ -580,7 +588,7 @@ export function runAdrAddBasis(args: string[]): CmdResult {
       basis: [...adr.basis, { id, quantity, source }],
     });
     if (r.exitCode !== 0) return r;
-    return { exitCode: 0, stdout: `${id}\n`, stderr: "" };
+    return { exitCode: 0, stdout: `${id}\n`, stderr: r.stderr };
   } catch (e) {
     if (e instanceof CmdError) return e.result;
     throw e;
@@ -622,7 +630,7 @@ export function runAdrAddDimension(args: string[]): CmdResult {
     if (bad !== null) return die(bad);
     const r = commit(file, "adr add-dimension", next);
     if (r.exitCode !== 0) return r;
-    return { exitCode: 0, stdout: `${id}\n`, stderr: "" };
+    return { exitCode: 0, stdout: `${id}\n`, stderr: r.stderr };
   } catch (e) {
     if (e instanceof CmdError) return e.result;
     throw e;
@@ -644,7 +652,7 @@ export function runAdrAddOption(args: string[]): CmdResult {
     const opt = optionFrom(adr, flags, id, "add-option");
     const r = commit(file, "adr add-option", { ...adr, options: [...adr.options, opt] });
     if (r.exitCode !== 0) return r;
-    return { exitCode: 0, stdout: `${id}\n`, stderr: "" };
+    return { exitCode: 0, stdout: `${id}\n`, stderr: r.stderr };
   } catch (e) {
     if (e instanceof CmdError) return e.result;
     throw e;
@@ -687,7 +695,7 @@ export function runAdrAddObligation(args: string[]): CmdResult {
       requires: [...adr.requires, { id, must: text }],
     });
     if (r.exitCode !== 0) return r;
-    return { exitCode: 0, stdout: `${id}\n`, stderr: "" };
+    return { exitCode: 0, stdout: `${id}\n`, stderr: r.stderr };
   } catch (e) {
     if (e instanceof CmdError) return e.result;
     throw e;

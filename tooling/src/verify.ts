@@ -57,11 +57,12 @@ function verifyAdrText(file: string, text: string): VerifyOutput {
   const { records, parseErrors } = flatten(text);
   if (parseErrors.length > 0) return parseFailure(file, parseErrors);
   const { findings, summary } = validateAdr(file, records);
-  const errors = [...findings].sort(compareFindings);
+  const errors = findings.filter((f) => f.severity === "error").sort(compareFindings);
+  const warnings = findings.filter((f) => f.severity === "warning").sort(compareFindings);
   return {
     kind: "normal",
     exitCode: errors.length > 0 ? 1 : 0,
-    result: { file, valid: errors.length === 0, errors, warnings: [], summary },
+    result: { file, valid: errors.length === 0, errors, warnings, summary },
   };
 }
 

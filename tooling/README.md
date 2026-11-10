@@ -139,9 +139,9 @@ yamlet rm              FILE (--rq RQ-N | --ac AC-N) --reason "..." [--replaced-b
                                                       Refuses a requirement's last live criterion and a spec's last live
                                                       requirement; strict guard (E506/E511 roll it back)
 yamlet replace         FILE --ac AC-N --reason "..." <add-criterion's criterion flags>
-                                                   -> a changed obligation is a new one: AC-N becomes a tombstone
-                                                      replaced_by the new criterion, written in its place under a fresh
-                                                      id (AC-Na, or the next number); nothing carries over
+                                                   -> a changed obligation is a new one: AC-N becomes a tombstone in
+                                                      place, replaced_by the new criterion, appended to the same
+                                                      requirement under the next number; nothing carries over
 yamlet add-adr         FILE PATH (--rq RQ-N | --ac AC-N)
                                                    -> link a decision record (a path relative to FILE, must exist) to an
                                                       existing requirement or criterion; the first mutation of an existing

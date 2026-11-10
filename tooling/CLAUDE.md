@@ -43,7 +43,8 @@ src/cmd.ts        command helpers shared by author + techspec (usage error, flag
 src/records.ts    readers over flattened records by prefix (shared by `tests` and the tech spec)
 src/techspec.ts   the tech spec format (`*.techspec.yaml`): model, reader, canonical serializer, rules E701–E719
 src/techspec_author.ts  `yamlet techspec init|analysis|criterion|obligation|task` — full rewrite per call, verify as gate
-src/adr.ts        the decision record format (`*.adr.yaml`, adr/v1): model, reader, serializer, resolution, E801–E815
+src/adr.ts        the decision record format (`*.adr.yaml`, adr/v1): model, reader, serializer, resolution, E801–E815,
+                  W011 (arises from a tombstone; findings carry severity, gates filter to errors)
 src/adr_author.ts `yamlet adr init|add-*|remove|replace|decide|accept|reject|supersede` — phase-ordered,
                   revisable while proposed, frozen after accept
 src/blocks.ts     address an existing RQ-N/AC-N by id + its line extent (starts from records, ends from the next start)
@@ -90,19 +91,19 @@ change is a regression, not a re-freeze.
 - Deno fmt: 2-space, 100 col, semicolons, double quotes. `strict` + `noUncheckedIndexedAccess`.
 - **Changing existing behaviour** is `rm`, `replace` and `set-description`. Nothing is cut out of a
   spec: `rm` turns a block into a **tombstone** (`id`, `removed`, optional `replaced_by`; a removed
-  requirement keeps its criteria as tombstones), `replace` is `rm` plus a new criterion under a
-  fresh id in one guarded step, and only a requirement's `description` — prose no test binds to — is
-  rewritten in place. Every projection skips tombstones as behaviour (`isRemoved` in `records.ts`,
-  `Block.removed` in `blocks.ts`); `tests` lists them under `removed` in the manifest, `docs` keeps
-  their anchors, `trace` keeps them as nodes, the tech spec index omits them. Every other mutation
-  refuses a tombstone. All of these go through `strictGuard` ("the resulting findings must be a
-  subset of the pre-existing ones plus the ones this command predicts", keyed on `(rule, message)`
-  rather than on path, since indices shift under insert and remove), never `guardCheck`, whose
-  allowlist is the _append_ commands' predicted findings written as a constant, not a general safety
-  property. `add-adr` keeps `acceptance-criteria` a requirement's last key (the list goes before it)
-  — `blocks.ts` depends on that, and so does a requirement tombstone. Changing a contract
-  (`exposes`) is not implemented and must not be stubbed: it reaches every composite `yamlet impact`
-  lists.
+  requirement keeps its criteria as tombstones), `replace` is `rm` plus a new criterion appended to
+  the same requirement under the next number, in one guarded step, and only a requirement's
+  `description` — prose no test binds to — is rewritten in place. Every projection skips tombstones
+  as behaviour (`isRemoved` in `records.ts`, `Block.removed` in `blocks.ts`); `tests` lists them
+  under `removed` in the manifest, `docs` keeps their anchors, `trace` keeps them as nodes, the tech
+  spec index omits them. Every other mutation refuses a tombstone. All of these go through
+  `strictGuard` ("the resulting findings must be a subset of the pre-existing ones plus the ones
+  this command predicts", keyed on `(rule, message)` rather than on path, since indices shift under
+  insert and remove), never `guardCheck`, whose allowlist is the _append_ commands' predicted
+  findings written as a constant, not a general safety property. `add-adr` keeps
+  `acceptance-criteria` a requirement's last key (the list goes before it) — `blocks.ts` depends on
+  that, and so does a requirement tombstone. Changing a contract (`exposes`) is not implemented and
+  must not be stubbed: it reaches every composite `yamlet impact` lists.
 - A **tech spec** is derived and disposable; it is rewritten whole from a parsed model on every
   mutation (no line splicing, no ids of its own except `T-N`), and every `RQ-N`/`AC-N` in it is
   checked against the spec it sits under. One tech spec plans one change across every spec it

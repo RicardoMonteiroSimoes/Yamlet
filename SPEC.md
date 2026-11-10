@@ -440,14 +440,20 @@ becomes a **tombstone** — its id, why it went, and what took its place:
   description: >-
     A requested plain e-mail is never silently lost
   acceptance-criteria:
-  - id: AC-3
-    removed: undeliverable after 48 hours now, not 24
-    replaced_by: AC-3a
-  - id: AC-3a
+  - id: AC-2
     pattern: unwanted
-    if: the e-mail to {input.recipient} is still undelivered 48 hours after the request
+    if: the e-mail to {input.recipient} cannot be delivered right away
+    shall:
+    - deliver the e-mail to {input.recipient} within 24 hours of the request
+  - id: AC-3
+    removed: the caller is now told when an e-mail is undeliverable
+    replaced_by: AC-4
+  - id: AC-4
+    pattern: unwanted
+    if: the e-mail to {input.recipient} is still undelivered 24 hours after the request
     shall:
     - mark the e-mail to {input.recipient} as undeliverable
+    - tell the caller the e-mail to {input.recipient} is undeliverable
 ```
 
 | field | meaning | constraint | enforced by |
@@ -473,9 +479,9 @@ still resolves. The cost is that a spec carries a line of history per removal; t
 is the price of an id meaning one thing for ever.
 
 **A changed obligation is a new obligation.** What a criterion obliges is never
-rewritten under its id. `yamlet replace` tombstones it and writes the new criterion
-in its place under a fresh id — `AC-3a`, the next free letter on its number, as an
-insertion after it would take. Nothing carries over: stored state is declared
+rewritten under its id. `yamlet replace` tombstones it where it stands and appends
+the new criterion to the same requirement under the next number, exactly as
+`add-criterion` would append it. Nothing carries over: stored state is declared
 again, and a criterion-level `adrs` link is not copied (the decision was made for
 the old obligation; the warning names it, and `add-adr` links it again if it still
 decides the new one). A requirement's `description` is prose no test binds to, so
@@ -487,8 +493,13 @@ tombstone and lists it in the manifest under `removed` (feature → `AC-N` → `
 `replaced_by`), so a step definition still bound to it can be found. `yamlet docs`
 renders it as one struck-through line under its anchor, so a link to it lands. The
 tech spec does not know it: a removed criterion has no verdict and cannot be scoped.
-A decision record may keep pointing at it, but `yamlet adr init --arises-from`
-refuses one — no new decision arises from behaviour that is gone.
+A decision record may keep pointing at it — the reference still resolves — but
+`yamlet adr init --arises-from` refuses one, since no new decision arises from
+behaviour that is gone. A record still in force (`proposed` or `accepted`) whose
+`arises_from` names a tombstone is `W011`: the behaviour it was decided for is gone,
+so an accepted record should be superseded and a proposed one re-pointed or
+rejected. A warning, not an error — whether the decision still holds is a judgement
+— and it never blocks a `yamlet adr` command; each one that lands relays it.
 
 **Not yet supported:** changing a contract (`exposes` inputs and outputs), which
 reaches every composite that consumes the spec. A removal that would leave a contract
@@ -819,7 +830,8 @@ revisit:                             # (E815)
 **What the ids carry.** `ADR-nnnn` is four digits, zero-padded, minted in time
 order, so `assumes` may only point at a lower id and string comparison alone proves
 the graph acyclic. `B-n`, `D-n`, `OPT-n`, `R-n` are minted per record. An accepted
-record may not assume a non-accepted one (`E807`).
+record may not assume a non-accepted one (`E807`). A record in force that arises from
+a [removed](#changing-behaviour--tombstones) block warns (`W011`).
 
 **The lifecycle.** A `proposed` record is a draft and is revised in place:
 `yamlet adr remove` drops a basis, dimension, option or obligation (or a force,
@@ -879,7 +891,7 @@ None at the moment.
 ---
 
 *Shipped since first draft: [tombstones](#changing-behaviour--tombstones) for removed and
-replaced behaviour (`E205`–`E207`); the trigger rule (`E301`–`E303`), [word budgets](#word-budgets--e305)
+replaced behaviour (`E205`–`E207`, `W011`); the trigger rule (`E301`–`E303`), [word budgets](#word-budgets--e305)
 (`E305`), `W006`, `W007`, `W008` and [`W010`](#nothing-to-bind--w010); [`reads` / `writes`](#reads--writes--stored-state) stored
 fields on criteria (`E307`, `E308`, `W009`); [decision records](#decision-records--adryaml)
 (`E801`–`E815`), [`adrs`](#adrs--linking-a-decision) links on requirements and

@@ -106,7 +106,7 @@ yamlet_replace({
 })
 ```
 
-It returns the new id (`AC-3a`: the next free letter on the old number, so it sorts into place). `AC-3` stays as a **tombstone** — its id, `removed:` (the reason) and `replaced_by: AC-3a` — so the id is never minted again. Ask the user for the reason in their own words: readers see it for good.
+It returns the new id — the next number, appended to the same requirement's criteria (`AC-7`). `AC-3` stays where it was as a **tombstone** — its id, `removed:` (the reason) and `replaced_by: AC-7` — so the id is never minted again. Ask the user for the reason in their own words: readers see it for good.
 
 Nothing carries over. Pass the criterion's `reads`/`writes` again if the new obligation still touches them. A criterion-level ADR link is not copied; the `WARNING:` names it — relay it, and link it again with `yamlet_add_adr` only if the user says the decision still decides the new obligation.
 
@@ -147,4 +147,4 @@ When you hit one of these, say which change is blocked, why, and what you did in
 
 Once the change is committed, return to the skill body and run its closing steps: read the file back to the user, **verify**, then **project the tests**.
 
-The test projection matters more after an edit than after a creation: it regenerates the whole tree, so a changed scenario's step definitions may now be orphaned or unbound. A removed or replaced criterion has no scenario any more; `manifest.json` lists it under `removed` with its `replaced_by`, so tell the user which step definitions to move (`AC-3` → `AC-3a`) or delete. Bring the refresh report back to the user and say which scenarios changed.
+The test projection matters more after an edit than after a creation: it regenerates the whole tree, so a changed scenario's step definitions may now be orphaned or unbound. A removed or replaced criterion has no scenario any more; `manifest.json` lists it under `removed` with its `replaced_by`, so tell the user which step definitions to move (`AC-3` → `AC-7`) or delete. Bring the refresh report back to the user and say which scenarios changed.

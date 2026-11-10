@@ -405,11 +405,15 @@ export function isLocator(v: string): boolean {
 /** `text` with every id reference removed, so a numeral check sees only the claim. */
 export const stripIds = (text: string): string => text.replace(ID_TOKENS, "");
 
-/** Apply E801–E815 to an ADR's records. `file` resolves references relative to its directory. */
+/**
+ * Apply E801–E815 and W011 to an ADR's records. `file` resolves references relative
+ * to its directory. Findings carry their severity: a caller gating a write filters
+ * to errors.
+ */
 export function validateAdr(file: string, records: readonly FlatRecord[]): AdrValidation {
   const findings: Finding[] = [];
   const finding = (rule: string, line: number, path: string, message: string): void => {
-    findings.push({ rule, severity: "error", line, path, message });
+    findings.push({ rule, severity: rule[0] === "W" ? "warning" : "error", line, path, message });
   };
   const lineOf = (p: string): number => recordAt(records, p)?.line ?? 0;
   const dir = dirname(file);
@@ -567,8 +571,23 @@ export function validateAdr(file: string, records: readonly FlatRecord[]): AdrVa
       finding("E807", r.line, r.path, `arises_from spec does not parse: ${specPath}`);
       continue;
     }
-    if (!blocksOf(text).some((b) => b.id === m[2])) {
+    const block = blocksOf(text).find((b) => b.id === m[2]);
+    if (block === undefined) {
       finding("E807", r.line, r.path, `${m[1]} declares no ${m[2]}`);
+    } else if (block.removed && (a.status === "proposed" || a.status === "accepted")) {
+      // W011: the reference still resolves — a tombstone keeps the id — but the
+      // behaviour this decision was made for is gone. A record in force should be
+      // superseded (or, while proposed, rejected) once its reason no longer holds.
+      const by = block.replacedBy ? `, replaced by ${block.replacedBy}` : "";
+      finding(
+        "W011",
+        r.line,
+        r.path,
+        `arises from ${m[1]}#${m[2]}, which is removed (${block.removed.trim()}${by}); ` +
+          (a.status === "accepted"
+            ? "supersede this record if the decision no longer holds"
+            : "re-point or reject this record before accepting it"),
+      );
     }
   }
   for (const r of assumes) {

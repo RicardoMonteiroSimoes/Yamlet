@@ -1196,7 +1196,7 @@ export default function (pi: ExtensionAPI) {
 		label: "yamlet replace",
 		description:
 			"Change what ONE criterion obliges: it becomes a tombstone (`reason`, replaced_by the new id) and " +
-			"the new criterion takes its place under a fresh id (AC-5 -> AC-5a), returned. Same criterion " +
+			"the new criterion is appended to the same requirement under the next number, returned. Same criterion " +
 			"fields and rules as yamlet_add_criterion. Nothing carries over: reads/writes are declared again, " +
 			"a criterion-level ADR link is not copied.",
 		promptSnippet: "Replace a criterion's obligation under a new id (returns it)",

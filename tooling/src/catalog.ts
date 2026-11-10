@@ -451,6 +451,12 @@ export const CATALOG: Rule[] = [
     description:
       "a criterion references no {input.X}, {output.X} or {alias.socket} and declares no reads/writes (nothing for a test to bind)",
   },
+  {
+    id: "W011",
+    severity: "warning",
+    description:
+      "a proposed or accepted ADR arises from a removed requirement or criterion (a tombstone): the behaviour it was decided for is gone",
+  },
 ];
 
 /** Severity lookup by rule id, mirroring the sh verifier's `catalog_sev`. */
