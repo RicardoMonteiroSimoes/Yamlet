@@ -68,6 +68,8 @@ Commands:
 const OLD_SYSTEMS = (h) => h.replace(/  systems .*\n/, "  systems           list existing systems grouped by their scope files\n");
 // The release before ADR revision (remove, replace, reject --reason): \`adr\` is there, its summary says only "write".
 const OLD_ADR = (h) => h.replace(/  adr .*\n/, "  adr               write a decision record (.adr.yaml), correct by construction\n");
+// The release before the spec edits (set-description, rm, replace): 0.7 has set-header.
+const HELP_0_7 = HELP.replace(/  set-description .*\n/, "").replace(/  rm .*\n/, "").replace(/  replace .*\n/, "");
 // The release before \`set-header\` and the spec edits (set-description, rm, replace).
 const HELP_0_6 = HELP.replace(/  set-header .*\n/, "").replace(/  set-description .*\n/, "")
 	.replace(/  rm .*\n/, "").replace(/  replace .*\n/, "");
@@ -739,6 +741,31 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 	await handlers.session_start({}, ctx);
 	ok("old CLI: names the missing commands",
 		notes[0]?.[0] === "error" && (notes[0]?.[1] ?? "").includes("add-connection") && (notes[0]?.[1] ?? "").includes("tests"), JSON.stringify(notes));
+}
+{
+	// The release before the spec edits must keep loading: one warning naming the
+	// three commands, set-header still runs, and each new tool fails with the
+	// upgrade hint before running.
+	resetNotes();
+	const { handlers, tools, calls } = makePi({ help: HELP_0_7 });
+	await handlers.session_start({}, ctx);
+	ok("0.7 CLI: one startup warning naming set-description/rm/replace",
+		notes.length === 1 && notes[0][0] === "warning" && notes[0][1].includes("no set-description/rm/replace command") &&
+		notes[0][1].includes("spec edits") && !notes[0][1].includes("header edits"), JSON.stringify(notes));
+	const r = await tools.get("yamlet_set_header").execute("id", { file: "a.yamlet.yaml", topic: "t" }, undefined, undefined, ctx);
+	ok("0.7 CLI: yamlet_set_header still runs", r.details.command[1] === "set-header", JSON.stringify(r));
+	for (const [tool, input, cmd] of [
+		["yamlet_set_description", { file: "a.yamlet.yaml", rq: "RQ-1", description: "d" }, "set-description"],
+		["yamlet_rm", { file: "a.yamlet.yaml", rq: "RQ-1", reason: "r" }, "rm"],
+		["yamlet_replace", { file: "a.yamlet.yaml", ac: "AC-1", reason: "r", pattern: "unwanted", if: "i", shall: ["s"] }, "replace"],
+	]) {
+		const before = calls.length;
+		let m = "";
+		try { await tools.get(tool).execute("id", input, undefined, undefined, ctx); } catch (e) { m = e.message; }
+		ok(`0.7 CLI: ${tool} fails with the upgrade hint, before running`,
+			m.includes(`needs: ${cmd}.`) && m.includes("brew upgrade yamlet") &&
+			!calls.slice(before).some((c) => c[1] === cmd), m || JSON.stringify(calls.slice(before)));
+	}
 }
 {
 	// The release before \`set-header\` must keep loading: one warning naming it, and
